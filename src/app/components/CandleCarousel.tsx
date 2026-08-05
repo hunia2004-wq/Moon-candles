@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/lib/supabase/types";
 
@@ -11,8 +12,13 @@ export default function CandleCarousel({ candles }: { candles: Product[] }) {
   const [offset, setOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const dragState = useRef({ startX: 0, startOffset: 0, dragging: false, moved: false });
   const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   if (candles.length === 0) {
     return <p className="text-zinc-500">No candles available yet.</p>;
@@ -54,6 +60,93 @@ export default function CandleCarousel({ candles }: { candles: Product[] }) {
   }
 
   const coverImage = active.image_urls?.[0] ?? active.colors?.[0]?.image_url;
+
+  const overlay = (
+    <div
+      className="fixed inset-0 z-[999] overflow-y-auto"
+      style={{ backgroundColor: "#5E3A4D" }}
+    >
+      <button
+        onClick={() => setExpanded(false)}
+        className="fixed top-6 right-6 text-2xl text-white z-20"
+        aria-label="Close"
+      >
+        ✕
+      </button>
+
+      <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col-reverse items-center gap-10 px-6 py-20 md:flex-row md:items-center md:justify-between md:gap-8 md:px-16">
+        {/* Text panel */}
+        <div className="z-10 w-full max-w-md text-white md:w-1/2">
+          <h3 className="text-3xl font-bold uppercase leading-tight tracking-wide md:text-4xl">
+            {active.name}
+          </h3>
+
+          {active.size_ml && (
+            <p className="mt-2 text-xs uppercase tracking-wide text-white/50">
+              {active.size_ml} ml
+            </p>
+          )}
+
+          {active.scents?.length > 0 && (
+            <div className="mt-5">
+              <p className="mb-2 text-xs uppercase tracking-wide text-white/50">
+                Available scents
+              </p>
+              <div className="max-h-40 overflow-y-auto pr-2">
+                <p className="text-sm leading-relaxed text-white/80">
+                  {active.scents.join(" · ")}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {active.colors?.length > 0 && (
+            <div className="mt-5">
+              <p className="mb-2 text-xs uppercase tracking-wide text-white/50">
+                Colors
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {active.colors.map((color) => (
+                  <span
+                    key={color.name}
+                    title={color.name}
+                    className="h-7 w-7 flex-shrink-0 rounded-full border border-white/30"
+                    style={{ backgroundColor: color.hex ?? "#888" }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          <p className="mt-6 text-2xl font-semibold">{active.price} EGP</p>
+
+          <button
+            onClick={() => router.push(`/product/${active.id}`)}
+            className="mt-8 rounded-full px-8 py-3 font-medium"
+            style={{ backgroundColor: "#F4E1D2", color: "#5E3A4D" }}
+          >
+            View Product
+          </button>
+        </div>
+
+        {/* Image */}
+        <div className="relative flex w-full items-center justify-center md:w-1/2">
+          <div
+            className="absolute h-[380px] w-[380px] rounded-full opacity-40 blur-3xl md:h-[500px] md:w-[500px]"
+            style={{ background: "radial-gradient(circle, #C77486, transparent 70%)" }}
+          />
+          {coverImage && (
+            <img
+              src={coverImage}
+              alt={active.name}
+              draggable={false}
+              className="relative h-[300px] object-contain md:h-[70vh]"
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col items-center gap-8 py-16">
@@ -106,67 +199,7 @@ export default function CandleCarousel({ candles }: { candles: Product[] }) {
 
       {!expanded && <h3 className="text-xl font-semibold">{active.name}</h3>}
 
-    {expanded && (
-  <div
-    className="fixed inset-0 z-[999] flex items-center"
-    style={{ backgroundColor: "#5E3A4D" }}
-  >
-          <button
-            onClick={() => setExpanded(false)}
-            className="absolute top-6 right-6 text-2xl text-white z-10"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-
-          <div className="relative z-10 max-w-sm px-16 text-white">
-            <h3 className="text-4xl font-bold uppercase tracking-wide">{active.name}</h3>
-            {active.size_ml && (
-              <p className="mt-1 text-xs uppercase text-zinc-500">{active.size_ml} ml</p>
-            )}
-            <p className="mt-2 text-sm uppercase text-zinc-400">
-              {active.scents?.join(" · ")}
-            </p>
-
-            {active.colors?.length > 0 && (
-              <div className="mt-4 flex gap-2">
-                {active.colors.map((color) => (
-                  <span
-                    key={color.name}
-                    title={color.name}
-                    className="h-6 w-6 rounded-full border border-white/30 overflow-hidden"
-                    style={{ backgroundColor: color.hex ?? "#888" }}
-                  />
-                ))}
-              </div>
-            )}
-
-            <p className="mt-6 text-2xl font-semibold">{active.price} EGP</p>
-            <button
-  onClick={() => router.push(`/product/${active.id}`)}
-  className="mt-8 rounded-full px-8 py-3 font-medium"
-  style={{ backgroundColor: "#F4E1D2", color: "#5E3A4D" }}
->
-  View Product
-</button>
-          </div>
-
-          <div className="absolute right-0 top-0 flex h-full w-2/3 items-center justify-center">
-           <div
-  className="absolute h-[500px] w-[500px] rounded-full opacity-40 blur-3xl"
-  style={{ background: "radial-gradient(circle, #C77486, transparent 70%)" }}
-/>
-            {coverImage && (
-              <img
-                src={coverImage}
-                alt={active.name}
-                draggable={false}
-                className="relative h-[80%] object-contain"
-              />
-            )}
-          </div>
-        </div>
-      )}
+      {expanded && mounted && createPortal(overlay, document.body)}
     </div>
   );
 }
