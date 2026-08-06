@@ -28,19 +28,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <header
-          className="sticky top-0 z-50 flex items-center justify-between px-8 py-5"
-          style={{ backgroundColor: "#c77486" }}
-        >
-          <HamburgerMenu />
-
-          <p className="text-xl font-semibold tracking-wide" style={{ color: "#5e3a4d" }}>
-            Moon Candles
-          </p>
-
-          <Link href="/cart" aria-label="Cart">
-            <ShoppingCart size={22} style={{ color: "#5e3a4d" }} />
-          </Link>
-        </header>
+  className="sticky top-0 z-50 flex items-center justify-between px-4 py-4 md:px-8 md:py-5"
+  style={{ backgroundColor: "#c77486" }}
+>
+  <HamburgerMenu />
+  <p className="text-base font-semibold tracking-wide md:text-xl" style={{ color: "#5e3a4d" }}>
+    Moon Candles
+  </p>
+  <Link href="/cart" aria-label="Cart">
+    <ShoppingCart size={20} style={{ color: "#5e3a4d" }} />
+  </Link>
+</header>
         {children}
       </body>
     </html>
