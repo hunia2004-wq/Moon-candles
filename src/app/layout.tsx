@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
+import HamburgerMenu from "./components/HamburgerMenu";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,25 +27,22 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-         <header
-  className="sticky top-0 z-50 flex items-center justify-between px-8 py-5"
-  style={{ backgroundColor: "#c77486" }}
->
-  <p className="text-xl font-semibold tracking-wide" style={{ color: "#5e3a4d" }}>
-    Moon Candles
-  </p>
+        <header
+          className="sticky top-0 z-50 flex items-center justify-between px-8 py-5"
+          style={{ backgroundColor: "#c77486" }}
+        >
+          <HamburgerMenu />
 
-  <nav className="absolute left-1/2 -translate-x-1/2 flex gap-8 text-sm font-medium uppercase tracking-wide">
-    <Link href="/" style={{ color: "#5e3a4d" }}>Home</Link>
-    <Link href="/shop" style={{ color: "#5e3a4d" }}>Shop</Link>
-    <Link href="/admin" style={{ color: "#5e3a4d" }}>Admin</Link>
-  </nav>
+          <p className="text-xl font-semibold tracking-wide" style={{ color: "#5e3a4d" }}>
+            Moon Candles
+          </p>
 
-  <Link href="/cart" aria-label="Cart">
-    <ShoppingCart size={22} style={{ color: "#5e3a4d" }} />
-  </Link>
-</header>
-        {children}</body>
+          <Link href="/cart" aria-label="Cart">
+            <ShoppingCart size={22} style={{ color: "#5e3a4d" }} />
+          </Link>
+        </header>
+        {children}
+      </body>
     </html>
   );
 }

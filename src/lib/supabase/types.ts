@@ -11,3 +11,13 @@ export type Product = {
   is_featured: boolean;
   size_ml: number | null;
 };
+export type CarouselCandle = {
+  productId: number;
+  colorName: string;
+  name: string;
+  description: string | null;
+  price: number;
+  size_ml: number | null;
+  scents: string[];
+  image: string | null;
+};

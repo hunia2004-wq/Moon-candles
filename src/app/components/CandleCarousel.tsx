@@ -3,12 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import type { Product } from "@/lib/supabase/types";
+import type { CarouselCandle } from "@/lib/supabase/types";
 
 const RADIUS = 420;
 const ANGLE_STEP = 25;
 
-export default function CandleCarousel({ candles }: { candles: Product[] }) {
+export default function CandleCarousel({ candles }: { candles: CarouselCandle[] }) {
   const [offset, setOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -59,8 +59,6 @@ export default function CandleCarousel({ candles }: { candles: Product[] }) {
     }
   }
 
-  const coverImage = active.image_urls?.[0] ?? active.colors?.[0]?.image_url;
-
   const overlay = (
     <div
       className="fixed inset-0 z-[999] overflow-y-auto"
@@ -80,10 +78,19 @@ export default function CandleCarousel({ candles }: { candles: Product[] }) {
           <h3 className="text-3xl font-bold uppercase leading-tight tracking-wide md:text-4xl">
             {active.name}
           </h3>
+          <p className="mt-1 text-sm uppercase tracking-wide text-white/60">
+            {active.colorName}
+          </p>
 
           {active.size_ml && (
             <p className="mt-2 text-xs uppercase tracking-wide text-white/50">
               {active.size_ml} ml
+            </p>
+          )}
+
+          {active.description && (
+            <p className="mt-4 text-sm leading-relaxed text-white/80">
+              {active.description}
             </p>
           )}
 
@@ -100,28 +107,10 @@ export default function CandleCarousel({ candles }: { candles: Product[] }) {
             </div>
           )}
 
-          {active.colors?.length > 0 && (
-            <div className="mt-5">
-              <p className="mb-2 text-xs uppercase tracking-wide text-white/50">
-                Colors
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {active.colors.map((color) => (
-                  <span
-                    key={color.name}
-                    title={color.name}
-                    className="h-7 w-7 flex-shrink-0 rounded-full border border-white/30"
-                    style={{ backgroundColor: color.hex ?? "#888" }}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
           <p className="mt-6 text-2xl font-semibold">{active.price} EGP</p>
 
           <button
-            onClick={() => router.push(`/product/${active.id}`)}
+            onClick={() => router.push(`/product/${active.productId}?color=${encodeURIComponent(active.colorName)}`)}
             className="mt-8 rounded-full px-8 py-3 font-medium"
             style={{ backgroundColor: "#F4E1D2", color: "#5E3A4D" }}
           >
@@ -135,10 +124,10 @@ export default function CandleCarousel({ candles }: { candles: Product[] }) {
             className="absolute h-[380px] w-[380px] rounded-full opacity-40 blur-3xl md:h-[500px] md:w-[500px]"
             style={{ background: "radial-gradient(circle, #C77486, transparent 70%)" }}
           />
-          {coverImage && (
+          {active.image && (
             <img
-              src={coverImage}
-              alt={active.name}
+              src={active.image}
+              alt={`${active.name} - ${active.colorName}`}
               draggable={false}
               className="relative h-[300px] object-contain md:h-[70vh]"
             />
@@ -149,9 +138,9 @@ export default function CandleCarousel({ candles }: { candles: Product[] }) {
   );
 
   return (
-    <div className="flex flex-col items-center gap-8 py-16">
+    <div className="flex flex-col items-center gap-4 py-0">
       <div
-        className="relative h-[600px] w-full max-w-4xl"
+        className="relative h-[420px] w-full max-w-4xl"
         style={{ perspective: "1000px" }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -169,27 +158,24 @@ export default function CandleCarousel({ candles }: { candles: Product[] }) {
           const baseScale = 1 - Math.min(Math.abs(relative) * 0.15, 0.5);
           const scale = isActive && expanded ? baseScale * 1.2 : baseScale;
           const opacity = 1 - Math.min(Math.abs(relative) * 0.3, 0.7);
-          const thumbnail = candle.image_urls?.[0] ?? candle.colors?.[0]?.image_url;
 
           return (
             <div
-              key={candle.id}
+              key={candle.colorName}
               onClick={() => handleCandleClick(index)}
-              className={`absolute left-1/2 top-1/2 h-96 w-64 cursor-pointer select-none rounded-lg bg-zinc-200 dark:bg-zinc-800 ${
-                isDragging ? "" : "transition-transform duration-200"
-              }`}
+              className="absolute left-1/2 top-1/2 h-96 w-64 cursor-pointer select-none rounded-lg bg-white"
               style={{
                 transform: `translate(-50%, -50%) translateX(${x}px) rotateY(${-angle}deg) scale(${scale})`,
                 opacity,
                 zIndex: isActive ? 200 : 100 - Math.round(Math.abs(relative) * 10),
               }}
             >
-              {thumbnail && (
+              {candle.image && (
                 <img
-                  src={thumbnail}
-                  alt={candle.name}
+                  src={candle.image}
+                  alt={`${candle.name} - ${candle.colorName}`}
                   draggable={false}
-                  className="h-full w-full object-cover rounded-lg"
+                  className="h-full w-full object-contain rounded-lg"
                 />
               )}
             </div>
@@ -197,7 +183,11 @@ export default function CandleCarousel({ candles }: { candles: Product[] }) {
         })}
       </div>
 
-      {!expanded && <h3 className="text-xl font-semibold">{active.name}</h3>}
+      {!expanded && (
+        <h3 className="text-xl font-semibold">
+          {active.name} — {active.colorName}
+        </h3>
+      )}
 
       {expanded && mounted && createPortal(overlay, document.body)}
     </div>
