@@ -67,7 +67,16 @@ export default async function Home() {
       </div>
     </div>
   </RevealOnScroll>
-  {/* ...rest stays the same */}
+
+  <RevealOnScroll>
+    <div className="w-full flex justify-center">
+      <CandleCarousel candles={candles} />
+    </div>
+  </RevealOnScroll>
+
+  <div>
+    <h2>footer</h2>
+  </div>
 </main>
     </div>
   );
