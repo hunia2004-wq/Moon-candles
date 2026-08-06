@@ -19,7 +19,7 @@ export default async function Shop() {
         background: "linear-gradient(to bottom, #C77486 0%, #F4E1D2 40%, #F4E1D2 100%)",
       }}
     >
-      <main className="w-full max-w-4xl px-6 py-16 md:px-16">
+      <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6 md:px-16 md:py-16">
         <h1
           className="mb-10 text-3xl font-bold tracking-wide"
           style={{ color: "#5E3A4D" }}

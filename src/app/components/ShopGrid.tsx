@@ -23,7 +23,7 @@ export default function ShopGrid({ products }: { products: Product[] }) {
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:gap-8">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:gap-8">
       {products.map((product) => {
         const cover = product.image_urls?.[0] ?? product.colors?.[0]?.image_url;
         const isTarget = product.name === targetProduct;
