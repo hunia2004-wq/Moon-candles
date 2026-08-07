@@ -198,3 +198,4 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
     </div>
   );
 }
+
