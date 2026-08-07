@@ -25,3 +25,20 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+@keyframes float-rotate {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-10px) rotate(3deg);
+  }
+
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+
+.animate-float-rotate {
+  animation: float-rotate 4s ease-in-out infinite;
+}

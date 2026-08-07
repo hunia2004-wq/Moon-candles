@@ -69,7 +69,7 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
   const overlay = (
     <div
       className="fixed inset-0 z-[999] overflow-y-auto"
-      style={{ backgroundColor: "#556B2F" }}
+      style={{ backgroundColor: "#6E86C7" }}
     >
       <button
         onClick={() => setExpanded(false)}
@@ -79,8 +79,48 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
         ✕
       </button>
 
-      <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col-reverse items-center gap-10 px-6 py-20 md:flex-row md:items-center md:justify-between md:gap-8 md:px-16">
-        <div className="z-10 w-full max-w-md text-white md:w-1/2">
+      <div className="mx-auto grid min-h-full w-full max-w-6xl grid-cols-1 items-center gap-8 px-6 py-20 md:grid-cols-[140px_1fr_1fr] md:gap-10 md:px-16">
+        {/* Left: color swatches (thumbnails of each candle variant) */}
+        <div className="order-2 flex flex-row flex-wrap justify-center gap-2 md:order-1 md:flex-col md:justify-start">
+          {candles.map((candle, index) => (
+            <button
+              key={candle.colorName}
+              onClick={() => setOffset(index)}
+              title={candle.colorName}
+              className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-full border-2 bg-white/10"
+              style={{
+                borderColor: index === activeIndex ? "#FFF4E6" : "transparent",
+              }}
+            >
+              {candle.image && (
+                <img
+                  src={candle.image}
+                  alt={candle.colorName}
+                  className="h-full w-full object-cover"
+                />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Center: image */}
+        <div className="order-1 flex w-full items-center justify-center md:order-2">
+          <div
+            className="absolute h-[300px] w-[300px] rounded-full opacity-40 blur-3xl md:h-[420px] md:w-[420px]"
+            style={{ background: "radial-gradient(circle, #FF5A36, transparent 70%)" }}
+          />
+          {active.image && (
+            <img
+              src={active.image}
+              alt={`${active.name} - ${active.colorName}`}
+              draggable={false}
+              className="relative h-[280px] object-contain md:h-[60vh] animate-float-rotate"
+            />
+          )}
+        </div>
+
+        {/* Right: details */}
+        <div className="order-3 w-full max-w-md text-white md:order-3">
           <h3 className="text-3xl font-bold uppercase leading-tight tracking-wide md:text-4xl">
             {active.name}
           </h3>
@@ -94,49 +134,15 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
             </p>
           )}
 
-          {active.description && (
-            <p className="mt-4 text-sm leading-relaxed text-white/80">
-              {active.description}
-            </p>
-          )}
-
-          {active.scents?.length > 0 && (
-            <div className="mt-5">
-              <p className="mb-2 text-xs uppercase tracking-wide text-white/50">
-                Available scents
-              </p>
-              <div className="max-h-40 overflow-y-auto pr-2">
-                <p className="text-sm leading-relaxed text-white/80">
-                  {active.scents.join(" · ")}
-                </p>
-              </div>
-            </div>
-          )}
-
           <p className="mt-6 text-2xl font-semibold">{active.price} EGP</p>
 
           <button
             onClick={() => router.push(`/product/${active.productId}?color=${encodeURIComponent(active.colorName)}`)}
             className="mt-8 rounded-full px-8 py-3 font-medium"
-            style={{ backgroundColor: "#FF5A36", color: "#FFFFFF" }}
+            style={{ backgroundColor: "#FFF4E6", color: "#35241C" }}
           >
             View Product
           </button>
-        </div>
-
-        <div className="relative flex w-full items-center justify-center md:w-1/2">
-          <div
-            className="absolute h-[380px] w-[380px] rounded-full opacity-40 blur-3xl md:h-[500px] md:w-[500px]"
-            style={{ background: "radial-gradient(circle, #FF5A36, transparent 70%)" }}
-          />
-          {active.image && (
-            <img
-              src={active.image}
-              alt={`${active.name} - ${active.colorName}`}
-              draggable={false}
-              className="relative h-[300px] object-contain md:h-[70vh]"
-            />
-          )}
         </div>
       </div>
     </div>
@@ -198,4 +204,3 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
     </div>
   );
 }
-
