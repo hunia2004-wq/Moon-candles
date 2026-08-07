@@ -2,6 +2,7 @@ import CandleCarousel from "./components/CandleCarousel";
 import { createClient } from "@/lib/supabase/server";
 import RevealOnScroll from "./components/RevealOnScroll";
 import type { CarouselCandle } from "@/lib/supabase/types";
+import MeltballSection from "./components/MeltballSection";
 
 const STRIPE_COUNT = 21;
 
@@ -54,6 +55,7 @@ export default async function Home() {
             <CandleCarousel candles={candles} />
           </div>
         </RevealOnScroll>
+        <MeltballSection />
 
         <div>
           <h2 className="font-bold" style={{ color: "#000000" }}>footer</h2>
