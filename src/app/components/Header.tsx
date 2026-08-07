@@ -1,40 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import HamburgerMenu from "./HamburgerMenu";
 
 export default function Header() {
-  const [scrolled, setScrolled] = useState(false);
-
-  useEffect(() => {
-    function onScroll() {
-      setScrolled(window.scrollY > 10);
-    }
-    onScroll();
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
   return (
     <header
-      className="sticky top-0 z-50 flex items-center justify-between px-4 py-4 md:px-8 md:py-5 transition-all duration-300"
-      style={{
-        backgroundImage: scrolled
-          ? "none"
-          : "repeating-linear-gradient(90deg, #FF6B3D 0%, #FF6B3D 50%, #F56CB3 50%, #F56CB3 100%)",
-        backgroundSize: "5% 100%",
-        backgroundColor: "#FFF4E6",
-      }}
+      className="sticky top-0 z-50 flex items-center justify-between px-4 h-20 md:h-24 relative overflow-visible"
+      style={{ backgroundColor: "#EFE3C4" }}
     >
       <HamburgerMenu />
-      <p
-        className="text-base font-bold tracking-wide md:text-xl"
-        style={{ color: "#000000" }}
+      <Link
+        href="/"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center z-10"
       >
-        Moon Candles
-      </p>
+        <img
+          src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/logo.png"
+          alt="Moon Candles"
+          className="h-32 w-auto md:h-70"
+        />
+      </Link>
       <Link href="/cart" aria-label="Cart">
         <ShoppingCart size={20} style={{ color: "#000000" }} />
       </Link>
