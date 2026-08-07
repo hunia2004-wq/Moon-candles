@@ -36,7 +36,7 @@ export default function HamburgerMenu() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Open menu"
-        style={{ color: "#5e3a4d" }}
+        style={{ color: "#000000" }}
       >
         <Menu size={24} />
       </button>
@@ -53,17 +53,17 @@ export default function HamburgerMenu() {
           {/* Panel */}
           <div
             className="flex h-full w-full max-w-sm flex-col overflow-y-auto px-6 py-6"
-            style={{ backgroundColor: "#F4E1D2" }}
+            style={{ backgroundColor: "#FFF4E6" }}
           >
             <div className="flex items-center justify-between">
               <p
-                className="text-lg font-semibold tracking-wide"
-                style={{ color: "#5e3a4d" }}
+                className="text-lg font-bold tracking-wide"
+                style={{ color: "#000000" }}
               >
                 Moon Candles
               </p>
               <button onClick={closeAll} aria-label="Close menu">
-                <X size={24} style={{ color: "#5e3a4d" }} />
+                <X size={24} style={{ color: "#000000" }} />
               </button>
             </div>
 
@@ -72,18 +72,18 @@ export default function HamburgerMenu() {
                 href="/"
                 onClick={closeAll}
                 className="py-3"
-                style={{ color: "#5e3a4d" }}
+                style={{ color: "#000000" }}
               >
                 Home
               </Link>
 
               {/* Shop All */}
-              <div className="border-t" style={{ borderColor: "#c77486" }}>
+              <div className="border-t" style={{ borderColor: "#FFD6B8" }}>
                 <div className="flex items-center justify-between py-3">
                   <Link
                     href="/shop"
                     onClick={closeAll}
-                    style={{ color: "#5e3a4d" }}
+                    style={{ color: "#000000" }}
                   >
                     Shop All
                   </Link>
@@ -94,7 +94,7 @@ export default function HamburgerMenu() {
                     <ChevronDown
                       size={18}
                       style={{
-                        color: "#5e3a4d",
+                        color: "#000000",
                         transform: shopOpen ? "rotate(180deg)" : "none",
                         transition: "transform 0.2s",
                       }}
@@ -110,7 +110,7 @@ export default function HamburgerMenu() {
                         href={`/product/by-name/${encodeURIComponent(item.name)}`}
                         onClick={closeAll}
                         className="py-1.5"
-                        style={{ color: "#5e3a4d", opacity: 0.85 }}
+                        style={{ color: "#000000" }}
                       >
                         {item.name}
                       </Link>
@@ -120,9 +120,9 @@ export default function HamburgerMenu() {
               </div>
 
               {/* Giveaways */}
-              <div className="border-t" style={{ borderColor: "#c77486" }}>
+              <div className="border-t" style={{ borderColor: "#FFD6B8" }}>
                 <div className="flex items-center justify-between py-3">
-                  <span style={{ color: "#5e3a4d" }}>Giveaways</span>
+                  <span style={{ color: "#000000" }}>Giveaways</span>
                   <button
                     onClick={() => setGiveawaysOpen((prev) => !prev)}
                     aria-label="Toggle giveaways"
@@ -130,7 +130,7 @@ export default function HamburgerMenu() {
                     <ChevronDown
                       size={18}
                       style={{
-                        color: "#5e3a4d",
+                        color: "#000000",
                         transform: giveawaysOpen ? "rotate(180deg)" : "none",
                         transition: "transform 0.2s",
                       }}
@@ -144,7 +144,7 @@ export default function HamburgerMenu() {
                       <span
                         key={item.slug}
                         className="py-1.5"
-                        style={{ color: "#5e3a4d", opacity: 0.85 }}
+                        style={{ color: "#000000" }}
                       >
                         {item.name}
                       </span>
@@ -155,7 +155,7 @@ export default function HamburgerMenu() {
 
               <div
                 className="border-t py-3"
-                style={{ borderColor: "#c77486", color: "#5e3a4d" }}
+                style={{ borderColor: "#FFD6B8", color: "#000000" }}
               >
                 Customize Your Own
               </div>
@@ -164,7 +164,7 @@ export default function HamburgerMenu() {
                 href="/about"
                 onClick={closeAll}
                 className="border-t py-3"
-                style={{ borderColor: "#c77486", color: "#5e3a4d" }}
+                style={{ borderColor: "#FFD6B8", color: "#000000" }}
               >
                 About Us
               </Link>

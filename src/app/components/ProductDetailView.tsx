@@ -23,8 +23,6 @@ export default function ProductDetailView({ product }: { product: Product }) {
   const hasColors = product.colors?.length > 0;
   const selectedColor = product.colors?.[selectedColorIndex];
 
-  // When the product has colors, the color's own photo drives the main image.
-  // When it doesn't, fall back to a browsable gallery of image_urls.
   const gallery = product.image_urls?.length > 0 ? product.image_urls : [];
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
@@ -36,13 +34,16 @@ export default function ProductDetailView({ product }: { product: Product }) {
     <div
       className="flex flex-1 flex-col items-center font-sans"
       style={{
-        background: "linear-gradient(to bottom, #C77486 0%, #F4E1D2 40%, #F4E1D2 100%)",
+        backgroundColor: "#FFF4E6",
       }}
     >
       <main className="flex w-full max-w-5xl flex-col gap-10 px-6 py-16 md:flex-row md:px-16">
         {/* Image */}
         <div className="flex w-full flex-col items-center gap-3 md:w-1/2">
-          <div className="flex aspect-square w-full max-w-md items-center justify-center rounded-2xl bg-white p-6">
+          <div
+            className="flex aspect-square w-full max-w-md items-center justify-center rounded-2xl bg-white p-6"
+            style={{ boxShadow: "0 4px 16px rgba(255,214,184,0.25)" }}
+          >
             {displayImage && (
               <img
                 src={displayImage}
@@ -52,7 +53,6 @@ export default function ProductDetailView({ product }: { product: Product }) {
             )}
           </div>
 
-          {/* Thumbnail gallery — only relevant when there's no color-driven image and multiple photos exist */}
           {!hasColors && gallery.length > 1 && (
             <div className="flex gap-2">
               {gallery.map((url, index) => (
@@ -61,7 +61,7 @@ export default function ProductDetailView({ product }: { product: Product }) {
                   onClick={() => setSelectedImageIndex(index)}
                   className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 bg-white"
                   style={{
-                    borderColor: index === selectedImageIndex ? "#5E3A4D" : "transparent",
+                    borderColor: index === selectedImageIndex ? "#FF5A36" : "#FFD6B8",
                   }}
                 >
                   <img
@@ -79,31 +79,31 @@ export default function ProductDetailView({ product }: { product: Product }) {
         <div className="flex w-full flex-col md:w-1/2">
           <h1
             className="text-3xl font-bold uppercase tracking-wide md:text-4xl"
-            style={{ color: "#5E3A4D" }}
+            style={{ color: "#000000" }}
           >
             {product.name}
           </h1>
 
           {product.size_ml && (
-            <p className="mt-2 text-xs uppercase tracking-wide" style={{ color: "#5E3A4D", opacity: 0.6 }}>
+            <p className="mt-2 text-xs uppercase tracking-wide" style={{ color: "#000000" }}>
               {product.size_ml} ml
             </p>
           )}
 
           {product.description && (
-            <p className="mt-4 text-sm leading-relaxed" style={{ color: "#5E3A4D", opacity: 0.85 }}>
+            <p className="mt-4 text-sm leading-relaxed" style={{ color: "#000000" }}>
               {product.description}
             </p>
           )}
 
-          <p className="mt-6 text-2xl font-semibold" style={{ color: "#5E3A4D" }}>
+          <p className="mt-6 text-2xl font-semibold" style={{ color: "#000000" }}>
             {product.price} EGP
           </p>
 
           {/* Colors */}
           {hasColors && (
             <div className="mt-6">
-              <p className="mb-2 text-xs uppercase tracking-wide" style={{ color: "#5E3A4D", opacity: 0.6 }}>
+              <p className="mb-2 text-xs uppercase tracking-wide" style={{ color: "#000000" }}>
                 Color: {selectedColor?.name}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -114,7 +114,7 @@ export default function ProductDetailView({ product }: { product: Product }) {
                     title={color.name}
                     className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full border-2"
                     style={{
-                      borderColor: index === selectedColorIndex ? "#5E3A4D" : "transparent",
+                      borderColor: index === selectedColorIndex ? "#FF5A36" : "transparent",
                       backgroundColor: color.hex ?? "#ccc",
                     }}
                   >
@@ -134,7 +134,7 @@ export default function ProductDetailView({ product }: { product: Product }) {
           {/* Scents */}
           {product.scents?.length > 0 && (
             <div className="mt-6">
-              <p className="mb-2 text-xs uppercase tracking-wide" style={{ color: "#5E3A4D", opacity: 0.6 }}>
+              <p className="mb-2 text-xs uppercase tracking-wide" style={{ color: "#000000" }}>
                 Scent: {selectedScent}
               </p>
               <div className="flex flex-wrap gap-2">
@@ -142,10 +142,11 @@ export default function ProductDetailView({ product }: { product: Product }) {
                   <button
                     key={scent}
                     onClick={() => setSelectedScent(scent)}
-                    className="rounded-full px-4 py-2 text-xs font-medium uppercase tracking-wide"
+                    className="rounded-full border px-4 py-2 text-xs font-medium uppercase tracking-wide transition-colors"
                     style={{
-                      backgroundColor: scent === selectedScent ? "#5E3A4D" : "#ffffff",
-                      color: scent === selectedScent ? "#F4E1D2" : "#5E3A4D",
+                      backgroundColor: scent === selectedScent ? "#556B2F" : "#FFFFFF",
+                      color: scent === selectedScent ? "#FFF4E6" : "#556B2F",
+                      borderColor: "#556B2F",
                     }}
                   >
                     {scent}
@@ -156,8 +157,10 @@ export default function ProductDetailView({ product }: { product: Product }) {
           )}
 
           <button
-            className="mt-8 rounded-full px-8 py-3 font-medium"
-            style={{ backgroundColor: "#5E3A4D", color: "#F4E1D2" }}
+            className="mt-8 rounded-full px-8 py-3 font-medium transition-colors"
+            style={{ backgroundColor: "#FF5A36", color: "#000000" }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#556B2F")}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#FF5A36")}
           >
             Add to Cart
           </button>

@@ -28,7 +28,7 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
   }, []);
 
   if (candles.length === 0) {
-    return <p className="text-zinc-500">No candles available yet.</p>;
+    return <p style={{ color: "#A6C071" }}>No candles available yet.</p>;
   }
 
   const activeIndex = Math.round(offset + candles.length) % candles.length;
@@ -69,7 +69,7 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
   const overlay = (
     <div
       className="fixed inset-0 z-[999] overflow-y-auto"
-      style={{ backgroundColor: "#5E3A4D" }}
+      style={{ backgroundColor: "#556B2F" }}
     >
       <button
         onClick={() => setExpanded(false)}
@@ -118,7 +118,7 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
           <button
             onClick={() => router.push(`/product/${active.productId}?color=${encodeURIComponent(active.colorName)}`)}
             className="mt-8 rounded-full px-8 py-3 font-medium"
-            style={{ backgroundColor: "#F4E1D2", color: "#5E3A4D" }}
+            style={{ backgroundColor: "#FF5A36", color: "#FFFFFF" }}
           >
             View Product
           </button>
@@ -127,7 +127,7 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
         <div className="relative flex w-full items-center justify-center md:w-1/2">
           <div
             className="absolute h-[380px] w-[380px] rounded-full opacity-40 blur-3xl md:h-[500px] md:w-[500px]"
-            style={{ background: "radial-gradient(circle, #C77486, transparent 70%)" }}
+            style={{ background: "radial-gradient(circle, #FF5A36, transparent 70%)" }}
           />
           {active.image && (
             <img
@@ -168,7 +168,7 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
             <div
               key={candle.colorName}
               onClick={() => handleCandleClick(index)}
-              className="absolute left-1/2 top-1/2 h-64 w-44 cursor-pointer select-none rounded-lg bg-white md:h-96 md:w-64"
+              className="absolute left-1/2 top-1/2 h-64 w-44 cursor-pointer select-none rounded-lg md:h-96 md:w-64"
               style={{
                 transform: `translate(-50%, -50%) translateX(${x}px) rotateY(${-angle}deg) scale(${scale})`,
                 opacity,
@@ -189,7 +189,7 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
       </div>
 
       {!expanded && (
-        <h3 className="text-xl font-semibold">
+        <h3 className="text-xl font-semibold" style={{ color: "#556B2F" }}>
           {active.name} — {active.colorName}
         </h3>
       )}

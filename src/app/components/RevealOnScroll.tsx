@@ -24,6 +24,7 @@ export default function RevealOnScroll({ children }: { children: React.ReactNode
     <div
       ref={ref}
       style={{
+        width: "100%",
         transition: "all 1s ease-out",
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(48px)",

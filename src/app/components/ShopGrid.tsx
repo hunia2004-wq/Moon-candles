@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { Product } from "@/lib/supabase/types";
+import AutoCenteredImage from "./AutoCenteredImage";
 
 export default function ShopGrid({ products }: { products: Product[] }) {
   const searchParams = useSearchParams();
@@ -19,7 +20,7 @@ export default function ShopGrid({ products }: { products: Product[] }) {
   }, [targetProduct, products]);
 
   if (products.length === 0) {
-    return <p style={{ color: "#5E3A4D" }}>No products available yet.</p>;
+    return <p style={{ color: "#000000" }}>No products available yet.</p>;
   }
 
   return (
@@ -37,14 +38,15 @@ export default function ShopGrid({ products }: { products: Product[] }) {
             }}
             className="flex flex-col overflow-hidden rounded-2xl transition-shadow"
             style={{
-              backgroundColor: "#ffffff",
-              outline: isTarget ? "3px solid #C77486" : "none",
+              backgroundColor: "#FFFFFF",
+              outline: isTarget ? "3px solid #FF5A36" : "none",
               outlineOffset: "2px",
+              boxShadow: "0 4px 16px rgba(255,214,184,0.25)",
             }}
           >
-            <div className="flex aspect-square items-center justify-center bg-white p-4">
+            <div className="flex aspect-square items-center justify-center overflow-hidden bg-white p-4">
               {cover && (
-                <img
+                <AutoCenteredImage
                   src={cover}
                   alt={product.name}
                   className="h-full w-full object-contain"
@@ -54,11 +56,11 @@ export default function ShopGrid({ products }: { products: Product[] }) {
             <div className="flex flex-col gap-1 px-4 py-3">
               <p
                 className="text-sm font-semibold uppercase tracking-wide md:text-base"
-                style={{ color: "#5E3A4D" }}
+                style={{ color: "#000000" }}
               >
                 {product.name}
               </p>
-              <p className="text-sm" style={{ color: "#5E3A4D", opacity: 0.75 }}>
+              <p className="text-sm" style={{ color: "#000000" }}>
                 {product.price} EGP
               </p>
             </div>
