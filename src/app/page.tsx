@@ -10,7 +10,7 @@ export default async function Home() {
   const { data: marble, error } = await supabase
     .from("products")
     .select("*")
-    .eq("name", "Marble Moon Candle")
+    .eq("name", "Marble Moon")
     .single();
 
   if (error) {

@@ -5,13 +5,13 @@ import Link from "next/link";
 import { Menu, X, ChevronDown } from "lucide-react";
 
 const SHOP_ITEMS = [
-  { name: "Marble Moon Candle", slug: "marble-moon-candle" },
-  { name: "Dimple Moon Candle", slug: "dimple-moon-candle" },
-  { name: "Iced Latte Candle", slug: "iced-latte-candle" },
+  { name: "Marble Moon", slug: "marble-moon-candle" },
+  { name: "Dimple Moon", slug: "dimple-moon-candle" },
+  { name: "Iced Latte", slug: "iced-latte-candle" },
   { name: "Molten Muse", slug: "molten-muse" },
-  { name: "Crystal Glow Candle", slug: "crystal-glow" },
-  { name: "Melt Balm Candle", slug: "melt-balm" },
-  { name: "Shell Candle", slug: "shell" },
+  { name: "Crystal Glow", slug: "crystal-glow" },
+  { name: "Melt Balm", slug: "melt-balm" },
+  { name: "Shell", slug: "shell" },
 ];
 
 const GIVEAWAY_ITEMS = [
