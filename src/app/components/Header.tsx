@@ -18,7 +18,7 @@ export default function Header() {
         <img
           src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/logo.png"
           alt="Moon Candles"
-          className="h-32 w-auto md:h-70"
+          className="h-32 w-auto md:h-80"
         />
       </Link>
       <Link href="/cart" aria-label="Cart">
