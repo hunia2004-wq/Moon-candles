@@ -57,7 +57,7 @@ export default async function Home() {
        <div className="relative z-10 flex flex-row items-center justify-center gap-2 px-3 py-6 md:gap-8 md:px-16 md:py-10">
           {/* Cream arch panel */}
          <div
-  className="relative w-2/5 max-w-sm md:max-w-md min-h-[280px] md:min-h-[640px] rounded-[999px_999px_24px_24px] px-3 pt-6 pb-5 md:px-8 md:pt-24 md:pb-16 text-center md:text-left flex flex-col justify-center md:ml-8"
+  className="relative w-[25%] max-w-sm md:max-w-md min-h-[200px] md:min-h-[640px] rounded-[999px_999px_24px_24px] px-2 pt-4 pb-3 md:px-8 md:pt-24 md:pb-16 text-center md:text-left flex flex-col justify-center md:ml-8"
   style={{ backgroundColor: "#FFF4E6", border: "1px solid #DE4B33" }}
 >
             <p
@@ -87,13 +87,13 @@ export default async function Home() {
           </div>
 
           {/* Product photo — full width on mobile, capped width on desktop */}
-        <div className="relative w-3/5 max-w-xs md:max-w-3xl flex items-end justify-center md:justify-end md:ml-auto">
-            <img
-              src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section%20img.png"
-              alt="Moon Candles collection"
-              className="w-full h-auto object-contain"
-            />
-          </div>
+        <div className="relative w-[75%] max-w-xs md:max-w-3xl h-[440px] md:h-auto flex items-end justify-center md:justify-end md:ml-auto">
+  <img
+    src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section%20img.png"
+    alt="Moon Candles collection"
+    className="h-full w-auto md:w-full md:h-auto object-contain"
+  />
+</div>
         </div>
       </div>
 
