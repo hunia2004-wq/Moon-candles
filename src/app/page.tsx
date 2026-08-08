@@ -54,12 +54,12 @@ export default async function Home() {
 
         {/* Hero content — now in normal flow, so it actually determines
             the section's height on mobile instead of being clipped. */}
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 px-4 py-8 md:px-16 md:py-10">
+       <div className="relative z-10 flex flex-row items-center justify-center gap-2 px-3 py-6 md:gap-8 md:px-16 md:py-10">
           {/* Cream arch panel */}
-          <div
-            className="relative w-full max-w-sm md:max-w-md min-h-[420px] md:min-h-[640px] rounded-[999px_999px_24px_24px] px-6 pt-12 pb-10 md:px-8 md:pt-24 md:pb-16 text-center md:text-left flex flex-col justify-center md:ml-8"
-            style={{ backgroundColor: "#FFF4E6", border: "1px solid #DE4B33" }}
-          >
+         <div
+  className="relative w-1/2 max-w-sm md:max-w-md min-h-[280px] md:min-h-[640px] rounded-[999px_999px_24px_24px] px-3 pt-6 pb-5 md:px-8 md:pt-24 md:pb-16 text-center md:text-left flex flex-col justify-center md:ml-8"
+  style={{ backgroundColor: "#FFF4E6", border: "1px solid #DE4B33" }}
+>
             <p
               className="text-xs uppercase tracking-[0.2em] font-medium"
               style={{ color: "#DE4B33" }}
@@ -67,9 +67,9 @@ export default async function Home() {
               Handpoured With Love
             </p>
             <h1
-              className="mt-3 text-3xl md:text-5xl font-bold leading-tight"
-              style={{ color: "#000000" }}
-            >
+  className="mt-2 text-lg md:text-5xl font-bold leading-tight"
+  style={{ color: "#000000" }}
+>
               Light Your Moon
             </h1>
             <p
@@ -87,7 +87,7 @@ export default async function Home() {
           </div>
 
           {/* Product photo — full width on mobile, capped width on desktop */}
-          <div className="relative w-full max-w-xs md:max-w-3xl flex items-end justify-center md:justify-end md:ml-auto">
+         <div className="relative w-1/2 max-w-xs md:max-w-3xl flex items-end justify-center md:justify-end md:ml-auto">
             <img
               src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section%20img.png"
               alt="Moon Candles collection"
