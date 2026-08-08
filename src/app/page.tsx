@@ -36,7 +36,7 @@ export default async function Home() {
         backgroundColor: "#FFF4E6",
       }}
     >
-      <div className="relative w-full min-h-[55vh] md:min-h-[70vh] flex overflow-hidden">
+      <div className="relative w-full min-h-[70vh] md:min-h-[85vh] flex overflow-hidden">
         {Array.from({ length: STRIPE_COUNT }).map((_, i) => (
           <div
             key={i}
@@ -46,6 +46,51 @@ export default async function Home() {
             }}
           />
         ))}
+
+        {/* Hero content overlay — arch panel + staggered products.
+            Placeholder copy/images for now, swap in real content later. */}
+        <div className="absolute inset-0 z-10 flex flex-col md:flex-row items-center justify-center gap-8 px-6 py-10 md:px-16">
+          {/* Left: cream arch panel */}
+          <div
+            className="relative w-full max-w-md min-h-[520px] md:min-h-[640px] rounded-[999px_999px_24px_24px] px-8 pt-16 pb-12 md:pt-24 md:pb-16 text-center md:text-left flex flex-col justify-center ml-4 md:ml-8"
+            style={{ backgroundColor: "#FFF4E6", border: "1px solid #DE4B33" }}
+          >
+            <p
+              className="text-xs uppercase tracking-[0.2em] font-medium"
+              style={{ color: "#DE4B33" }}
+            >
+              Handpoured With Love
+            </p>
+            <h1
+              className="mt-3 text-4xl md:text-5xl font-bold leading-tight"
+              style={{ color: "#000000" }}
+            >
+              Light Your Moon
+            </h1>
+            <p
+              className="mt-4 text-sm md:text-base leading-relaxed"
+              style={{ color: "#000000", opacity: 0.7 }}
+            >
+              Scented candles that turn ordinary moments into magic.
+            </p>
+            <button
+              className="mt-6 rounded-full px-8 py-3 font-medium"
+              style={{ backgroundColor: "#6E86C7", color: "#FFFFFF" }}
+            >
+              Shop Now
+            </button>
+          </div>
+
+          {/* Right: single composited product image (real candles on real
+              stone pedestals), matching the reference photo directly. */}
+          <div className="relative w-full max-w-3xl flex items-end justify-end ml-auto">
+            <img
+              src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section%20img.png"
+              alt="Moon Candles collection"
+              className="w-full h-auto object-contain"
+            />
+          </div>
+        </div>
       </div>
 
       <main className="flex flex-1 w-full max-w-4xl flex-col items-center py-4 px-4 md:py-8 md:px-16">

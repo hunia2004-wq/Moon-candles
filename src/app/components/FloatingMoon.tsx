@@ -6,15 +6,16 @@ import { useActiveCandle } from "./ActiveCandleContext";
 
 const DEFAULT_CANDLE_IMG =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/purple%20and%20yellow%20marble.png";
+  
+  const MERGE_START = 0.32;
+const MERGE_END = 0.42;
 
 const DRIFT_WAYPOINTS = [
-  { p: 0, leftFrac: 0.08, topFrac: 0.1 },
-  { p: 0.2, leftFrac: 0.8, topFrac: 0.35 },
-  { p: 0.32, leftFrac: 0.15, topFrac: 0.55 },
+  { p: 0, leftFrac: 0.74, topFrac: 0.588 },
+  { p: MERGE_START, leftFrac: 0.68, topFrac: 0.95 },
 ];
 
-const MERGE_START = 0.32;
-const MERGE_END = 0.42;
+
 
 function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
@@ -46,6 +47,8 @@ const update = useCallback(
   (latest: number) => {
     const el = elRef.current;
     if (!el) return;
+    const appearOpacity = Math.min(1, latest / 0.02);
+el.style.opacity = String(appearOpacity);
 
     // Once fully merged, lock to the carousel item's real document
     // position and stop recalculating — no more scroll-math lag.
@@ -70,7 +73,7 @@ const update = useCallback(
       const vw = window.innerWidth;
       const vh = window.innerHeight;
       const isMobile = vw < 640;
-      const smallSize = isMobile ? 64 : 80;
+      const smallSize = isMobile ? 140 : 255;
 
       const drift = getDriftPosition(Math.min(latest, MERGE_START));
       const driftLeft = drift.leftFrac * vw;

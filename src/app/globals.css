@@ -42,3 +42,17 @@ body {
 .animate-float-rotate {
   animation: float-rotate 4s ease-in-out infinite;
 }
+/* Realistic-ish stone slab/pedestal texture — layered gradients for a
+   speckled travertine look, plus a soft shadow to ground it. */
+.stone-slab {
+  background-color: #E8D9BE;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(255,255,255,0.35) 0px, transparent 3px),
+    radial-gradient(circle at 65% 45%, rgba(120,95,60,0.15) 0px, transparent 2px),
+    radial-gradient(circle at 35% 70%, rgba(255,255,255,0.25) 0px, transparent 2px),
+    radial-gradient(circle at 85% 25%, rgba(120,95,60,0.12) 0px, transparent 3px),
+    radial-gradient(circle at 50% 85%, rgba(255,255,255,0.2) 0px, transparent 2px),
+    linear-gradient(180deg, #EEE0C6 0%, #E0CFA9 60%, #D2BD92 100%);
+  background-size: 40px 40px, 30px 30px, 35px 35px, 45px 45px, 25px 25px, 100% 100%;
+  box-shadow: 0 8px 16px -4px rgba(90, 60, 30, 0.25);
+}
