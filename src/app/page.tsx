@@ -36,23 +36,28 @@ export default async function Home() {
         backgroundColor: "#FFF4E6",
       }}
     >
-      <div className="relative w-full min-h-[70vh] md:min-h-[85vh] flex overflow-hidden">
-        {Array.from({ length: STRIPE_COUNT }).map((_, i) => (
-          <div
-            key={i}
-            className="flex-1"
-            style={{
-              backgroundColor: i % 2 === 0 ? "#DE4B33" : "#EFE3C4",
-            }}
-          />
-        ))}
+      <div className="relative w-full overflow-hidden">
+        {/* Stripes now fill whatever height the content below ends up
+            being, instead of the content being clipped to a fixed
+            container height (which was cutting the photo off on mobile). */}
+        <div className="absolute inset-0 flex">
+          {Array.from({ length: STRIPE_COUNT }).map((_, i) => (
+            <div
+              key={i}
+              className="flex-1"
+              style={{
+                backgroundColor: i % 2 === 0 ? "#DE4B33" : "#EFE3C4",
+              }}
+            />
+          ))}
+        </div>
 
-        {/* Hero content overlay — arch panel + staggered products.
-            Placeholder copy/images for now, swap in real content later. */}
-        <div className="absolute inset-0 z-10 flex flex-col md:flex-row items-center justify-center gap-8 px-6 py-10 md:px-16">
-          {/* Left: cream arch panel */}
+        {/* Hero content — now in normal flow, so it actually determines
+            the section's height on mobile instead of being clipped. */}
+        <div className="relative z-10 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-8 px-4 py-8 md:px-16 md:py-10">
+          {/* Cream arch panel */}
           <div
-            className="relative w-full max-w-md min-h-[520px] md:min-h-[640px] rounded-[999px_999px_24px_24px] px-8 pt-16 pb-12 md:pt-24 md:pb-16 text-center md:text-left flex flex-col justify-center ml-4 md:ml-8"
+            className="relative w-full max-w-sm md:max-w-md min-h-[420px] md:min-h-[640px] rounded-[999px_999px_24px_24px] px-6 pt-12 pb-10 md:px-8 md:pt-24 md:pb-16 text-center md:text-left flex flex-col justify-center md:ml-8"
             style={{ backgroundColor: "#FFF4E6", border: "1px solid #DE4B33" }}
           >
             <p
@@ -62,7 +67,7 @@ export default async function Home() {
               Handpoured With Love
             </p>
             <h1
-              className="mt-3 text-4xl md:text-5xl font-bold leading-tight"
+              className="mt-3 text-3xl md:text-5xl font-bold leading-tight"
               style={{ color: "#000000" }}
             >
               Light Your Moon
@@ -74,16 +79,15 @@ export default async function Home() {
               Scented candles that turn ordinary moments into magic.
             </p>
             <button
-              className="mt-6 rounded-full px-8 py-3 font-medium"
+              className="mt-6 self-center md:self-start rounded-full px-8 py-3 font-medium"
               style={{ backgroundColor: "#6E86C7", color: "#FFFFFF" }}
             >
               Shop Now
             </button>
           </div>
 
-          {/* Right: single composited product image (real candles on real
-              stone pedestals), matching the reference photo directly. */}
-          <div className="relative w-full max-w-3xl flex items-end justify-end ml-auto">
+          {/* Product photo — full width on mobile, capped width on desktop */}
+          <div className="relative w-full max-w-xs md:max-w-3xl flex items-end justify-center md:justify-end md:ml-auto">
             <img
               src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section%20img.png"
               alt="Moon Candles collection"
