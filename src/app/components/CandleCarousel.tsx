@@ -4,6 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { CarouselCandle } from "@/lib/supabase/types";
+import { useActiveCandle } from "./ActiveCandleContext";
+
+
 
 const ANGLE_STEP = 25;
 
@@ -14,7 +17,10 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
   const [mounted, setMounted] = useState(false);
   const [radius, setRadius] = useState(420);
   const dragState = useRef({ startX: 0, startOffset: 0, dragging: false, moved: false });
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { setActiveImage, setActiveItemRect } = useActiveCandle();
 
   useEffect(() => {
     setMounted(true);
@@ -27,12 +33,37 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
     return () => window.removeEventListener("resize", updateRadius);
   }, []);
 
+  const activeIndex = candles.length
+    ? Math.round(offset + candles.length) % candles.length
+    : 0;
+  const active = candles[activeIndex];
+
+  // Report the active candle's image + this carousel's on-screen position
+  // into shared context, so FloatingMoon can settle here and mirror it.
+useEffect(() => {
+  let rafId: number;
+
+  function report() {
+    if (activeRef.current && active) {
+      const rect = activeRef.current.getBoundingClientRect();
+      setActiveItemRect({
+        left: rect.left + window.scrollX,
+        top: rect.top + window.scrollY,
+        width: rect.width,
+        height: rect.height,
+      });
+      setActiveImage(active.image ?? null);
+    }
+    rafId = requestAnimationFrame(report);
+  }
+
+  rafId = requestAnimationFrame(report);
+  return () => cancelAnimationFrame(rafId);
+}, [activeIndex, active, setActiveImage, setActiveItemRect]);
+
   if (candles.length === 0) {
     return <p style={{ color: "#A6C071" }}>No candles available yet.</p>;
   }
-
-  const activeIndex = Math.round(offset + candles.length) % candles.length;
-  const active = candles[activeIndex];
 
   function handlePointerDown(e: React.PointerEvent) {
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -80,7 +111,6 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
       </button>
 
       <div className="mx-auto grid min-h-full w-full max-w-6xl grid-cols-1 items-center gap-8 px-6 py-20 md:grid-cols-[140px_1fr_1fr] md:gap-10 md:px-16">
-        {/* Left: color swatches (thumbnails of each candle variant) */}
         <div className="order-2 flex flex-row flex-wrap justify-center gap-2 md:order-1 md:flex-col md:justify-start">
           {candles.map((candle, index) => (
             <button
@@ -103,7 +133,6 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
           ))}
         </div>
 
-        {/* Center: image */}
         <div className="order-1 flex w-full items-center justify-center md:order-2">
           <div
             className="absolute h-[300px] w-[300px] rounded-full opacity-40 blur-3xl md:h-[420px] md:w-[420px]"
@@ -119,7 +148,6 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
           )}
         </div>
 
-        {/* Right: details */}
         <div className="order-3 w-full max-w-md text-white md:order-3">
           <h3 className="text-3xl font-bold uppercase leading-tight tracking-wide md:text-4xl">
             {active.name}
@@ -151,6 +179,7 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
   return (
     <div className="flex flex-col items-center gap-4 py-0">
       <div
+        ref={wrapperRef}
         className="relative h-[300px] w-full max-w-4xl md:h-[420px]"
         style={{ perspective: "1000px" }}
         onPointerDown={handlePointerDown}
@@ -173,6 +202,7 @@ export default function CandleCarousel({ candles }: { candles: CarouselCandle[] 
           return (
             <div
               key={candle.colorName}
+               ref={isActive ? activeRef : undefined}
               onClick={() => handleCandleClick(index)}
               className="absolute left-1/2 top-1/2 h-64 w-44 cursor-pointer select-none rounded-lg md:h-96 md:w-64"
               style={{
