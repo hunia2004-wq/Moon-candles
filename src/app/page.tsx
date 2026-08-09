@@ -37,9 +37,6 @@ export default async function Home() {
       }}
     >
       <div className="relative w-full overflow-hidden">
-        {/* Stripes now fill whatever height the content below ends up
-            being, instead of the content being clipped to a fixed
-            container height (which was cutting the photo off on mobile). */}
         <div className="absolute inset-0 flex">
           {Array.from({ length: STRIPE_COUNT }).map((_, i) => (
             <div
@@ -52,48 +49,102 @@ export default async function Home() {
           ))}
         </div>
 
-        {/* Hero content — now in normal flow, so it actually determines
-            the section's height on mobile instead of being clipped. */}
-       <div className="relative z-10 flex flex-row items-center justify-center gap-2 px-3 py-6 md:gap-8 md:px-16 md:py-10">
-          {/* Cream arch panel */}
-         <div
-  className="relative w-[35%] max-w-sm md:max-w-md min-h-[140px] md:min-h-[640px] rounded-[999px_999px_24px_24px] px-2 pt-3 pb-2 md:px-8 md:pt-24 md:pb-16 text-center md:text-left flex flex-col justify-center md:ml-8"
-  style={{ backgroundColor: "#FFF4E6", border: "1px solid #DE4B33" }}
+        {/* Hero content — fluid-responsive using clamp() so sizes scale
+            smoothly with the viewport instead of jumping at fixed
+            breakpoints. Row height itself scales with viewport width. */}
+        <div
+          className="relative z-10 flex flex-row items-center justify-center flex-nowrap"
+          style={{
+            gap: "0px",
+            padding: "clamp(16px, 4vw, 64px)",
+            height: "clamp(480px, 100vw, 1500px)",
+          }}
+        >
+          {/* Crescent moon panel */}
+          <div
+  className="relative flex-shrink-0"
+  style={{
+    height: "clamp(240px, 45vw, 2000px)",
+    width: "auto",
+    aspectRatio: "auto",
+  }}
 >
-            <p
-              className="text-xs uppercase tracking-[0.2em] font-medium"
-              style={{ color: "#DE4B33" }}
-            >
-              Handpoured With Love
-            </p>
-            <h1
-  className="mt-2 text-lg md:text-5xl font-bold leading-tight"
-  style={{ color: "#000000" }}
+  <img
+    src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20moon.png"
+    alt=""
+    style={{ height: "100%", width: "auto", display: "block" }}
+  />
+
+   <div
+  className="absolute z-10 flex flex-col items-center text-center"
+  style={{
+    left: "9%",
+    top: "50%",
+    width: "40%",
+    transform: "translateY(-50%)",
+  }}
 >
-              Light Your Moon
-            </h1>
-            <p
-              className="mt-4 text-sm md:text-base leading-relaxed"
-              style={{ color: "#000000", opacity: 0.7 }}
-            >
-              Scented candles that turn ordinary moments into magic.
-            </p>
-            <button
-              className="mt-6 self-center md:self-start rounded-full px-8 py-3 font-medium"
-              style={{ backgroundColor: "#6E86C7", color: "#FFFFFF" }}
-            >
-              Shop Now
-            </button>
+              <p
+                className="uppercase font-medium"
+                style={{
+                  color: "#DE4B33",
+                  fontSize: "clamp(10px, 0.7vw, 8px)",
+                  letterSpacing: "0em",
+                }}
+              >
+                Handpoured With Love
+              </p>
+              <h1
+                className="font-bold leading-tight"
+                style={{
+                  color: "#000000",
+                  fontSize: "clamp(16px, 3vw, 30px)",
+                  marginTop: "clamp(4px, 1vw, 12px)",
+                }}
+              >
+                Light Your Moon
+              </h1>
+              <p
+                className="leading-relaxed"
+                style={{
+                  color: "#000000",
+                  opacity: 0.7,
+                  fontSize: "clamp(9px, 1vw, 10px)",
+                  marginTop: "clamp(4px, 1.5vw, 16px)",
+                }}
+              >
+                Scented candles that turn ordinary moments into magic.
+              </p>
+              <button
+                className="rounded-full font-medium"
+                style={{
+                  backgroundColor: "#6E86C7",
+                  color: "#FFFFFF",
+                  fontSize: "clamp(9px, 1.2vw, 16px)",
+                  padding: "clamp(6px, 1vw, 12px) clamp(14px, 2.5vw, 32px)",
+                  marginTop: "clamp(6px, 1.5vw, 24px)",
+                }}
+              >
+                Shop Now
+              </button>
+            </div>
           </div>
 
-          {/* Product photo — full width on mobile, capped width on desktop */}
-        <div className="relative w-[65%] max-w-xs md:max-w-3xl h-[600px] md:h-auto flex items-end justify-center md:justify-end md:ml-auto">
-  <img
-    src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section%20img.png"
-    alt="Moon Candles collection"
-    className="h-full w-auto md:w-full md:h-auto object-contain"
-  />
-</div>
+          {/* Product photo */}
+     <div
+  className="relative flex items-end justify-center flex-shrink-0"
+  style={{
+    width: "clamp(300px, 200vw, 1500px)",
+    height: "100%",
+  
+  }}
+>
+            <img
+              src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section%20img.png"
+              alt="Moon Candles collection"
+              className="h-full w-full object-contain"
+            />
+          </div>
         </div>
       </div>
 

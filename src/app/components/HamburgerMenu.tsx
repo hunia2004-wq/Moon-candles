@@ -24,6 +24,7 @@ export default function HamburgerMenu() {
   const [open, setOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [giveawaysOpen, setGiveawaysOpen] = useState(false);
+  
 
   function closeAll() {
     setOpen(false);
