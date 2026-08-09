@@ -140,7 +140,7 @@ export default async function Home() {
   }}
 >
             <img
-  src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section%20img.jpg"
+  src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/candles%20hero.png"
   alt="Moon Candles collection"
   className="h-full w-full object-contain"
 />
