@@ -140,10 +140,10 @@ export default async function Home() {
   }}
 >
             <img
-              src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section%20img.png"
-              alt="Moon Candles collection"
-              className="h-full w-full object-contain"
-            />
+  src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section%20img.jpg"
+  alt="Moon Candles collection"
+  className="h-full w-full object-contain"
+/>
           </div>
         </div>
       </div>
