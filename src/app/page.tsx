@@ -2,6 +2,9 @@ import CandleCarousel from "./components/CandleCarousel";
 import { createClient } from "@/lib/supabase/server";
 import RevealOnScroll from "./components/RevealOnScroll";
 import type { CarouselCandle } from "@/lib/supabase/types";
+import { Caveat } from "next/font/google";
+
+const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 
 const STRIPE_COUNT = 21;
 
@@ -49,102 +52,109 @@ export default async function Home() {
           ))}
         </div>
 
-        {/* Hero content — fluid-responsive using clamp() so sizes scale
-            smoothly with the viewport instead of jumping at fixed
-            breakpoints. Row height itself scales with viewport width. */}
+        {/* Hero content — no explicit row height anymore. The row now
+            sizes itself naturally to match its tallest child (the moon
+            panel), so it's impossible for the row and its content to
+            mismatch and leave empty striped space, which was the bug. */}
         <div
           className="relative z-10 flex flex-row items-center justify-center flex-nowrap"
           style={{
             gap: "0px",
             padding: "clamp(16px, 4vw, 64px)",
-            height: "clamp(480px, 100vw, 1500px)",
           }}
         >
-          {/* Crescent moon panel */}
+          {/* Crescent moon panel — single source of truth for the row's
+              height, since it's the tallest element. */}
           <div
   className="relative flex-shrink-0"
   style={{
-    height: "clamp(240px, 45vw, 2000px)",
+    height: "clamp(240px, 60vw, 640px)",
     width: "auto",
-    aspectRatio: "auto",
-  }}
->
-  <img
-    src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20moon.png"
-    alt=""
-    style={{ height: "100%", width: "auto", display: "block" }}
-  />
-
-   <div
-  className="absolute z-10 flex flex-col items-center text-center"
-  style={{
-    left: "9%",
-    top: "50%",
-    width: "40%",
-    transform: "translateY(-50%)",
-  }}
->
-              <p
-                className="uppercase font-medium"
-                style={{
-                  color: "#DE4B33",
-                  fontSize: "clamp(10px, 0.7vw, 8px)",
-                  letterSpacing: "0em",
-                }}
-              >
-                Handpoured With Love
-              </p>
-              <h1
-                className="font-bold leading-tight"
-                style={{
-                  color: "#000000",
-                  fontSize: "clamp(16px, 3vw, 30px)",
-                  marginTop: "clamp(4px, 1vw, 12px)",
-                }}
-              >
-                Light Your Moon
-              </h1>
-              <p
-                className="leading-relaxed"
-                style={{
-                  color: "#000000",
-                  opacity: 0.7,
-                  fontSize: "clamp(9px, 1vw, 10px)",
-                  marginTop: "clamp(4px, 1.5vw, 16px)",
-                }}
-              >
-                Scented candles that turn ordinary moments into magic.
-              </p>
-              <button
-                className="rounded-full font-medium"
-                style={{
-                  backgroundColor: "#6E86C7",
-                  color: "#FFFFFF",
-                  fontSize: "clamp(9px, 1.2vw, 16px)",
-                  padding: "clamp(6px, 1vw, 12px) clamp(14px, 2.5vw, 32px)",
-                  marginTop: "clamp(6px, 1.5vw, 24px)",
-                }}
-              >
-                Shop Now
-              </button>
-            </div>
-          </div>
-
-          {/* Product photo */}
-     <div
-  className="relative flex items-end justify-center flex-shrink-0"
-  style={{
-    width: "clamp(300px, 200vw, 1500px)",
-    height: "100%",
-  
+    marginRight: "clamp(180px, 7vw, -100px)",
   }}
 >
             <img
-  src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/candles%20hero.png"
-  alt="Moon Candles collection"
-  className="h-full w-full object-contain"
-/>
+              src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20moon.png"
+              alt=""
+              style={{ height: "100%", width: "auto", display: "block" }}
+            />
+
+           {/* Centered text block */}
+{/* "Moon Candles" — now first/top */}
+<p
+  className="font-bold"
+  style={{
+    position: "absolute",
+    left: "1%",
+    top: "30%",
+    width: "48%",
+    textAlign: "center",
+    color: "#000000",
+    fontSize: "clamp(17px, 2.2vw, 26px)",
+    letterSpacing: "0.02em",
+  }}
+>
+  Moon Candles
+</p>
+
+{/* "Light up your moon" — now second/below */}
+<p
+  className={`${caveat.className}`}
+  style={{
+    position: "absolute",
+    left: "3%",
+    top: "50%",
+    width: "60%",
+    textAlign: "left",
+    color: "#DE4B33",
+    fontSize: "13px",
+    fontWeight: 1000,
+  }}
+>
+  Light up your moon
+</p>
+
+{/* Button, positioned separately near the bottom of the crescent */}
+<div
+  className="absolute z-10 flex justify-center"
+  style={{
+    left: "11%",
+    bottom: "31%",
+    width: "40%",
+  }}
+>
+ <button
+  className="rounded-full font-medium transition-colors bg-[#DE4B33] hover:bg-[#b38691] active:bg-[#b38691]"
+  style={{
+    color: "#ffffff",
+    fontSize: "clamp(10px, 1.5vw, 18px)",
+    padding: "clamp(5px, 0.9vw, 11px) clamp(12px, 2.2vw, 28px)",
+  }}
+>
+  Shop Now
+</button>
+
+            </div>
           </div>
+
+          {/* Product photo — height locked to 100% of the row, which now
+              always exactly matches the moon's real height. */}
+         <div
+  className="absolute flex items-center justify-center"
+  style={{
+    right: "clamp(-10px, 0vw, 70px)",
+    top: "50%",
+    transform: "translateY(-50%)",
+    width: "clamp(200px, 68vw, 900px)",
+    height: "clamp(250px, 70vw, 900px)",
+  }}
+>
+  <img
+    src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/candles%20hero.png"
+    alt="Moon Candles collection"
+    className="h-full w-full object-contain"
+  />
+</div>
         </div>
       </div>
 
