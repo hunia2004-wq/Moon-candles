@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import RevealOnScroll from "./components/RevealOnScroll";
 import type { CarouselCandle } from "@/lib/supabase/types";
 import { Caveat } from "next/font/google";
+import CustomizationTeaser from "./components/CustomizationTeaser";
 
 const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 
@@ -196,6 +197,7 @@ export default async function Home() {
             <CandleCarousel candles={candles} />
           </div>
         </RevealOnScroll>
+         <CustomizationTeaser /> 
 
         <div>
           <h2 className="font-bold" style={{ color: "#000000" }}>footer</h2>
