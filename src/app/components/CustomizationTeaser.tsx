@@ -27,7 +27,7 @@ export default function CustomizationTeaser() {
         className="w-full flex flex-col items-center text-center px-6 md:px-10 pt-10 md:pt-14 pb-10"
         style={{
           maxWidth: 560,
-          border: "6px solid #E0447D",
+          border: "6px solid #8FAA82",
           borderRadius: "280px 280px 30px 30px",
         }}
       >
@@ -35,13 +35,13 @@ export default function CustomizationTeaser() {
         <svg width="30" height="30" viewBox="0 0 34 34" fill="none" className="mb-4">
           <path
             d="M22 4C16 6 12 11 12 17s4 11 10 13c-8 1-16-5-16-13S14 3 22 4Z"
-            fill="#E0447D"
+            fill="#8FAA82"
           />
         </svg>
 
         <p
           className="uppercase tracking-[0.25em] text-xs md:text-sm mb-3"
-          style={{ color: "#E0447D" }}
+          style={{ color: "#8FAA82" }}
         >
           made by you, for you
         </p>
@@ -50,7 +50,7 @@ export default function CustomizationTeaser() {
           <span className="block text-3xl md:text-5xl font-bold" style={{ color: "#000000" }}>
             Customization
           </span>
-          <span className="block text-3xl md:text-5xl font-bold" style={{ color: "#E0447D" }}>
+          <span className="block text-3xl md:text-5xl font-bold" style={{ color: "#8FAA82" }}>
             made special
           </span>
         </h2>
@@ -79,7 +79,7 @@ export default function CustomizationTeaser() {
         <Link
           href="/customize"
           className="inline-flex items-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-opacity hover:opacity-90"
-          style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
+          style={{ backgroundColor: "#8FAA82", color: "#FFF4E6" }}
         >
           Create your candle
           <span aria-hidden>→</span>
@@ -112,13 +112,13 @@ function FeatureCard({
       </div>
       <div
         className="w-9 h-9 rounded-full flex items-center justify-center mb-2"
-        style={{ backgroundColor: "#FFF4E6", border: "1px solid #E0447D" }}
+        style={{ backgroundColor: "#FFF4E6", border: "1px solid #8FAA82" }}
       >
         {icon}
       </div>
       <p
         className="uppercase tracking-[0.15em] text-[11px] md:text-xs font-medium mb-1"
-        style={{ color: "#E0447D" }}
+        style={{ color: "#8FAA82" }}
       >
         {title}
       </p>
@@ -131,9 +131,9 @@ function FeatureCard({
 
 function PhotoIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E0447D" strokeWidth="1.6">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8FAA82" strokeWidth="1.6">
       <rect x="3" y="5" width="18" height="14" rx="2" />
-      <circle cx="9" cy="10" r="1.6" fill="#E0447D" stroke="none" />
+      <circle cx="9" cy="10" r="1.6" fill="#8FAA82" stroke="none" />
       <path d="M21 16l-5.5-5.5L9 17" />
     </svg>
   );
@@ -141,7 +141,7 @@ function PhotoIcon() {
 
 function PencilIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#E0447D" strokeWidth="1.6">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8FAA82" strokeWidth="1.6">
       <path d="M4 20l4-1 11-11-3-3L5 16l-1 4Z" />
       <path d="M14 5l3 3" />
     </svg>
