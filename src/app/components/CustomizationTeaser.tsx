@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useRef, useState, useEffect } from "react";
 
 /* ------------------------------------------------------------------ */
 /* Feature photos — pass real URLs in via props once you have them, or */
@@ -18,6 +21,19 @@ const WORDS_IMG =
  * reads as a doorway/arch shape framing the content, matching the reference.
  */
 export default function CustomizationTeaser() {
+    const leftImgRef = useRef<HTMLDivElement>(null);
+const [matchHeight, setMatchHeight] = useState<number | undefined>(undefined);
+
+useEffect(() => {
+  if (!leftImgRef.current) return;
+  const el = leftImgRef.current;
+  const update = () => setMatchHeight(el.offsetHeight);
+  update();
+  const ro = new ResizeObserver(update);
+  ro.observe(el);
+  return () => ro.disconnect();
+}, []);
+
   return (
     <section
       className="w-full flex justify-center px-4 py-12 md:py-20"
@@ -43,37 +59,41 @@ export default function CustomizationTeaser() {
           className="uppercase tracking-[0.25em] text-xs md:text-sm mb-3"
           style={{ color: "#8FAA82" }}
         >
-          made by you, for you
+             Made for you, by you
         </p>
 
         <h2 className="font-serif leading-[1.05] mb-4">
           <span className="block text-3xl md:text-5xl font-bold" style={{ color: "#000000" }}>
-            Customization
+            Personalize
           </span>
           <span className="block text-3xl md:text-5xl font-bold" style={{ color: "#8FAA82" }}>
-            made special
+            your moon
           </span>
         </h2>
 
         <p className="text-sm md:text-base mb-8" style={{ color: "rgba(0,0,0,0.62)" }}>
-          Add a photo. Add a message. Make it meaningful.
+          Add a photo. Add a message. Make it yours.
         </p>
 
-        <div className="grid grid-cols-2 gap-4 md:gap-5 w-full mb-8">
+<div className="grid grid-cols-2 gap-4 md:gap-5 w-full mb-8 items-stretch">
           <FeatureCard
             img={MEMORIES_IMG}
             imgAlt="A candle label showing an added photo"
             icon={<PhotoIcon />}
             title="Your memories"
-            description="Add your favorite photo to the label."
+            description="Add your photo."
+            imgWrapperRef={leftImgRef}
+            
           />
           <FeatureCard
-            img={WORDS_IMG}
-            imgAlt="A candle label with a handwritten message"
-            icon={<PencilIcon />}
-            title="Your words"
-            description="Write a name, a date, or a message."
-          />
+  img={WORDS_IMG}
+  imgAlt="A candle label with a handwritten message"
+  icon={<PencilIcon />}
+  title="Your words"
+  description="Add Your Message"
+  cropped
+  matchHeight={matchHeight}
+/>
         </div>
 
         <Link
@@ -82,7 +102,7 @@ export default function CustomizationTeaser() {
           style={{ backgroundColor: "#8FAA82", color: "#FFF4E6" }}
         >
           Create your candle
-          <span aria-hidden>→</span>
+         
         </Link>
       </div>
     </section>
@@ -95,20 +115,34 @@ function FeatureCard({
   title,
   description,
   imgAlt,
+  cropped,
+  imgWrapperRef,
+  matchHeight,
 }: {
   img: string;
   icon: React.ReactNode;
   title: string;
   description: string;
   imgAlt: string;
+  cropped?: boolean;
+  imgWrapperRef?: React.RefObject<HTMLDivElement | null>;
+  matchHeight?: number;
 }) {
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center h-full">
       <div
-        className="w-full aspect-auto rounded-2xl overflow-hidden mb-3"
-        style={{ backgroundColor: "#EFE3C4" }}
+        ref={imgWrapperRef}
+        className="w-full rounded-2xl overflow-hidden mb-3"
+        style={{
+          backgroundColor: "#EFE3C4",
+          height: matchHeight ? `${matchHeight}px` : undefined,
+        }}
       >
-        <img src={img} alt={imgAlt} className="w-full h-full object-contain" />
+        <img
+          src={img}
+          alt={imgAlt}
+          className={`w-full h-full ${cropped ? "object-cover" : "object-contain"}`}
+        />
       </div>
       <div
         className="w-9 h-9 rounded-full flex items-center justify-center mb-2"
@@ -122,7 +156,7 @@ function FeatureCard({
       >
         {title}
       </p>
-      <p className="text-xs md:text-sm text-center" style={{ color: "rgba(0,0,0,0.62)" }}>
+      <p className="text-xs md:text-sm text-center min-h-[10px]" style={{ color: "rgba(0,0,0,0.62)" }}>
         {description}
       </p>
     </div>
