@@ -9,14 +9,14 @@ const SIZES = [
     label: "150 ML",
     grams: "150 ml",
     price: 450,
-    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/150ml.png",
+    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/150ml.png",
   },
   {
     id: "large",
     label: "380 ML",
     grams: "380 ml",
     price: 680,
-    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/380ml.png",
+    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/380ml.png",
   },
 ] as const;
 
@@ -101,10 +101,13 @@ export default function CustomizeCandlePage() {
   return (
     <div style={{ backgroundColor: "#FFF4E6" }} className="w-full min-h-screen">
       {/* ---------------- TOP: live, draggable preview ---------------- */}
-      <div ref={previewRef} className="relative flex items-center justify-center px-6 py-6">
+<div
+  ref={previewRef}
+  className="relative flex items-center justify-center px-6 pt-2 pb-0"
+>
         <div
-          ref={stageRef}
-          className="relative w-full max-w-[180px] md:max-w-[300px] touch-none"
+  ref={stageRef}
+  className="relative w-full max-w-[180px] md:max-w-[300px] touch-none"
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
         >
@@ -166,7 +169,7 @@ export default function CustomizeCandlePage() {
               textShadow: "0 1px 2px rgba(255,255,255,0.6)",
             }}
           >
-            {message || "drag me · your message"}
+            {message || "your message"}
           </p>
         </div>
       </div>
@@ -186,12 +189,12 @@ export default function CustomizeCandlePage() {
           />
         </div>
       )}
-      <p className="text-center text-[11px] mb-4" style={{ color: "rgba(0,0,0,0.4)" }}>
-        Drag your photo and message to place them exactly where you like
-      </p>
+      <p className="text-center text-[11px] mb-1" style={{ color: "rgba(0,0,0,0.4)" }}>
+  Drag your photo and message to place them exactly where you like
+</p>
 
       {/* ---------------- BELOW: form ---------------- */}
-      <div className="px-6 md:px-12 py-10 md:py-16 flex flex-col max-w-2xl mx-auto">
+      <div className="px-6 md:px-12 py-4 md:py-16 flex flex-col max-w-2xl mx-auto">
         <p className="uppercase tracking-[0.25em] text-xs md:text-sm mb-3" style={{ color: "#8FAA82" }}>
           made by you, for you
         </p>
@@ -296,11 +299,14 @@ export default function CustomizeCandlePage() {
         <div className="flex items-center gap-4 mt-auto">
           <button
   onClick={() => setShowPreview(true)}
-  className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-opacity hover:opacity-90"
-  style={{ backgroundColor: "#8FAA82", color: "#FFF4E6" }}
+  className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors bg-[#8FAA82] hover:bg-[#7C966F] active:bg-[#7C966F]"
+  style={{
+    color: "#FFF4E6",
+    fontSize: "clamp(14px, 1.5vw, 16px)",
+    padding: "clamp(10px, 0.9vw, 12px) clamp(20px, 2.2vw, 32px)",
+  }}
 >
   Preview my candle
- 
 </button>
           <span className="text-lg font-semibold" style={{ color: "#000000" }}>
             {selectedSize.price} LE
@@ -365,15 +371,22 @@ export default function CustomizeCandlePage() {
 <button
   onClick={() => {
     // TODO: wire this up to your actual checkout/cart flow once ready
-    console.log("Add custom candle to cart", { size, scent, message, photoUrl, photoPos, textPos, photoScale });
+    console.log("Add custom candle to cart", {
+      size,
+      scent,
+      message,
+      photoUrl,
+      photoPos,
+      textPos,
+      photoScale,
+    });
   }}
-  className="mt-6 inline-flex items-center justify-center gap-2 px-10 py-3 rounded-full text-sm md:text-base font-medium transition-opacity hover:opacity-90"
-  style={{ backgroundColor: "#8FAA82", color: "#FFF4E6" }}
+  className="mt-6 inline-flex items-center justify-center gap-2 px-10 py-3 rounded-full text-sm md:text-base font-medium transition-colors bg-[#8FAA82] hover:bg-[#7C966F] active:bg-[#7C966F]"
+  style={{ color: "#FFF4E6" }}
 >
   Checkout — {selectedSize.price} LE
-  
 </button>
-    
+
   </div>
   
 )}

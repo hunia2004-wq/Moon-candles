@@ -154,21 +154,16 @@ export default function HamburgerMenu() {
                 )}
               </div>
 
-              <div
-                className="border-t py-3"
-                style={{ borderColor: "#FFD6B8", color: "#000000" }}
-              >
-                Customize Your Own
-              </div>
-
               <Link
-                href="/about"
-                onClick={closeAll}
-                className="border-t py-3"
-                style={{ borderColor: "#FFD6B8", color: "#000000" }}
-              >
-                About Us
-              </Link>
+  href="/customize"
+  onClick={closeAll}
+  className="border-t py-3"
+  style={{ borderColor: "#FFD6B8", color: "#000000" }}
+>
+  Customize Your Own
+</Link>
+
+              
             </nav>
           </div>
         </div>

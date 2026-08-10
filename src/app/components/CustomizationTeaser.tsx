@@ -8,9 +8,9 @@ import { useRef, useState, useEffect } from "react";
 /* just edit the two constants below directly. */
 /* ------------------------------------------------------------------ */
 const MEMORIES_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%201.jpg";
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/customization%201.jpg";
 const WORDS_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%202.jpg";
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/customization%202.jpg";
 
 /**
  * Homepage teaser for the candle customization flow. Links out to /customize
@@ -97,13 +97,12 @@ useEffect(() => {
         </div>
 
         <Link
-          href="/customize"
-          className="inline-flex items-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-opacity hover:opacity-90"
-          style={{ backgroundColor: "#8FAA82", color: "#FFF4E6" }}
-        >
-          Create your candle
-         
-        </Link>
+  href="/customize"
+  className="inline-flex items-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-colors bg-[#8FAA82] hover:bg-[#7C966F] active:bg-[#7C966F]"
+  style={{ color: "#FFF4E6" }}
+>
+  Create your candle
+</Link>
       </div>
     </section>
   );

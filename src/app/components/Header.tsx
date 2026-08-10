@@ -16,8 +16,7 @@ export default function Header() {
         className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center z-10"
       >
         <img
-          src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/logo.png"
-          alt="Moon Candles"
+          src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/moon%20logo/logo.png"
           className="h-32 w-auto md:h-80"
         />
       </Link>

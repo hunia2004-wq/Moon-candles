@@ -4,16 +4,17 @@ import RevealOnScroll from "./components/RevealOnScroll";
 import type { CarouselCandle } from "@/lib/supabase/types";
 import { Caveat } from "next/font/google";
 import CustomizationTeaser from "./components/CustomizationTeaser";
+import Link from "next/link";
 
 const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 
 const STRIPE_COUNT = 21;
 
 const MOON_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20moon.png";
-const CANDLES_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/candles%20hero.png";
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section/hero%20moon.png";
 
+const CANDLES_IMG =
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section/candles%20hero.png";
 export default async function Home() {
   const supabase = await createClient();
   const { data: marble, error } = await supabase
@@ -105,16 +106,17 @@ export default async function Home() {
               className="absolute z-10 flex justify-center"
               style={{ left: "11%", bottom: "31%", width: "40%" }}
             >
-              <button
-                className="rounded-full font-medium transition-colors bg-[#DE4B33] hover:bg-[#b38691] active:bg-[#b38691]"
-                style={{
-                  color: "#ffffff",
-                  fontSize: "clamp(10px, 1.5vw, 18px)",
-                  padding: "clamp(5px, 0.9vw, 11px) clamp(12px, 2.2vw, 28px)",
-                }}
-              >
-                Shop Now
-              </button>
+              <Link
+  href="/shop"
+  className="rounded-full font-medium transition-colors bg-[#DE4B33] hover:bg-[#C43D2C] active:bg-[#C43D2C]"
+  style={{
+    color: "#ffffff",
+    fontSize: "clamp(10px, 1.5vw, 18px)",
+    padding: "clamp(5px, 0.9vw, 11px) clamp(12px, 2.2vw, 28px)",
+  }}
+>
+  Shop Now
+</Link>
             </div>
           </div>
 

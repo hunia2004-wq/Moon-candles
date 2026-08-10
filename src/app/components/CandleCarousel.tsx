@@ -143,7 +143,7 @@ useEffect(() => {
               src={active.image}
               alt={`${active.name} - ${active.colorName}`}
               draggable={false}
-              className="relative h-[280px] object-contain md:h-[60vh] animate-float-rotate"
+              className="relative h-[280px] object-contain md:h-[60vh]"
             />
           )}
         </div>

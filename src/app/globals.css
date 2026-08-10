@@ -40,7 +40,9 @@ body {
 }
 
 .animate-float-rotate {
+
   animation: float-rotate 4s ease-in-out infinite;
+
 }
 /* Realistic-ish stone slab/pedestal texture — layered gradients for a
    speckled travertine look, plus a soft shadow to ground it. */
