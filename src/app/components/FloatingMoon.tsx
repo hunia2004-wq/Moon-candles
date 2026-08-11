@@ -5,7 +5,7 @@ import { useScroll, useMotionValueEvent } from "framer-motion";
 import { useActiveCandle } from "./ActiveCandleContext";
 
 const DEFAULT_CANDLE_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/purple%20and%20yellow%20marble.png";
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section/hero%20candles.png";
   
   const MERGE_START = 0.32;
 const MERGE_END = 0.42;

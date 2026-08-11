@@ -8,7 +8,7 @@ export default function Header() {
   return (
     <header
       className="sticky top-0 z-50 flex items-center justify-between px-4 h-20 md:h-24 relative overflow-visible"
-      style={{ backgroundColor: "#EFE3C4" }}
+      style={{ backgroundColor: "#efe3c4" }}
     >
       <HamburgerMenu />
       <Link

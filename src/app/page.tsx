@@ -11,12 +11,14 @@ const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 const STRIPE_COUNT = 21;
 
 const MOON_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section/hero%20moon.png";
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section/moon%20hero.png";
 
 const CANDLES_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section/candles%20hero.png";
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section/candless%20hero.png";
+
 export default async function Home() {
   const supabase = await createClient();
+
   const { data: marble, error } = await supabase
     .from("products")
     .select("*")
@@ -28,21 +30,27 @@ export default async function Home() {
   }
 
   const candles: CarouselCandle[] =
-    marble?.colors?.map((color: { name: string; hex: string | null; image_url?: string }) => ({
-      productId: marble.id,
-      colorName: color.name,
-      name: marble.name,
-      description: marble.description,
-      price: marble.price,
-      size_ml: marble.size_ml,
-      scents: marble.scents,
-      image: color.image_url ?? null,
-    })) ?? [];
+    marble?.colors?.map(
+      (color: {
+        name: string;
+        hex: string | null;
+        image_url?: string;
+      }) => ({
+        productId: marble.id,
+        colorName: color.name,
+        name: marble.name,
+        description: marble.description,
+        price: marble.price,
+        size_ml: marble.size_ml,
+        scents: marble.scents,
+        image: color.image_url ?? null,
+      })
+    ) ?? [];
 
   return (
     <div
       className="flex flex-col flex-1 items-center justify-center font-sans"
-      style={{ backgroundColor: "#FFF4E6" }}
+      style={{ backgroundColor: "#efe3c4" }}
     >
       <div className="relative w-full overflow-hidden">
         <div className="absolute inset-0 flex">
@@ -50,160 +58,359 @@ export default async function Home() {
             <div
               key={i}
               className="flex-1"
-              style={{ backgroundColor: i % 2 === 0 ? "#DE4B33" : "#EFE3C4" }}
+              style={{
+                backgroundColor:
+                  i % 2 === 0 ? "#8FAA82" : "#efe3c4",
+              }}
             />
           ))}
         </div>
+        
+{/* ================= MOBILE HERO — FLOOR SCENE ================= */}
+<div
+  className="relative z-10 flex md:hidden"
+  
+  style={{
+    width: "100%",
+    height: "330px",
+    overflow: "hidden",
+  }}
+>
+ {/* MULTIPLE LEAF SHADOWS */}
+<div
+  className="absolute pointer-events-none"
+  style={{
+    top: "-35px",
+    right: "-35px",
+    width: "260px",
+    height: "260px",
+    zIndex: 1,
+    opacity: 0.3,
+    filter: "blur(5px)",
+  }}
+>
+  {/* Leaf 1 */}
+  <div
+    style={{
+      position: "absolute",
+      width: "48px",
+      height: "120px",
+      right: "45px",
+      top: "-20px",
+      background: "#46553D",
+      borderRadius: "100% 0 100% 0",
+      transform: "rotate(25deg)",
+    }}
+  />
 
-        {/* ================= MOBILE HERO — unchanged, exactly as before ================= */}
-        <div
-          className="relative z-10 flex md:hidden flex-row items-center justify-center flex-nowrap"
-          style={{ gap: "0px", padding: "clamp(16px, 4vw, 64px)" }}
-        >
+  {/* Leaf 2 */}
+  <div
+    style={{
+      position: "absolute",
+      width: "42px",
+      height: "105px",
+      right: "95px",
+      top: "5px",
+      background: "#46553D",
+      borderRadius: "100% 0 100% 0",
+      transform: "rotate(55deg)",
+    }}
+  />
+
+  {/* Leaf 3 */}
+  <div
+    style={{
+      position: "absolute",
+      width: "55px",
+      height: "130px",
+      right: "5px",
+      top: "30px",
+      background: "#46553D",
+      borderRadius: "100% 0 100% 0",
+      transform: "rotate(5deg)",
+    }}
+  />
+
+  {/* Leaf 4 */}
+  <div
+    style={{
+      position: "absolute",
+      width: "38px",
+      height: "95px",
+      right: "135px",
+      top: "45px",
+      background: "#46553D",
+      borderRadius: "100% 0 100% 0",
+      transform: "rotate(75deg)",
+    }}
+  />
+
+  {/* Leaf 5 */}
+  <div
+    style={{
+      position: "absolute",
+      width: "46px",
+      height: "115px",
+      right: "65px",
+      top: "80px",
+      background: "#46553D",
+      borderRadius: "100% 0 100% 0",
+      transform: "rotate(35deg)",
+    }}
+  />
+
+  {/* Leaf 6 */}
+  <div
+    style={{
+      position: "absolute",
+      width: "35px",
+      height: "90px",
+      right: "145px",
+      top: "105px",
+      background: "#46553D",
+      borderRadius: "100% 0 100% 0",
+      transform: "rotate(65deg)",
+    }}
+  />
+
+  {/* Leaf 7 */}
+  <div
+    style={{
+      position: "absolute",
+      width: "52px",
+      height: "125px",
+      right: "-10px",
+      top: "105px",
+      background: "#46553D",
+      borderRadius: "100% 0 100% 0",
+      transform: "rotate(-10deg)",
+    }}
+  />
+
+  {/* Leaf 8 */}
+  <div
+    style={{
+      position: "absolute",
+      width: "32px",
+      height: "80px",
+      right: "105px",
+      top: "145px",
+      background: "#46553D",
+      borderRadius: "100% 0 100% 0",
+      transform: "rotate(45deg)",
+    }}
+  />
+</div>
+  
+  {/* FLOOR */}
+  <div
+    className="absolute"
+    style={{
+      left: 0,
+      right: 0,
+      bottom: 0,
+      height: "40px",
+      background: "#efe3c4",
+      zIndex: 1,
+    }}
+  />
+{/* CANDLE FLOOR SHADOW */}
+<div
+  className="absolute"
+  style={{
+    width: "350px",
+    height: "22px",
+    left: "58%",
+    bottom: "18px",
+    transform: "translateX(-50%)",
+    background:
+      "radial-gradient(ellipse at center, rgba(55, 48, 35, 0.42) 0%, rgba(55, 48, 35, 0.30) 35%, rgba(55, 48, 35, 0.15) 60%, rgba(55, 48, 35, 0) 85%)",
+    filter: "blur(5px)",
+    borderRadius: "50%",
+    zIndex: 3,
+  }}
+/>
+
+  {/* MOON HORIZONTAL CONTACT SHADOW */}
+  <div
+    className="absolute"
+    style={{
+      width: "285px",
+      height: "22px",
+      left: "125px",
+      bottom: "25px",
+      transform: "translateX(-50%)",
+      background:
+        "radial-gradient(ellipse at center, rgba(55, 48, 35, 0.40) 0%, rgba(55, 48, 35, 0.28) 30%, rgba(55, 48, 35, 0.13) 58%, rgba(55, 48, 35, 0) 85%)",
+      filter: "blur(6px)",
+      borderRadius: "50%",
+      zIndex: 2,
+    }}
+  />
+
+  {/* MOON */}
+  <img
+    src={MOON_IMG}
+    alt=""
+    style={{
+      position: "absolute",
+      height: "260px",
+      width: "auto",
+      left: "12px",
+      bottom: "24px",
+      display: "block",
+      zIndex: 3,
+      filter: "none",
+    }}
+  />
+{/* SHOP NOW BUTTON */}
+<div
+  className="absolute z-10"
+  style={{
+    left: "50%",
+    bottom: "200px",
+    transform: "translateX(-50%)",
+  }}
+>
+  <Link
+    href="/shop"
+    className="inline-flex items-center justify-center transition-colors bg-[#47684b] hover:bg-[#7C966F] active:bg-[#7C966F]"
+    style={{
+      color: "#ffffff",
+      fontSize: "14px",
+      padding: "8px 15px",
+      borderRadius: "5px",
+      whiteSpace: "nowrap",
+      textDecoration: "none",
+    }}
+  >
+    Shop Now
+  </Link>
+</div>
+
+  {/* CANDLES */}
+  <img
+    src={CANDLES_IMG}
+    alt="Moon Candles collection"
+    style={{
+      position: "absolute",
+      width: "280px",
+      height: "225px",
+      objectFit: "contain",
+      left: "100px",
+      bottom: "-25px",
+      zIndex: 4,
+     filter: "none",
+    }}
+  />
+</div>
+
+        {/* ================= DESKTOP HERO — unchanged ================= */}
+        <div className="hidden md:flex relative z-10 items-center justify-center gap-8 max-w-6xl mx-auto px-12 py-16">
           <div
             className="relative flex-shrink-0"
             style={{
-              height: "clamp(240px, 60vw, 640px)",
+              height: "480px",
               width: "auto",
-              marginRight: "clamp(180px, 7vw, -100px)",
             }}
           >
-            <img src={MOON_IMG} alt="" style={{ height: "100%", width: "auto", display: "block" }} />
-
-            <p
-              className="font-bold"
+            <img
+              src={MOON_IMG}
+              alt=""
               style={{
-                position: "absolute",
-                left: "1%",
-                top: "30%",
-                width: "48%",
-                textAlign: "center",
-                color: "#000000",
-                fontSize: "clamp(17px, 2.2vw, 26px)",
-                letterSpacing: "0.02em",
+                height: "100%",
+                width: "auto",
+                display: "block",
               }}
-            >
-              Moon Candles
-            </p>
+            />
 
-            <p
-              className={caveat.className}
-              style={{
-                position: "absolute",
-                left: "3%",
-                top: "47%",
-                width: "60%",
-                textAlign: "left",
-                color: "#DE4B33",
-                fontSize: "13px",
-                fontWeight: 1000,
-              }}
-            >
-              Light up your moon
-            </p>
+            
 
             <div
               className="absolute z-10 flex justify-center"
-              style={{ left: "11%", bottom: "31%", width: "40%" }}
+              style={{
+                left: "11%",
+                bottom: "31%",
+                width: "40%",
+              }}
             >
-              <Link
-  href="/shop"
-  className="rounded-full font-medium transition-colors bg-[#DE4B33] hover:bg-[#C43D2C] active:bg-[#C43D2C]"
-  style={{
-    color: "#ffffff",
-    fontSize: "clamp(10px, 1.5vw, 18px)",
-    padding: "clamp(5px, 0.9vw, 11px) clamp(12px, 2.2vw, 28px)",
-  }}
->
-  Shop Now
-</Link>
+              
             </div>
           </div>
 
           <div
-            className="absolute flex items-center justify-center"
+            className="flex-shrink-0"
             style={{
-              right: "clamp(-10px, 0vw, 70px)",
-              top: "48%",
-              transform: "translateY(-50%)",
-              width: "clamp(200px, 70.5vw, 900px)",
-              height: "clamp(250px, 70vw, 900px)",
+              width: "420px",
+              marginLeft: "-40px",
             }}
           >
-            <img src={CANDLES_IMG} alt="Moon Candles collection" className="h-full w-full object-contain" />
-          </div>
-        </div>
-
-        {/* ================= DESKTOP HERO — new, independently laid out ================= */}
-        <div className="hidden md:flex relative z-10 items-center justify-center gap-8 max-w-6xl mx-auto px-12 py-16">
-          <div className="relative flex-shrink-0" style={{ height: "480px", width: "auto" }}>
-            <img src={MOON_IMG} alt="" style={{ height: "100%", width: "auto", display: "block" }} />
-
-            <p
-              className="font-bold"
-              style={{
-                position: "absolute",
-                left: "1%",
-                top: "30%",
-                width: "48%",
-                textAlign: "center",
-                color: "#000000",
-                fontSize: "26px",
-                letterSpacing: "0.02em",
-              }}
-            >
-              Moon Candles
-            </p>
-
-            <p
-              className={caveat.className}
-              style={{
-                position: "absolute",
-                left: "3%",
-                top: "50%",
-                width: "60%",
-                textAlign: "left",
-                color: "#DE4B33",
-                fontSize: "20px",
-                fontWeight: 1000,
-              }}
-            >
-              Light up your moon
-            </p>
-
-            <div
-              className="absolute z-10 flex justify-center"
-              style={{ left: "11%", bottom: "31%", width: "40%" }}
-            >
-              <button
-                className="rounded-full font-medium transition-colors bg-[#DE4B33] hover:bg-[#b38691] active:bg-[#b38691]"
-                style={{ color: "#ffffff", fontSize: "18px", padding: "11px 28px" }}
-              >
-                Shop Now
-              </button>
-            </div>
-          </div>
-
-          {/* Photo is now a REAL flex sibling — no absolute positioning,
-              so it correctly reserves its own space in the row instead of
-              being measured relative to the moon panel's tiny width. */}
-          <div className="flex-shrink-0" style={{ width: "420px", marginLeft: "-40px" }}>
-            <img src={CANDLES_IMG} alt="Moon Candles collection" className="w-full h-auto object-contain" />
+            <img
+              src={CANDLES_IMG}
+              alt="Moon Candles collection"
+              className="w-full h-auto object-contain"
+            />
           </div>
         </div>
       </div>
 
+      {/* ================= MOBILE TEXT SECTION ================= */}
+      <div
+        className="md:hidden flex flex-col items-center text-center w-full"
+        style={{
+          backgroundColor: "#efe3c4",
+          paddingTop: "55px",
+          paddingBottom: "35px",
+        }}
+      >
+        <h1
+          style={{
+            color: "#657A55",
+            fontFamily: "Georgia, serif",
+            fontSize: "27px",
+            fontWeight: 500,
+            margin: -10,
+            marginTop: -30,
+          }}
+        >
+          Light up your moon.
+        </h1>
+
+        <p
+          style={{
+            color: "#7D806C",
+            fontSize: "16px",
+            lineHeight: "1.35",
+            margin: "8px 0 14px",
+          }}
+        >
+          Handcrafted candles made to
+          <br />
+          brighten your space.
+        </p>
+
+        <span
+          style={{
+            color: "#7A9567",
+            fontSize: "28px",
+            lineHeight: 1,
+          }}
+        >
+          ☾
+        </span>
+      </div>
+
+      {/* ================= MAIN CONTENT ================= */}
       <main className="flex flex-1 w-full max-w-4xl flex-col items-center py-4 px-4 md:py-8 md:px-16">
         <RevealOnScroll>
           <div className="w-full flex justify-center">
             <CandleCarousel candles={candles} />
           </div>
         </RevealOnScroll>
-         <CustomizationTeaser /> 
 
-        <div>
-          <h2 className="font-bold" style={{ color: "#000000" }}>footer</h2>
-        </div>
+        <CustomizationTeaser />
+
+        
       </main>
     </div>
   );

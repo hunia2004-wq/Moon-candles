@@ -37,7 +37,7 @@ useEffect(() => {
   return (
     <section
       className="w-full flex justify-center px-4 py-12 md:py-20"
-      style={{ backgroundColor: "#FFF4E6" }}
+      style={{ backgroundColor: "#efe3c4" }}
     >
       <div
         className="w-full flex flex-col items-center text-center px-6 md:px-10 pt-10 md:pt-14 pb-10"
