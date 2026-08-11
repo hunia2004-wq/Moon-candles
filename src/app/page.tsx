@@ -373,7 +373,7 @@ export default async function Home() {
             marginTop: -30,
           }}
         >
-          Light up your moon.
+          Light up your moon
         </h1>
 
         <p
@@ -384,7 +384,7 @@ export default async function Home() {
             margin: "8px 0 14px",
           }}
         >
-          Handcrafted candles made to
+          Handcrafted scented candles made to
           <br />
           brighten your space.
         </p>

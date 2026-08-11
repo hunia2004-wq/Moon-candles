@@ -14,6 +14,9 @@ type ActiveCandleContextValue = {
   setActiveItemRect: (rect: Rect) => void;
   floatingCrossfade: number;
   setFloatingCrossfade: (value: number) => void;
+
+  heroImageRect: Rect;
+  setHeroImageRect: (rect: Rect) => void;
 };
 
 const ActiveCandleContext = createContext<ActiveCandleContextValue | null>(null);
@@ -22,6 +25,7 @@ export function ActiveCandleProvider({ children }: { children: ReactNode }) {
   const [activeImage, setActiveImage] = useState<string | null>(null);
   const [activeItemRect, setActiveItemRect] = useState<Rect>(null);
   const [floatingCrossfade, setFloatingCrossfade] = useState(0);
+  const [heroImageRect, setHeroImageRect] = useState<Rect>(null);
 
   return (
     <ActiveCandleContext.Provider
@@ -32,6 +36,8 @@ export function ActiveCandleProvider({ children }: { children: ReactNode }) {
         setActiveItemRect,
         floatingCrossfade,
         setFloatingCrossfade,
+        heroImageRect,
+        setHeroImageRect,
       }}
     >
       {children}
