@@ -14,6 +14,7 @@ const GIVEAWAY_NAMES = [
   "Plain tambourine",
   "Fan",
   "Bloom Wand",
+  "fan"
 ];
 export default function ShopGrid({ products, accent = "#657A55" }: { products: Product[]; accent?: string }) {
   const searchParams = useSearchParams();

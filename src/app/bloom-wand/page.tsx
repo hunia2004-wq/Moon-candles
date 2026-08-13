@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import BloomWandBuilder from "../components/BloomWandBuilder";
 
+export const dynamic = "force-dynamic";
+
 export default async function BloomWandPage() {
   const supabase = await createClient();
   const { data: product, error } = await supabase

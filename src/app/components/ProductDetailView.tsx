@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import type { Product } from "@/lib/supabase/types";
 
 // Same list used in ShopGrid.tsx to identify giveaway products by name.
@@ -13,12 +14,26 @@ const GIVEAWAY_NAMES = [
   "Bloom Wand",
 ];
 
+// Products that have a dedicated customization flow. Maps the exact
+// product name (as stored in Supabase) to its customize route.
+const CUSTOMIZE_ROUTES: Record<string, string> = {
+  "Plain tambourine": "/customize/tambourine",
+  "Fan": "/customize/fan",
+  "Mini Candles": "/customize-mini",
+};
+// Products that can ONLY be customized — no plain "Add to Cart" option.
+const CUSTOMIZE_ONLY_NAMES = ["Fan", "Mini Candles"];
+
 export default function ProductDetailView({ product }: { product: Product }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const preselectedColor = searchParams.get("color");
   const isGiveaway = GIVEAWAY_NAMES.includes(product.name);
   const accent = isGiveaway ? "#6E86C7" : "#D8A1AF";
   const accentDark = isGiveaway ? "#5A70B0" : "#B5798A";
+
+  const customizeRoute = CUSTOMIZE_ROUTES[product.name];
+  const customizeOnly = CUSTOMIZE_ONLY_NAMES.includes(product.name);
 
   const initialColorIndex = Math.max(
     0,
@@ -29,9 +44,6 @@ export default function ProductDetailView({ product }: { product: Product }) {
     initialColorIndex === -1 ? 0 : initialColorIndex
   );
 
-  // Second selection layer: which option (e.g. "Without Photo" / "With
-  // Photo") within the currently selected color. Only relevant for
-  // products whose colors have their own nested `options` array.
   const [selectedOptionIndex, setSelectedOptionIndex] = useState(0);
 
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -47,10 +59,6 @@ export default function ProductDetailView({ product }: { product: Product }) {
     ? selectedColor!.options![selectedOptionIndex]
     : undefined;
 
-  // Reset back to each color's first option whenever the color changes —
-  // otherwise switching color could leave you on an option index that
-  // doesn't exist for the new color, or silently keep showing the old
-  // color's option.
   useEffect(() => {
     setSelectedOptionIndex(0);
     setSelectedImageIndex(0);
@@ -58,11 +66,6 @@ export default function ProductDetailView({ product }: { product: Product }) {
 
   const displayPrice = selectedOption?.price ?? selectedColor?.price ?? product.price;
 
-  // Gallery follows, in order of priority: the selected OPTION's own
-  // photos (for products with nested options like Bloom Wand), then the
-  // selected COLOR's own photos (for products like the tambourine with
-  // per-size photos but no nested options), then the product's own
-  // image_urls (for products with no color variants at all).
   const gallery = hasOptions
     ? selectedOption?.image_urls?.length
       ? selectedOption.image_urls
@@ -82,7 +85,6 @@ export default function ProductDetailView({ product }: { product: Product }) {
     >
       <main className="grid w-full max-w-6xl grid-cols-1 items-start gap-8 px-6 py-16 md:grid-cols-[180px_1fr_1fr] md:gap-10 md:px-16">
 
-        {/* Left: color/size options for products with colors */}
         {hasColors && (
           <div className="order-2 flex flex-row flex-wrap justify-center gap-2 md:order-1 md:flex-col md:justify-start md:pt-24">
             <p
@@ -118,7 +120,6 @@ export default function ProductDetailView({ product }: { product: Product }) {
           </div>
         )}
 
-        {/* Center: name + main image */}
         <div className="order-1 flex w-full flex-col items-center gap-3 md:order-2">
           <p
             className="text-xs font-semibold uppercase tracking-[0.2em]"
@@ -157,9 +158,6 @@ export default function ProductDetailView({ product }: { product: Product }) {
             </div>
           </div>
 
-          {/* Image thumbnails — shown whenever the current selection has
-              more than one photo, regardless of whether that's coming
-              from an option, a color, or the product itself. */}
           {gallery.length > 1 && (
             <div className="flex flex-wrap justify-center gap-2">
               {gallery.map((url, index) => (
@@ -182,7 +180,6 @@ export default function ProductDetailView({ product }: { product: Product }) {
             </div>
           )}
 
-          {/* Selected color name */}
           {hasColors && selectedColor && (
             <span
               className="rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-wide"
@@ -192,7 +189,6 @@ export default function ProductDetailView({ product }: { product: Product }) {
             </span>
           )}
 
-          {/* Second-layer picker: options within the selected color */}
           {hasOptions && (
             <div className="flex flex-wrap justify-center gap-2 mt-1">
               {selectedColor!.options!.map((option, index) => {
@@ -219,7 +215,6 @@ export default function ProductDetailView({ product }: { product: Product }) {
           )}
         </div>
 
-        {/* Right: details */}
         <div
           className="order-3 flex w-full flex-col rounded-3xl p-6 text-center md:p-8 md:text-left"
           style={{ backgroundColor: "#FFFFFF", boxShadow: "0 12px 30px rgba(110,134,199,0.08)" }}
@@ -245,7 +240,6 @@ export default function ProductDetailView({ product }: { product: Product }) {
 
           <div className="mt-4 h-px w-full" style={{ backgroundColor: "#efe3c4" }} />
 
-          {/* Scents */}
           {product.scents?.length > 0 && (
             <div className="mt-6">
               <p
@@ -284,14 +278,38 @@ export default function ProductDetailView({ product }: { product: Product }) {
             </div>
           )}
 
-          <button
-            className="mt-8 rounded-full px-8 py-3.5 text-base font-semibold shadow-md transition-all duration-150 hover:scale-[1.03] active:scale-[0.97]"
-            style={{ backgroundColor: accent, color: "#FFF4E6" }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = accentDark)}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = accent)}
-          >
-            Add to Cart
-          </button>
+          {/* Add to Cart — hidden entirely for customize-only products
+              like Fan, which can't be purchased plain. */}
+          {!customizeOnly && (
+            <button
+              className="mt-8 rounded-full px-8 py-3.5 text-base font-semibold shadow-md transition-all duration-150 hover:scale-[1.03] active:scale-[0.97]"
+              style={{ backgroundColor: accent, color: "#FFF4E6" }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = accentDark)}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = accent)}
+            >
+              Add to Cart
+            </button>
+          )}
+
+          {/* Customize Your Own — shown for any product with a mapped
+              customize route (Tambourine, Fan). Outline style when Add
+              to Cart is also present, filled/primary when it's the only
+              option (Fan). */}
+          {customizeRoute && (
+            <button
+              onClick={() => router.push(customizeRoute)}
+              className={`rounded-full px-8 py-3.5 text-base font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] ${
+                customizeOnly ? "mt-8 shadow-md" : "mt-3"
+              }`}
+              style={
+                customizeOnly
+                  ? { backgroundColor: accent, color: "#FFF4E6" }
+                  : { backgroundColor: "transparent", color: accent, border: `1.5px solid ${accent}` }
+              }
+            >
+              Customize Your Own
+            </button>
+          )}
         </div>
       </main>
     </div>

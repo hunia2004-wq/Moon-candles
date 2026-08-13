@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import ProductDetailView from "@/app/components/ProductDetailView";
+import BloomWandBuilder from "@/app/components/BloomWandBuilder";
+
+export const dynamic = "force-dynamic";
 
 export default async function ProductDetail({
   params,
@@ -18,6 +21,10 @@ export default async function ProductDetail({
 
   if (error || !product) {
     notFound();
+  }
+
+  if (product.name === "Bloom Wand") {
+    return <BloomWandBuilder product={product} />;
   }
 
   return <ProductDetailView product={product} />;
