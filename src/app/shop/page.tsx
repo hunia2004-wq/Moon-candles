@@ -3,7 +3,23 @@ import ShopGrid from "../components/ShopGrid";
 
 const STRIPE_COUNT = 21;
 
-export default async function Shop() {
+const TITLES: Record<string, { title: string; subtitle: string; accent: string }> = {
+  candles: { title: "Candles", subtitle: "every candle, handpoured", accent: "#D8A1AF" },
+  giveaways: { title: "Giveaways", subtitle: "just for you", accent: "#6E86C7" },
+};
+
+export default async function Shop({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>;
+}) {
+  const { category } = await searchParams;
+  const { title, subtitle, accent } = TITLES[category ?? ""] ?? {
+    title: "Shop All",
+    subtitle: "every candle, handpoured",
+    accent: "#657A55",
+  };
+
   const supabase = await createClient();
   const { data: products, error } = await supabase
     .from("products")
@@ -25,7 +41,7 @@ export default async function Shop() {
             <div
               key={i}
               className="flex-1"
-              style={{ backgroundColor: i % 2 === 0 ? "#8FAA82" : "#efe3c4" }}
+              style={{ backgroundColor: i % 2 === 0 ? accent : "#efe3c4" }}
             />
           ))}
         </div>
@@ -34,18 +50,18 @@ export default async function Shop() {
       <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 md:px-16 md:py-16">
         <p
           className="uppercase tracking-[0.25em] text-xs md:text-sm mb-2"
-          style={{ color: "#657A55" }}
+          style={{ color: accent }}
         >
-          every candle, handpoured
+          {subtitle}
         </p>
         <h1
           className="mb-10 text-3xl md:text-5xl font-bold tracking-wide"
           style={{ color: "#000000" }}
         >
-          Shop All
+          {title}
         </h1>
 
-        <ShopGrid products={products ?? []} />
+        <ShopGrid products={products ?? []} accent={accent} />
       </main>
     </div>
   );

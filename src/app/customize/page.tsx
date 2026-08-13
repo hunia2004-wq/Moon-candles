@@ -9,7 +9,7 @@ const SIZES = [
     label: "150 ML",
     grams: "150 ml",
     price: 450,
-    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/150ml.png",
+    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/150ml.png?v=2",
   },
   {
     id: "large",
@@ -165,7 +165,7 @@ export default function CustomizeCandlePage() {
               width: "40%",
               fontSize: "11px",
               fontWeight: 600,
-              color: message ? "#8FAA82" : "rgba(0,0,0,0.35)",
+              color: message ? "#DE4B33" : "rgba(0,0,0,0.35)",
               textShadow: "0 1px 2px rgba(255,255,255,0.6)",
             }}
           >
@@ -195,14 +195,14 @@ export default function CustomizeCandlePage() {
 
       {/* ---------------- BELOW: form ---------------- */}
       <div className="px-6 md:px-12 py-4 md:py-16 flex flex-col max-w-2xl mx-auto">
-        <p className="uppercase tracking-[0.25em] text-xs md:text-sm mb-3" style={{ color: "#8FAA82" }}>
+        <p className="uppercase tracking-[0.25em] text-xs md:text-sm mb-3" style={{ color: "#DE4B33" }}>
           made by you, for you
         </p>
         <h1 className="font-serif leading-[1.05] mb-4">
           <span className="block text-3xl md:text-5xl font-bold" style={{ color: "#000000" }}>
             Customize
           </span>
-          <span className="block text-3xl md:text-5xl font-bold" style={{ color: "#8FAA82" }}>
+          <span className="block text-3xl md:text-5xl font-bold" style={{ color: "#DE4B33" }}>
             your candle
           </span>
         </h1>
@@ -218,7 +218,7 @@ export default function CustomizeCandlePage() {
   onClick={() => setSize(s.id)}
   className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-5 transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:shadow-md"
   style={{
-    border: `1.5px solid ${size === s.id ? "#8FAA82" : "rgba(0,0,0,0.12)"}`,
+    border: `1.5px solid ${size === s.id ? "#DE4B33" : "rgba(0,0,0,0.12)"}`,
     backgroundColor: size === s.id ? "#EFE3C4" : "transparent",
   }}
 >
@@ -246,7 +246,7 @@ export default function CustomizeCandlePage() {
               onClick={() => setScent(s)}
               className="flex flex-col items-start gap-1 rounded-xl px-4 py-3 text-left transition-colors"
               style={{
-                border: `1.5px solid ${scent === s ? "#8FAA82" : "rgba(0,0,0,0.12)"}`,
+                border: `1.5px solid ${scent === s ? "#DE4B33" : "rgba(0,0,0,0.12)"}`,
                 backgroundColor: scent === s ? "#EFE3C4" : "transparent",
               }}
             >
@@ -261,7 +261,7 @@ export default function CustomizeCandlePage() {
         <button
           onClick={() => fileInputRef.current?.click()}
           className="w-full flex items-center gap-3 rounded-xl px-4 py-4 mb-8 text-left transition-colors"
-          style={{ border: "1.5px dashed #8FAA82", backgroundColor: "#EFE3C4" }}
+          style={{ border: "1.5px dashed #DE4B33", backgroundColor: "#EFE3C4" }}
         >
           <PhotoUploadIcon />
           <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
@@ -281,7 +281,7 @@ export default function CustomizeCandlePage() {
         <StepLabel n={4} title="Add your message" />
         <div
           className="rounded-xl px-4 py-3 mb-8"
-          style={{ border: "1.5px solid #8FAA82", backgroundColor: "#EFE3C4" }}
+          style={{ border: "1.5px solid #DE4B33", backgroundColor: "#EFE3C4" }}
         >
           <textarea
             value={message}
@@ -299,7 +299,7 @@ export default function CustomizeCandlePage() {
         <div className="flex items-center gap-4 mt-auto">
           <button
   onClick={() => setShowPreview(true)}
-  className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors bg-[#8FAA82] hover:bg-[#7C966F] active:bg-[#7C966F]"
+  className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors bg-[#DE4B33] hover:bg-[#B23A26] active:bg-[#B23A26]"
   style={{
     color: "#FFF4E6",
     fontSize: "clamp(14px, 1.5vw, 16px)",
@@ -360,7 +360,7 @@ export default function CustomizeCandlePage() {
           width: "40%",
           fontSize: "13px",
           fontWeight: 600,
-          color: "#8FAA82",
+          color: "#DE4B33",
           textShadow: "0 1px 2px rgba(255,255,255,0.6)",
         }}
       >
@@ -381,7 +381,7 @@ export default function CustomizeCandlePage() {
       photoScale,
     });
   }}
-  className="mt-6 inline-flex items-center justify-center gap-2 px-10 py-3 rounded-full text-sm md:text-base font-medium transition-colors bg-[#8FAA82] hover:bg-[#7C966F] active:bg-[#7C966F]"
+  className="mt-6 inline-flex items-center justify-center gap-2 px-10 py-3 rounded-full text-sm md:text-base font-medium transition-colors bg-[#DE4B33] hover:bg-[#B23A26] active:bg-[#B23A26]"
   style={{ color: "#FFF4E6" }}
 >
   Checkout — {selectedSize.price} LE
@@ -401,7 +401,7 @@ function StepLabel({ n, title }: { n: number; title: string }) {
     <div className="flex items-center gap-2 mb-3">
       <span
         className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold"
-        style={{ backgroundColor: "#8FAA82", color: "#FFF4E6" }}
+        style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
       >
         {n}
       </span>
@@ -415,9 +415,9 @@ function StepLabel({ n, title }: { n: number; title: string }) {
 
 function PhotoUploadIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8FAA82" strokeWidth="1.6">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DE4B33" strokeWidth="1.6">
       <rect x="3" y="5" width="18" height="14" rx="2" />
-      <circle cx="9" cy="10" r="1.6" fill="#8FAA82" stroke="none" />
+      <circle cx="9" cy="10" r="1.6" fill="#DE4B33" stroke="none" />
       <path d="M21 16l-5.5-5.5L9 17" />
     </svg>
     

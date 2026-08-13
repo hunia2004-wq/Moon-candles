@@ -4,7 +4,14 @@ export type Product = {
   name: string;
   description: string | null;
   scents: string[];
-  colors: { name: string; hex: string | null; image_url?: string }[];
+  colors: {
+  name: string;
+  hex: string | null;
+  image_url?: string;
+  image_urls?: string[];
+  price?: number;
+  options?: { name: string; price?: number; image_url?: string; image_urls?: string[] }[];
+}[];
   price: number;
   stock: number;
   image_urls: string[];

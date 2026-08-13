@@ -15,21 +15,20 @@ const SHOP_ITEMS = [
 ];
 
 const GIVEAWAY_ITEMS = [
-  { name: "Bloom Wand", slug: "bloom-wand" },
-  { name: "Tambourines", slug: "tambourines" },
   { name: "Mini Candles", slug: "mini-candles" },
+  { name: "Quack and Kiss", slug: "quack-and-kiss" },
+  { name: "Plain tambourine", slug: "plain-tambourine" },
+  { name: "Fan", slug: "fan" },
+ { name: "Bloom Wand", slug: "bloom-wand" },
 ];
 
 export default function HamburgerMenu() {
   const [open, setOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
-  const [giveawaysOpen, setGiveawaysOpen] = useState(false);
-  
 
   function closeAll() {
     setOpen(false);
     setShopOpen(false);
-    setGiveawaysOpen(false);
   }
 
   return (
@@ -78,7 +77,7 @@ export default function HamburgerMenu() {
                 Home
               </Link>
 
-              {/* Shop All */}
+              {/* Shop All — single dropdown covering candles + giveaways */}
               <div className="border-t" style={{ borderColor: "#FFD6B8" }}>
                 <div className="flex items-center justify-between py-3">
                   <Link
@@ -105,7 +104,37 @@ export default function HamburgerMenu() {
 
                 {shopOpen && (
                   <div className="flex flex-col gap-1 pb-3 pl-4 text-sm normal-case tracking-normal">
+                    {/* Candles group */}
+                   <Link
+  href="/shop?category=candles"
+  onClick={closeAll}
+  className="mt-1 mb-2 block text-sm font-bold uppercase tracking-wide"
+  style={{ color: "#DE4B33" }}
+>
+  Candles
+</Link>
                     {SHOP_ITEMS.map((item) => (
+                      <Link
+                        key={item.slug}
+                        href={`/product/by-name/${encodeURIComponent(item.name)}`}
+                        onClick={closeAll}
+                        className="py-1.5"
+                        style={{ color: "#000000" }}
+                      >
+                        {item.name}
+                      </Link>
+                    ))}
+
+                    {/* Giveaways group */}
+         <Link
+  href="/shop?category=giveaways"
+  onClick={closeAll}
+  className="mt-4 mb-2 block text-sm font-bold uppercase tracking-wide"
+  style={{ color: "#DE4B33" }}
+>
+  Giveaways
+</Link>
+                    {GIVEAWAY_ITEMS.map((item) => (
                       <Link
                         key={item.slug}
                         href={`/product/by-name/${encodeURIComponent(item.name)}`}
@@ -120,50 +149,14 @@ export default function HamburgerMenu() {
                 )}
               </div>
 
-              {/* Giveaways */}
-              <div className="border-t" style={{ borderColor: "#FFD6B8" }}>
-                <div className="flex items-center justify-between py-3">
-                  <span style={{ color: "#000000" }}>Giveaways</span>
-                  <button
-                    onClick={() => setGiveawaysOpen((prev) => !prev)}
-                    aria-label="Toggle giveaways"
-                  >
-                    <ChevronDown
-                      size={18}
-                      style={{
-                        color: "#000000",
-                        transform: giveawaysOpen ? "rotate(180deg)" : "none",
-                        transition: "transform 0.2s",
-                      }}
-                    />
-                  </button>
-                </div>
-
-                {giveawaysOpen && (
-                  <div className="flex flex-col gap-1 pb-3 pl-4 text-sm normal-case tracking-normal">
-                    {GIVEAWAY_ITEMS.map((item) => (
-                      <span
-                        key={item.slug}
-                        className="py-1.5"
-                        style={{ color: "#000000" }}
-                      >
-                        {item.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
               <Link
-  href="/customize"
-  onClick={closeAll}
-  className="border-t py-3"
-  style={{ borderColor: "#FFD6B8", color: "#000000" }}
->
-  Customize Your Own
-</Link>
-
-              
+                href="/customize"
+                onClick={closeAll}
+                className="border-t py-3"
+                style={{ borderColor: "#FFD6B8", color: "#000000" }}
+              >
+                Customize Your Own
+              </Link>
             </nav>
           </div>
         </div>

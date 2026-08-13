@@ -20,14 +20,14 @@ export default async function Home() {
   const supabase = await createClient();
 
   const { data: marble, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("name", "Marble Moon")
-    .single();
+  .from("products")
+  .select("*")
+  .eq("name", "Iced Latte")
+  .single();
 
-  if (error) {
-    console.error("Failed to fetch Marble Moon Candle:", error.message);
-  }
+if (error) {
+  console.error("Failed to fetch Iced Latte:", error.message);
+}
 
   const candles: CarouselCandle[] =
     marble?.colors?.map(
@@ -402,8 +402,20 @@ export default async function Home() {
 
       {/* ================= MAIN CONTENT ================= */}
       <main className="flex flex-1 w-full max-w-4xl flex-col items-center py-4 px-4 md:py-8 md:px-16">
-        <RevealOnScroll>
-          <div className="w-full flex justify-center">
+       <RevealOnScroll>
+          <div className="w-full flex flex-col items-center">
+            <p
+              className="uppercase tracking-[0.25em] text-xs md:text-sm mb-2"
+              style={{ color: "#DE4B33" }}
+            >
+              fan favorites
+            </p>
+            <h2
+              className="font-serif text-3xl md:text-5xl font-bold mb-6 text-center"
+              style={{ color: "#000000" }}
+            >
+              Best Sellers
+            </h2>
             <CandleCarousel candles={candles} />
           </div>
         </RevealOnScroll>
