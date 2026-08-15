@@ -10,13 +10,13 @@ const SIZES = [
     id: "small",
     label: "12 CM",
     price: 90,
-    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/custom%20tambrourines/small%20tambourine%20custom.png",
+    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/custom%20tambourines/small%20tambourine%20custom.png",
   },
   {
     id: "large",
     label: "20 CM",
     price: 145,
-    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/custom%20tambrourines/Unknown-34_3-removebg-preview.png",
+    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/custom%20tambourines/large%20tambourine%20custom.png",
   },
 ] as const;
 

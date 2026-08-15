@@ -9,7 +9,7 @@ const SHOP_ITEMS = [
   { name: "Dimple Moon", slug: "dimple-moon-candle" },
   { name: "Iced Latte", slug: "iced-latte-candle" },
   { name: "Molten Muse", slug: "molten-muse" },
-  { name: "Crystal Glow", slug: "crystal-glow" },
+  { name: "Crystal Glow", slug: "TEST-CRYSTAL" },
   { name: "Melt Balm", slug: "melt-balm" },
   { name: "Shell", slug: "shell" },
 ];
@@ -113,17 +113,17 @@ export default function HamburgerMenu() {
 >
   Candles
 </Link>
-                    {SHOP_ITEMS.map((item) => (
-                      <Link
-                        key={item.slug}
-                        href={`/product/by-name/${encodeURIComponent(item.name)}`}
-                        onClick={closeAll}
-                        className="py-1.5"
-                        style={{ color: "#000000" }}
-                      >
-                        {item.name}
-                      </Link>
-                    ))}
+               {SHOP_ITEMS.map((item) => (
+  <Link
+    key={item.slug}
+    href={`/product/by-name/${encodeURIComponent(item.name)}`}
+    onClick={closeAll}
+    className="py-1.5"
+    style={{ color: "#000000" }}
+  >
+    {item.name}
+  </Link>
+))}
 
                     {/* Giveaways group */}
          <Link
@@ -134,17 +134,17 @@ export default function HamburgerMenu() {
 >
   Giveaways
 </Link>
-                    {GIVEAWAY_ITEMS.map((item) => (
-                      <Link
-                        key={item.slug}
-                        href={`/product/by-name/${encodeURIComponent(item.name)}`}
-                        onClick={closeAll}
-                        className="py-1.5"
-                        style={{ color: "#000000" }}
-                      >
-                        {item.name}
-                      </Link>
-                    ))}
+                {GIVEAWAY_ITEMS.map((item) => (
+  <Link
+    key={item.slug}
+    href={`/product/by-name/${encodeURIComponent(item.name)}`}
+    onClick={closeAll}
+    className="py-1.5"
+    style={{ color: "#000000" }}
+  >
+    {item.name}
+  </Link>
+))}
                   </div>
                 )}
               </div>

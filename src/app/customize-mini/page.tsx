@@ -129,10 +129,24 @@ export default function CustomizeMiniPage() {
             your mini candles
           </span>
         </h1>
-        <p className="text-sm md:text-base mb-10" style={{ color: "rgba(0,0,0,0.62)" }}>
-          Pick your color combos, quantities, and scents below. Have a design
-          idea or question? DM us on Instagram @the_moon_candlesshop.
-        </p>
+       <p className="text-sm md:text-base mb-10" style={{ color: "rgba(0,0,0,0.62)" }}>
+  Pick your color combos, quantities, and scents below. Have a design
+  idea or question? DM us on Instagram @the_moon_candlesshop.
+</p>
+
+{/* Reference image of the actual mini candles */}
+<div
+  className="rounded-2xl overflow-hidden mb-8"
+  style={{ border: "1px solid rgba(0,0,0,0.08)" }}
+>
+  <img
+    src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/mini%20candles%20all.jpg"
+    alt="Mini candles reference"
+    className="w-full h-auto object-cover"
+  />
+</div>
+
+{/* Step 1 — Photo, initials-only note */}
 
         {/* Step 1 — Photo, initials-only note */}
         <StepLabel n={1} title="Add a photo" />
@@ -141,10 +155,7 @@ export default function CustomizeMiniPage() {
           style={{ border: "1.5px solid #DE4B33", backgroundColor: "#EFE3C4" }}
         >
           <p className="text-xs mb-3" style={{ color: "rgba(0,0,0,0.7)" }}>
-            Because mini candles have very little space to work with, please
-            keep your photo to <strong>initials only</strong> — not a full
-            photo of a person or a detailed image. Check the design reference
-            for examples of what fits well.
+           Because mini candles have limited space, please use initials only—not full photos or detailed images. Check the design reference for examples.
           </p>
 
           <button
@@ -179,30 +190,12 @@ export default function CustomizeMiniPage() {
           )}
         </div>
 
-        {/* Step 2 — Short note/message */}
-        <StepLabel n={2} title="Add a short note (optional)" />
-        <div
-          className="rounded-xl px-4 py-3 mb-8"
-          style={{ border: "1.5px solid #DE4B33", backgroundColor: "#EFE3C4" }}
-        >
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value.slice(0, MAX_MESSAGE_LEN))}
-            placeholder="Short note (initials or a couple words)..."
-            rows={2}
-            className="w-full bg-transparent outline-none resize-none text-sm"
-            style={{ color: "#000000" }}
-          />
-          <div className="text-right text-[11px]" style={{ color: "rgba(0,0,0,0.45)" }}>
-            {message.length}/{MAX_MESSAGE_LEN}
-          </div>
-        </div>
+       
 
         {/* Step 3 — Color combo builder */}
         <StepLabel n={3} title="Choose your color combos" />
         <p className="text-xs mb-3" style={{ color: "rgba(0,0,0,0.6)" }}>
-          Each mini candle uses two colors. Pick a pair and add it below —
-          you'll set quantity and each candle's scent next.
+         Each mini candle uses two colors. Pick a pair below, then choose the quantity and scent for each candle.
         </p>
 
         <div className="grid grid-cols-2 gap-3 mb-3">

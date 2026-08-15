@@ -240,7 +240,7 @@ export default function ProductDetailView({ product }: { product: Product }) {
 
           <div className="mt-4 h-px w-full" style={{ backgroundColor: "#efe3c4" }} />
 
-          {product.scents?.length > 0 && (
+          {product.scents?.length > 0 && !customizeOnly && (
             <div className="mt-6">
               <p
                 className="mb-2 text-xs font-semibold uppercase tracking-[0.15em]"
