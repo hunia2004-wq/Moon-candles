@@ -155,7 +155,7 @@ export default function HamburgerMenu() {
                 className="border-t py-3"
                 style={{ borderColor: "#FFD6B8", color: "#000000" }}
               >
-                Customize Your Own
+                Customize Your candle
               </Link>
             </nav>
           </div>
