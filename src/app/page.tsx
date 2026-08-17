@@ -267,8 +267,8 @@ if (error) {
 <div
   className="absolute z-10"
   style={{
-    left: "50%",
-    bottom: "200px",
+    left: "79%",
+    bottom: "230px",
     transform: "translateX(-50%)",
   }}
 >

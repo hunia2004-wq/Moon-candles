@@ -8,7 +8,12 @@ const PRICE = 25;
 const FAN_IMG =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customized%20fan/custom%20fan.png";
 
-const COLORS = ["#DE4B33", "#D8A1AF", "#8FAA82", "#6E86C7", "#F4C77A", "#556B2F", "#000000", "#FFFFFF"];
+const BG_SHAPES = [
+  { id: "rectangle", label: "Rectangle" },
+  { id: "pill", label: "Pill" },
+  { id: "circle", label: "Circle" },
+  { id: "ribbon", label: "Ribbon" },
+] as const;
 
 /* ------------------------------------------------------------------ */
 /*  Layer model                                                        */
@@ -29,9 +34,10 @@ type TextLayer = BaseLayer & {
   content: string;
   fontSize: number;
   color: string;
-  // NEW: optional readable background behind the text, since text sitting
+  // optional readable background behind the text, since text sitting
   // directly on a busy uploaded pattern can be hard to see.
   bgColor: string | null;
+  bgShape: (typeof BG_SHAPES)[number]["id"];
 };
 
 type PatternLayer = BaseLayer & {
@@ -50,6 +56,53 @@ function makeId() {
 
 function defaultLayersForSide(): Layer[] {
   return [];
+}
+
+/* ------------------------------------------------------------------ */
+/*  Full-spectrum color picker — a rainbow "globe" swatch that opens   */
+/*  the native color wheel, so every color is available, not just a    */
+/*  fixed preset list.                                                  */
+/* ------------------------------------------------------------------ */
+
+function ColorWheelPicker({
+  value,
+  onChange,
+  size = 26,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+  size?: number;
+}) {
+  return (
+    <label
+      className="relative inline-flex flex-shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform hover:scale-110"
+      style={{
+        width: size,
+        height: size,
+        // conic rainbow ring so it visually reads as "pick any color"
+        background:
+          "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
+        boxShadow: "0 0 0 1px rgba(0,0,0,0.15)",
+      }}
+      title="Choose any color"
+    >
+      <span
+        className="rounded-full"
+        style={{
+          width: size - 8,
+          height: size - 8,
+          backgroundColor: value,
+          boxShadow: "0 0 0 1.5px #FFFFFF",
+        }}
+      />
+      <input
+        type="color"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+    </label>
+  );
 }
 
 export default function CustomizeFanPage() {
@@ -84,7 +137,8 @@ export default function CustomizeFanPage() {
         content: role === "monogram" ? "Y & J" : "Your message",
         fontSize: role === "monogram" ? 20 : 13,
         color: "#000000",
-        bgColor: "#FFFFFF", // default ON, so text is readable right away
+        bgColor: "#FFFFFF",
+        bgShape: "rectangle",
         x: 50,
         y: role === "monogram" ? 42 : 70,
         scale: 1,
@@ -122,9 +176,6 @@ export default function CustomizeFanPage() {
     e.target.value = "";
   }
 
-  // NEW: copy the selected pattern layer onto the other side, matching
-  // its position/scale/rotation/tint exactly. Replaces any existing
-  // pattern layer(s) on that side rather than stacking multiple.
   function applyPatternToBothSides(layer: PatternLayer) {
     const copy: PatternLayer = { ...layer, id: makeId(), z: 0 };
     setLayersBySide((prev) => ({
@@ -140,10 +191,6 @@ export default function CustomizeFanPage() {
   function removeLayer(id: string) {
     setLayers((prev) => prev.filter((l) => l.id !== id));
     if (selectedId === id) setSelectedId(null);
-  }
-
-  function bringToFront(id: string) {
-    updateLayer(id, { z: nextZ.current++ });
   }
 
   const handlePointerDown = useCallback((id: string) => (e: React.PointerEvent) => {
@@ -169,6 +216,32 @@ export default function CustomizeFanPage() {
   }, []);
 
   const selectedLayer = layers.find((l) => l.id === selectedId) ?? null;
+
+  // Shape-specific box styling for the text background "chip".
+  function bgShapeStyle(shape: TextLayer["bgShape"], hasContent: boolean): React.CSSProperties {
+    if (!hasContent) return {};
+    switch (shape) {
+      case "circle":
+        return {
+          borderRadius: "50%",
+          aspectRatio: "1 / 1",
+          padding: "18px 14px",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        };
+      case "pill":
+        return { borderRadius: 999, padding: "6px 16px" };
+      case "ribbon":
+        return {
+          padding: "6px 22px",
+          clipPath: "polygon(6% 0%, 94% 0%, 100% 50%, 94% 100%, 6% 100%, 0% 50%)",
+        };
+      case "rectangle":
+      default:
+        return { borderRadius: 8, padding: "4px 10px" };
+    }
+  }
 
   function renderLayer(layer: Layer, interactive: boolean) {
     const isSelected = interactive && layer.id === selectedId;
@@ -232,8 +305,8 @@ export default function CustomizeFanPage() {
       );
     }
 
-    // Text layer — with an optional background "chip" behind it so the
-    // words stay readable even over a busy uploaded pattern.
+    const hasBg = !!layer.bgColor;
+
     return (
       <div
         key={layer.id}
@@ -246,10 +319,9 @@ export default function CustomizeFanPage() {
           whiteSpace: "nowrap",
           fontFamily: layer.role === "monogram" ? "serif" : "inherit",
           backgroundColor: layer.bgColor ?? "transparent",
-          padding: layer.bgColor ? "4px 10px" : 0,
-          borderRadius: layer.bgColor ? 8 : 0,
-          boxShadow: layer.bgColor ? "0 1px 4px rgba(0,0,0,0.15)" : "none",
-          textShadow: layer.bgColor ? "none" : "0 1px 2px rgba(255,255,255,0.6)",
+          boxShadow: hasBg ? "0 1px 4px rgba(0,0,0,0.15)" : "none",
+          textShadow: hasBg ? "none" : "0 1px 2px rgba(255,255,255,0.6)",
+          ...bgShapeStyle(layer.bgShape, hasBg),
         }}
       >
         {layer.content}
@@ -347,15 +419,16 @@ export default function CustomizeFanPage() {
               />
             </div>
 
+            {/* Tint / Color — full-spectrum wheel, any color, not a fixed preset list */}
             <div className="flex items-center gap-2">
               <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>
                 {selectedLayer.type === "pattern" ? "Tint" : "Color"}
               </span>
-              <div className="flex flex-1 flex-wrap gap-1.5">
+              <div className="flex flex-1 items-center gap-2">
                 {selectedLayer.type === "pattern" && (
                   <button
                     onClick={() => updateLayer(selectedLayer.id, { tint: null })}
-                    className="h-5 w-5 rounded-full border transition-transform hover:scale-110"
+                    className="h-6 w-6 flex-shrink-0 rounded-full border transition-transform hover:scale-110"
                     style={{
                       backgroundColor: "#FFFFFF",
                       backgroundImage:
@@ -366,66 +439,77 @@ export default function CustomizeFanPage() {
                     title="No tint"
                   />
                 )}
-                {COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() =>
-                      updateLayer(
-                        selectedLayer.id,
-                        selectedLayer.type === "pattern" ? { tint: c } : { color: c }
-                      )
-                    }
-                    className="h-5 w-5 rounded-full border transition-transform hover:scale-110"
-                    style={{
-                      backgroundColor: c,
-                      borderColor:
-                        (selectedLayer.type === "pattern" ? selectedLayer.tint : selectedLayer.color) === c
-                          ? "#000000"
-                          : "transparent",
-                      borderWidth:
-                        (selectedLayer.type === "pattern" ? selectedLayer.tint : selectedLayer.color) === c
-                          ? 2
-                          : 1,
-                    }}
-                  />
-                ))}
+                <ColorWheelPicker
+                  value={
+                    selectedLayer.type === "pattern"
+                      ? selectedLayer.tint ?? "#DE4B33"
+                      : selectedLayer.color
+                  }
+                  onChange={(c) =>
+                    updateLayer(
+                      selectedLayer.id,
+                      selectedLayer.type === "pattern" ? { tint: c } : { color: c }
+                    )
+                  }
+                />
+                <span className="text-[10px]" style={{ color: "rgba(0,0,0,0.45)" }}>
+                  tap the wheel to pick any color
+                </span>
               </div>
             </div>
 
-            {/* NEW: readable background toggle, text layers only */}
             {selectedLayer.type === "text" && (
-              <div className="flex items-center gap-2">
-                <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Backing</span>
-                <div className="flex flex-1 flex-wrap gap-1.5">
-                  <button
-                    onClick={() => updateLayer(selectedLayer.id, { bgColor: null })}
-                    className="h-5 w-5 rounded-full border transition-transform hover:scale-110"
-                    style={{
-                      backgroundColor: "#FFFFFF",
-                      backgroundImage:
-                        "linear-gradient(45deg, transparent 45%, red 45%, red 55%, transparent 55%)",
-                      borderColor: selectedLayer.bgColor === null ? "#000000" : "rgba(0,0,0,0.3)",
-                      borderWidth: selectedLayer.bgColor === null ? 2 : 1,
-                    }}
-                    title="No backing"
-                  />
-                  {["#FFFFFF", "#EFE3C4", "#FFF4E6", "#000000"].map((c) => (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Backing</span>
+                  <div className="flex flex-1 items-center gap-2">
                     <button
-                      key={c}
-                      onClick={() => updateLayer(selectedLayer.id, { bgColor: c })}
-                      className="h-5 w-5 rounded-full border transition-transform hover:scale-110"
+                      onClick={() => updateLayer(selectedLayer.id, { bgColor: null })}
+                      className="h-6 w-6 flex-shrink-0 rounded-full border transition-transform hover:scale-110"
                       style={{
-                        backgroundColor: c,
-                        borderColor: selectedLayer.bgColor === c ? "#DE4B33" : "rgba(0,0,0,0.2)",
-                        borderWidth: selectedLayer.bgColor === c ? 2 : 1,
+                        backgroundColor: "#FFFFFF",
+                        backgroundImage:
+                          "linear-gradient(45deg, transparent 45%, red 45%, red 55%, transparent 55%)",
+                        borderColor: selectedLayer.bgColor === null ? "#000000" : "rgba(0,0,0,0.3)",
+                        borderWidth: selectedLayer.bgColor === null ? 2 : 1,
                       }}
+                      title="No backing"
                     />
-                  ))}
+                    <ColorWheelPicker
+                      value={selectedLayer.bgColor ?? "#FFFFFF"}
+                      onChange={(c) => updateLayer(selectedLayer.id, { bgColor: c })}
+                    />
+                    <span className="text-[10px]" style={{ color: "rgba(0,0,0,0.45)" }}>
+                      any backing color
+                    </span>
+                  </div>
                 </div>
-              </div>
+
+                {/* Backing shape — only meaningful once a backing color is on */}
+                {selectedLayer.bgColor && (
+                  <div className="flex items-center gap-2">
+                    <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Shape</span>
+                    <div className="flex flex-1 flex-wrap gap-1.5">
+                      {BG_SHAPES.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => updateLayer(selectedLayer.id, { bgShape: s.id })}
+                          className="rounded-md px-2.5 py-1 text-[11px] transition-all"
+                          style={{
+                            backgroundColor: selectedLayer.bgShape === s.id ? ACCENT : "#FFFFFF",
+                            color: selectedLayer.bgShape === s.id ? "#FFF4E6" : "rgba(0,0,0,0.6)",
+                            border: `1px solid ${selectedLayer.bgShape === s.id ? ACCENT : "rgba(0,0,0,0.15)"}`,
+                          }}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
-            {/* NEW: apply pattern to both sides */}
             {selectedLayer.type === "pattern" && (
               <button
                 onClick={() => applyPatternToBothSides(selectedLayer)}
@@ -436,14 +520,7 @@ export default function CustomizeFanPage() {
               </button>
             )}
 
-            <div className="flex justify-between pt-1">
-              <button
-                onClick={() => bringToFront(selectedLayer.id)}
-                className="text-[11px] font-medium underline"
-                style={{ color: ACCENT }}
-              >
-                bring to front
-              </button>
+            <div className="flex justify-end pt-1">
               <button
                 onClick={() => removeLayer(selectedLayer.id)}
                 className="text-[11px] font-medium underline"

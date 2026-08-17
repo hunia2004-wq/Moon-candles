@@ -307,7 +307,7 @@ export default function ProductDetailView({ product }: { product: Product }) {
                   : { backgroundColor: "transparent", color: accent, border: `1.5px solid ${accent}` }
               }
             >
-              Customize Your Own
+              Customize Your candle
             </button>
           )}
         </div>
