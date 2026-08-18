@@ -27,6 +27,5 @@ export default async function ProductByName({
   if (product.name === "Bloom Wand") {
     return <BloomWandBuilder product={product} />;
   }
-
-  return <ProductDetailView product={product} />;
+return <ProductDetailView key={product.id} product={product} />;
 }

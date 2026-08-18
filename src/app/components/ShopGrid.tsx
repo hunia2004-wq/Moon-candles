@@ -11,7 +11,7 @@ import AutoCenteredImage from "./AutoCenteredImage";
 const GIVEAWAY_NAMES = [
   "Mini Candles",
   "Quack and Kiss",
-  "Plain tambourine",
+  "Tambourine",
   "Fan",
   "Bloom Wand",
   "fan"

@@ -27,5 +27,5 @@ export default async function ProductDetail({
     return <BloomWandBuilder product={product} />;
   }
 
-  return <ProductDetailView product={product} />;
+  return <ProductDetailView key={product.id} product={product} />;
 }

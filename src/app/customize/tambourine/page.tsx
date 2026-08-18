@@ -1,176 +1,912 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import {
+  Great_Vibes,
+  Dancing_Script,
+  Sacramento,
+  Playfair_Display,
+  Bitter,
+  Libre_Baskerville,
+  Poppins,
+  Oswald,
+  Archivo_Black,
+  Abril_Fatface,
+  Bebas_Neue,
+  Righteous,
+  Pacifico,
+  Space_Mono,
+  Permanent_Marker,
+} from "next/font/google";
 
-/* TODO: swap in a real product photo once available */
+const greatVibes = Great_Vibes({ subsets: ["latin"], weight: ["400"] });
+const dancingScript = Dancing_Script({ subsets: ["latin"], weight: ["700"] });
+const sacramento = Sacramento({ subsets: ["latin"], weight: ["400"] });
+const playfair = Playfair_Display({ subsets: ["latin"], weight: ["700"] });
+const bitter = Bitter({ subsets: ["latin"], weight: ["800"] });
+const libreBaskerville = Libre_Baskerville({ subsets: ["latin"], weight: ["700"] });
+const poppins = Poppins({ subsets: ["latin"], weight: ["700"] });
+const oswald = Oswald({ subsets: ["latin"], weight: ["600"] });
+const archivoBlack = Archivo_Black({ subsets: ["latin"], weight: ["400"] });
+const abrilFatface = Abril_Fatface({ subsets: ["latin"], weight: ["400"] });
+const bebasNeue = Bebas_Neue({ subsets: ["latin"], weight: ["400"] });
+const righteous = Righteous({ subsets: ["latin"], weight: ["400"] });
+const pacifico = Pacifico({ subsets: ["latin"], weight: ["400"] });
+const spaceMono = Space_Mono({ subsets: ["latin"], weight: ["700"] });
+const permanentMarker = Permanent_Marker({ subsets: ["latin"], weight: ["400"] });
 
+const ACCENT = "#DE4B33";
+
+/* ------------------------------------------------------------------ */
+/*  Sizes — each has its OWN image, which doubles as the mask source,  */
+/*  exactly like the fan uses its own photo as its mask. This is what  */
+/*  makes designs clip exactly to the real tambourine silhouette       */
+/*  instead of an approximated circle.                                 */
+/* ------------------------------------------------------------------ */
 
 const SIZES = [
   {
     id: "small",
     label: "12 CM",
+    cm: 12,
     price: 90,
     img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/custom%20tambourines/small%20tambourine%20custom.png",
+    drumPos: { x: 50, y: 42 },
+    drumDiameterPct: 66,
   },
   {
     id: "large",
     label: "20 CM",
+    cm: 20,
     price: 145,
     img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/custom%20tambourines/large%20tambourine%20custom.png",
+    drumPos: { x: 50, y: 33 },
+    drumDiameterPct: 66,
   },
 ] as const;
 
-const MAX_MESSAGE_LEN = 50;
-
+const MAX_CM = Math.max(...SIZES.map((s) => s.cm));
 type SizeId = (typeof SIZES)[number]["id"];
+
+const RIBBON_COLORS = [
+  { id: "light-pink", label: "Light Pink", hex: "#F5C6D6" },
+  { id: "light-blue", label: "Light Blue", hex: "#B9D9EC" },
+  { id: "navy", label: "Navy", hex: "#22345C" },
+  { id: "white", label: "White", hex: "#FFFFFF" },
+  { id: "red", label: "Red", hex: "#C0392B" },
+  { id: "beige", label: "Beige", hex: "#E8DCC4" },
+  { id: "maroon", label: "Maroon", hex: "#6B1F2A" },
+  { id: "gold", label: "Glittery Gold", hex: "#D4AF37" },
+  { id: "olive", label: "Olive", hex: "#6E6E36" },
+  { id: "light-purple", label: "Light Purple", hex: "#C9B6E4" },
+  { id: "dark-purple", label: "Dark Purple", hex: "#4B2E6F" },
+] as const;
+type RibbonColorId = (typeof RIBBON_COLORS)[number]["id"];
+
+const BG_SHAPES = [
+  { id: "rectangle", label: "Rectangle" },
+  { id: "pill", label: "Pill" },
+  { id: "circle", label: "Circle" },
+  { id: "ribbon", label: "Ribbon" },
+  { id: "diamond", label: "Diamond" },
+  { id: "hexagon", label: "Hexagon" },
+  { id: "arch", label: "Arch" },
+  { id: "heart", label: "Heart" },
+  { id: "octagon", label: "Octagon" },
+  { id: "cloud", label: "Cloud" },
+] as const;
+
+/* ------------------------------------------------------------------ */
+/*  Fonts — identical set/grouping to the fan customizer.              */
+/* ------------------------------------------------------------------ */
+
+const FONTS = [
+  { id: "vibes", label: "Great Vibes", className: greatVibes.className, previewSize: 17 },
+  { id: "dancing", label: "Dancing Script", className: dancingScript.className, previewSize: 16 },
+  { id: "sacramento", label: "Sacramento", className: sacramento.className, previewSize: 17 },
+  { id: "playfair", label: "Playfair Display", className: playfair.className, previewSize: 15 },
+  { id: "bitter", label: "Bitter Slab", className: bitter.className, previewSize: 15 },
+  { id: "baskerville", label: "Libre Baskerville", className: libreBaskerville.className, previewSize: 13 },
+  { id: "poppins", label: "Poppins", className: poppins.className, previewSize: 14 },
+  { id: "oswald", label: "Oswald", className: oswald.className, previewSize: 15 },
+  { id: "archivo", label: "Archivo Black", className: archivoBlack.className, previewSize: 14 },
+  { id: "abril", label: "Abril Fatface", className: abrilFatface.className, previewSize: 15 },
+  { id: "bebas", label: "Bebas Neue", className: bebasNeue.className, previewSize: 17 },
+  { id: "righteous", label: "Righteous", className: righteous.className, previewSize: 14 },
+  { id: "pacifico", label: "Pacifico", className: pacifico.className, previewSize: 14 },
+  { id: "mono", label: "Space Mono", className: spaceMono.className, previewSize: 12 },
+  { id: "marker", label: "Permanent Marker", className: permanentMarker.className, previewSize: 13 },
+] as const;
+
+type FontId = (typeof FONTS)[number]["id"];
+
+const FONT_GROUPS: { category: string; ids: FontId[] }[] = [
+  { category: "Script", ids: ["vibes", "dancing", "sacramento"] },
+  { category: "Serif", ids: ["playfair", "bitter", "baskerville"] },
+  { category: "Sans", ids: ["poppins", "oswald", "archivo"] },
+  { category: "Display", ids: ["abril", "bebas", "righteous"] },
+  { category: "Playful", ids: ["pacifico", "mono", "marker"] },
+];
+
+function getFont(id: FontId) {
+  return FONTS.find((f) => f.id === id)!;
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  Script: "#B8577A",
+  Serif: "#6E86C7",
+  Sans: "#8FAA82",
+  Display: ACCENT,
+  Playful: "#C08A3E",
+};
+
+/* ------------------------------------------------------------------ */
+/*  Layer model — identical shape to the fan customizer.               */
+/* ------------------------------------------------------------------ */
+
+type BaseLayer = {
+  id: string;
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+  z: number;
+};
+
+type TextLayer = BaseLayer & {
+  type: "text";
+  role: "monogram" | "message";
+  content: string;
+  fontSize: number;
+  font: FontId;
+  color: string;
+  bgColor: string | null;
+  bgShape: (typeof BG_SHAPES)[number]["id"];
+};
+
+type PatternLayer = BaseLayer & {
+  type: "pattern";
+  src: string;
+  tint: string | null;
+};
+
+type FillLayer = BaseLayer & {
+  type: "fill";
+  colors: string[];
+};
+
+type Layer = TextLayer | PatternLayer | FillLayer;
+
+function makeId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/* ------------------------------------------------------------------ */
+
+function ColorWheelPicker({
+  value,
+  onChange,
+  size = 26,
+}: {
+  value: string;
+  onChange: (color: string) => void;
+  size?: number;
+}) {
+  return (
+    <label
+      className="relative inline-flex flex-shrink-0 cursor-pointer items-center justify-center rounded-full transition-transform hover:scale-110"
+      style={{
+        width: size,
+        height: size,
+        background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
+        boxShadow: "0 0 0 1px rgba(0,0,0,0.15)",
+      }}
+      title="Choose any color"
+    >
+      <span
+        className="rounded-full"
+        style={{
+          width: size - 8,
+          height: size - 8,
+          backgroundColor: value,
+          boxShadow: "0 0 0 1.5px #FFFFFF",
+        }}
+      />
+      <input
+        type="color"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+    </label>
+  );
+}
+
+function FontPicker({
+  value,
+  previewText,
+  onChange,
+}: {
+  value: FontId;
+  previewText: string;
+  onChange: (fontId: FontId) => void;
+}) {
+  const text = previewText.trim() || "Aa";
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+        {FONT_GROUPS.map((group) => (
+          <span key={group.category} className="flex items-center gap-1">
+            <span
+              className="inline-block h-1.5 w-1.5 rounded-full"
+              style={{ backgroundColor: CATEGORY_COLORS[group.category] }}
+            />
+            <span className="text-[8px] font-medium" style={{ color: "rgba(0,0,0,0.45)" }}>
+              {group.category}
+            </span>
+          </span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-5 gap-1">
+        {[0, 1, 2].flatMap((row) =>
+          FONT_GROUPS.map((group) => {
+            const id = group.ids[row];
+            const f = getFont(id);
+            const isActive = value === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => onChange(f.id)}
+                className={`${f.className} flex items-center justify-center rounded-lg px-1 py-2 transition-all duration-150 hover:scale-[1.05] active:scale-[0.95]`}
+                style={{
+                  backgroundColor: isActive ? ACCENT : "#FFFFFF",
+                  borderTop: `2.5px solid ${isActive ? ACCENT : CATEGORY_COLORS[group.category]}`,
+                  borderLeft: "1px solid rgba(0,0,0,0.1)",
+                  borderRight: "1px solid rgba(0,0,0,0.1)",
+                  borderBottom: "1px solid rgba(0,0,0,0.1)",
+                }}
+                title={f.label}
+              >
+                <span
+                  className="leading-none"
+                  style={{
+                    fontSize: Math.min(f.previewSize, 14),
+                    color: isActive ? "#FFF4E6" : "#000000",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: "100%",
+                  }}
+                >
+                  {text}
+                </span>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function CustomizeTambourinePage() {
   const [size, setSize] = useState<SizeId>("small");
-  const [message, setMessage] = useState("");
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [ribbonColor, setRibbonColor] = useState<RibbonColorId>(RIBBON_COLORS[0].id);
+  const [layers, setLayers] = useState<Layer[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  const stageRef = useRef<HTMLDivElement>(null);
+  const dragId = useRef<string | null>(null);
+  const nextZ = useRef(1);
+  const patternFileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedSize = SIZES.find((s) => s.id === size)!;
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function addText(role: "monogram" | "message") {
+    const id = makeId();
+    setLayers((prev) => [
+      ...prev,
+      {
+        id,
+        type: "text",
+        role,
+        content: role === "monogram" ? "Y & J" : "Your message",
+        fontSize: role === "monogram" ? 20 : 13,
+        font: role === "monogram" ? "playfair" : "poppins",
+        color: "#000000",
+        bgColor: "#FFFFFF",
+        bgShape: "rectangle",
+        x: selectedSize.drumPos.x,
+        y: role === "monogram" ? selectedSize.drumPos.y : selectedSize.drumPos.y + 22,
+        scale: 1,
+        rotation: 0,
+        z: nextZ.current++,
+      },
+    ]);
+    setSelectedId(id);
+  }
+
+  function addFill() {
+    const id = makeId();
+    setLayers((prev) => [
+      ...prev,
+      {
+        id,
+        type: "fill",
+        colors: [ACCENT],
+        x: selectedSize.drumPos.x,
+        y: selectedSize.drumPos.y,
+        scale: 1,
+        rotation: 0,
+        z: 0,
+      },
+    ]);
+    setSelectedId(id);
+  }
+
+  function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Please choose a photo under 5MB.");
+    if (file.size > 8 * 1024 * 1024) {
+      alert("Please choose an image under 8MB.");
       return;
     }
-    setPhotoUrl(URL.createObjectURL(file));
+    const url = URL.createObjectURL(file);
+    const id = makeId();
+    setLayers((prev) => [
+      ...prev,
+      {
+        id,
+        type: "pattern",
+        src: url,
+        tint: null,
+        x: selectedSize.drumPos.x,
+        y: selectedSize.drumPos.y,
+        scale: 1,
+        rotation: 0,
+        z: 0,
+      },
+    ]);
+    setSelectedId(id);
+    e.target.value = "";
+  }
+
+  function updateLayer(id: string, patch: Partial<Layer>) {
+    setLayers((prev) => prev.map((l) => (l.id === id ? ({ ...l, ...patch } as Layer) : l)));
+  }
+
+  function removeLayer(id: string) {
+    setLayers((prev) => prev.filter((l) => l.id !== id));
+    if (selectedId === id) setSelectedId(null);
+  }
+
+  function addFillColor(id: string) {
+    setLayers((prev) =>
+      prev.map((l) => (l.id === id && l.type === "fill" ? { ...l, colors: [...l.colors, "#FFFFFF"] } : l))
+    );
+  }
+  function updateFillColor(id: string, index: number, color: string) {
+    setLayers((prev) =>
+      prev.map((l) => {
+        if (l.id !== id || l.type !== "fill") return l;
+        const colors = [...l.colors];
+        colors[index] = color;
+        return { ...l, colors };
+      })
+    );
+  }
+  function removeFillColor(id: string, index: number) {
+    setLayers((prev) =>
+      prev.map((l) => {
+        if (l.id !== id || l.type !== "fill") return l;
+        if (l.colors.length <= 1) return l;
+        return { ...l, colors: l.colors.filter((_, i) => i !== index) };
+      })
+    );
+  }
+
+  const handlePointerDown = useCallback((id: string) => (e: React.PointerEvent) => {
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragId.current = id;
+    setSelectedId(id);
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragId.current || !stageRef.current) return;
+    const rect = stageRef.current.getBoundingClientRect();
+    const xPct = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
+    const yPct = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100));
+    updateLayer(dragId.current, { x: xPct, y: yPct });
+  }, []);
+
+  const handlePointerUp = useCallback(() => {
+    dragId.current = null;
+  }, []);
+
+  const selectedLayer = layers.find((l) => l.id === selectedId) ?? null;
+
+  function bgShapeStyle(shape: TextLayer["bgShape"], hasContent: boolean): React.CSSProperties {
+    if (!hasContent) return {};
+    switch (shape) {
+      case "circle":
+        return { borderRadius: "50%", aspectRatio: "1 / 1", padding: "18px 14px", display: "inline-flex", alignItems: "center", justifyContent: "center" };
+      case "pill":
+        return { borderRadius: 999, padding: "6px 16px" };
+      case "ribbon":
+        return { padding: "6px 22px", clipPath: "polygon(6% 0%, 94% 0%, 100% 50%, 94% 100%, 6% 100%, 0% 50%)" };
+      case "diamond":
+        return { aspectRatio: "1 / 1", padding: "22px 20px", display: "inline-flex", alignItems: "center", justifyContent: "center", clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)" };
+      case "hexagon":
+        return { padding: "14px 22px", clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" };
+      case "arch":
+        return { padding: "10px 18px 6px", borderRadius: "999px 999px 6px 6px" };
+      case "heart":
+        return {
+          aspectRatio: "1 / 1",
+          padding: "10px 16px 12px",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          clipPath:
+            "polygon(50.0% 23.9%, 50.2% 22.2%, 51.5% 17.5%, 54.7% 11.3%, 60.2% 5.2%, 67.7% 1.0%, 76.5% 0.0%, 85.4% 2.7%, 93.0% 8.7%, 98.2% 17.3%, 100.0% 27.3%, 98.2% 37.7%, 93.0% 47.7%, 85.4% 57.2%, 76.5% 66.0%, 67.7% 74.4%, 60.2% 82.3%, 54.7% 89.3%, 51.5% 95.0%, 50.2% 98.7%, 50.0% 100.0%, 49.8% 98.7%, 48.5% 95.0%, 45.3% 89.3%, 39.8% 82.3%, 32.3% 74.4%, 23.5% 66.0%, 14.6% 57.2%, 7.0% 47.7%, 1.8% 37.7%, 0.0% 27.3%, 1.8% 17.3%, 7.0% 8.7%, 14.6% 2.7%, 23.5% 0.0%, 32.3% 1.0%, 39.8% 5.2%, 45.3% 11.3%, 48.5% 17.5%, 49.8% 22.2%)",
+        };
+      case "octagon":
+        return { padding: "12px 16px", clipPath: "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)" };
+      case "cloud":
+        return { padding: "16px 20px", borderRadius: "40% 60% 55% 45% / 55% 45% 55% 45%" };
+      case "rectangle":
+      default:
+        return { borderRadius: 8, padding: "4px 10px" };
+    }
+  }
+
+  // Fill/pattern layers are clipped to a CIRCLE sized and positioned to
+  // match the real drum face for the selected size — not the whole
+  // tambourine's silhouette. This is what confines designs to just the
+  // drum, leaving the frame and jingles untouched.
+  function renderLayer(layer: Layer, interactive: boolean) {
+    const isSelected = interactive && layer.id === selectedId;
+
+    if (layer.type === "fill" || layer.type === "pattern") {
+      const style: React.CSSProperties = {
+        position: "absolute",
+        left: `${layer.x}%`,
+        top: `${layer.y}%`,
+        width: `${selectedSize.drumDiameterPct}%`,
+        aspectRatio: "1 / 1",
+        borderRadius: "50%",
+        overflow: "hidden",
+        transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${layer.scale})`,
+        cursor: interactive ? "grab" : "default",
+        outline: isSelected ? `1.5px dashed ${ACCENT}` : "none",
+        outlineOffset: "4px",
+      };
+
+      if (layer.type === "fill") {
+        const background =
+          layer.colors.length === 1 ? layer.colors[0] : `linear-gradient(135deg, ${layer.colors.join(", ")})`;
+        return (
+          <div
+            key={layer.id}
+            onPointerDown={interactive ? handlePointerDown(layer.id) : undefined}
+            style={{ ...style, background }}
+          />
+        );
+      }
+
+      return (
+        <div key={layer.id} onPointerDown={interactive ? handlePointerDown(layer.id) : undefined} style={style}>
+          <img
+            src={layer.src}
+            alt="Your uploaded pattern"
+            draggable={false}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+          {layer.tint && (
+            <div style={{ position: "absolute", inset: 0, backgroundColor: layer.tint, mixBlendMode: "color", opacity: 0.85 }} />
+          )}
+        </div>
+      );
+    }
+
+    const commonStyle: React.CSSProperties = {
+      position: "absolute",
+      left: `${layer.x}%`,
+      top: `${layer.y}%`,
+      transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${layer.scale})`,
+      cursor: interactive ? "grab" : "default",
+      outline: isSelected ? `1.5px dashed ${ACCENT}` : "none",
+      outlineOffset: "4px",
+    };
+
+    const hasBg = !!layer.bgColor;
+    const fontDef = getFont(layer.font);
+
+    return (
+      <div
+        key={layer.id}
+        onPointerDown={interactive ? handlePointerDown(layer.id) : undefined}
+        className={fontDef.className}
+        style={{
+          ...commonStyle,
+          fontSize: layer.fontSize,
+          fontWeight: layer.role === "monogram" ? 700 : 500,
+          color: layer.color,
+          whiteSpace: "nowrap",
+          backgroundColor: layer.bgColor ?? "transparent",
+          boxShadow: hasBg ? "0 1px 4px rgba(0,0,0,0.15)" : "none",
+          textShadow: hasBg ? "none" : "0 1px 2px rgba(255,255,255,0.6)",
+          ...bgShapeStyle(layer.bgShape, hasBg),
+        }}
+      >
+        {layer.content}
+      </div>
+    );
   }
 
   return (
     <div style={{ backgroundColor: "#FFF4E6" }} className="w-full min-h-screen">
-      <div className="grid md:grid-cols-2">
-        {/* ---------------- LEFT: form ---------------- */}
-        <div className="px-6 md:px-12 py-10 md:py-16 flex flex-col">
-          <p className="uppercase tracking-[0.25em] text-xs md:text-sm mb-3" style={{ color: "#DE4B33" }}>
-            made by you, for you
-          </p>
-          <h1 className="font-serif leading-[1.05] mb-4">
-            <span className="block text-3xl md:text-5xl font-bold" style={{ color: "#000000" }}>
-              Customize
-            </span>
-            <span className="block text-3xl md:text-5xl font-bold" style={{ color: "#DE4B33" }}>
-              your tambourine
-            </span>
-          </h1>
-          <p className="text-sm md:text-base mb-10" style={{ color: "rgba(0,0,0,0.62)" }}>
-            Design a tambourine that&apos;s uniquely yours. A photo and a
-            message are both optional — add either, both, or neither.
-          </p>
-
-          <StepLabel n={1} title="Choose your size" />
-          <div className="grid grid-cols-2 gap-3 mb-8">
-            {SIZES.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setSize(s.id)}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-5 transition-colors"
-                style={{
-                  border: `1.5px solid ${size === s.id ? "#DE4B33" : "rgba(0,0,0,0.12)"}`,
-                  backgroundColor: size === s.id ? "#EFE3C4" : "transparent",
-                }}
-              >
-                <img src={s.img} alt="" className="w-10 h-10 object-contain" />
-                <span className="text-xs font-semibold tracking-wide" style={{ color: "#000000" }}>
-                  {s.label}
-                </span>
-                <span className="text-[11px]" style={{ color: "rgba(0,0,0,0.62)" }}>
-                  {s.price} LE
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <StepLabel n={2} title="Add your photo (optional)" />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full flex items-center gap-3 rounded-xl px-4 py-4 mb-8 text-left transition-colors"
-            style={{ border: "1.5px dashed #D8A1AF", backgroundColor: "#EFE3C4" }}
-          >
-            <PhotoUploadIcon />
-            <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
-              {photoUrl ? "Photo added — tap to change" : "Upload your photo"}
-              <br />
-              <span className="text-[11px]">JPG, PNG up to 5MB</span>
-            </span>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png"
-            className="hidden"
-            onChange={handlePhotoChange}
+      {/* ---------------- TOP: live editor stage ---------------- */}
+      <div className="flex flex-col items-center px-6 py-8">
+        <div
+          ref={stageRef}
+          className="relative w-full max-w-[220px] md:max-w-[320px] touch-none select-none"
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onClick={(e) => {
+            if (e.target === stageRef.current) setSelectedId(null);
+          }}
+        >
+          <img
+            src={selectedSize.img}
+            alt="Your customized tambourine"
+            className="w-full h-auto pointer-events-none"
+            draggable={false}
           />
 
-          <StepLabel n={3} title="Add your message (optional)" />
-          <div
-            className="rounded-xl px-4 py-3 mb-8"
-            style={{ border: "1.5px solid #8FAA82", backgroundColor: "#EFE3C4" }}
-          >
-            <textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value.slice(0, MAX_MESSAGE_LEN))}
-              placeholder="Write your message here..."
-              rows={3}
-              className="w-full bg-transparent outline-none resize-none text-sm"
-              style={{ color: "#000000" }}
-            />
-            <div className="text-right text-[11px]" style={{ color: "rgba(0,0,0,0.45)" }}>
-              {message.length}/{MAX_MESSAGE_LEN}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-4 mt-auto">
-            <button
-              className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-opacity hover:opacity-90"
-              style={{ backgroundColor: "#6E86C7", color: "#FFF4E6" }}
-            >
-              Preview my tambourine
-              <span aria-hidden>→</span>
-            </button>
-            <span className="text-lg font-semibold" style={{ color: "#000000" }}>
-              {selectedSize.price} LE
-            </span>
-          </div>
+          {layers
+            .slice()
+            .sort((a, b) => a.z - b.z)
+            .map((layer) => renderLayer(layer, true))}
         </div>
 
-        {/* ---------------- RIGHT: live preview ---------------- */}
-        <div className="relative min-h-[420px] md:min-h-screen flex items-center justify-center px-6 py-10 md:py-0">
-          <div className="relative w-full max-w-md">
-           <img src={selectedSize.img} alt="Your customized tambourine" className="w-full h-auto" />
-            <div
-              className="mt-4 flex flex-col items-center text-center rounded-2xl overflow-hidden mx-auto"
+        {/* Selected-layer controls — identical to the fan's panel */}
+        {selectedLayer && (
+          <div
+            className="mt-4 flex w-full max-w-[320px] flex-col gap-3 rounded-xl px-4 py-3"
+            style={{ backgroundColor: "#EFE3C4" }}
+          >
+            {selectedLayer.type === "text" && (
+              <>
+                <input
+                  value={selectedLayer.content}
+                  onChange={(e) => updateLayer(selectedLayer.id, { content: e.target.value })}
+                  className="w-full rounded-lg px-3 py-2 text-sm"
+                  style={{ border: `1px solid ${ACCENT}`, backgroundColor: "#FFFFFF", color: "#000000" }}
+                  placeholder={selectedLayer.role === "monogram" ? "Your initials" : "Your message"}
+                />
+                <div>
+                  <span className="mb-1.5 block text-[11px] font-medium" style={{ color: "rgba(0,0,0,0.55)" }}>
+                    Font
+                  </span>
+                  <FontPicker
+                    value={selectedLayer.font}
+                    previewText={selectedLayer.content}
+                    onChange={(f) => updateLayer(selectedLayer.id, { font: f })}
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="flex items-center gap-2">
+              <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>
+                {selectedLayer.type === "text" ? "Size" : "Space used"}
+              </span>
+              <input
+                type="range"
+                min={0.2}
+                max={2.5}
+                step={0.05}
+                value={selectedLayer.scale}
+                onChange={(e) => updateLayer(selectedLayer.id, { scale: Number(e.target.value) })}
+                className="flex-1"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Rotate</span>
+              <input
+                type="range"
+                min={-180}
+                max={180}
+                step={1}
+                value={selectedLayer.rotation}
+                onChange={(e) => updateLayer(selectedLayer.id, { rotation: Number(e.target.value) })}
+                className="flex-1"
+              />
+            </div>
+
+            {selectedLayer.type === "pattern" && (
+              <div className="flex items-center gap-2">
+                <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Tint</span>
+                <div className="flex flex-1 items-center gap-2">
+                  <button
+                    onClick={() => updateLayer(selectedLayer.id, { tint: null })}
+                    className="h-6 w-6 flex-shrink-0 rounded-full border transition-transform hover:scale-110"
+                    style={{
+                      backgroundColor: "#FFFFFF",
+                      backgroundImage: "linear-gradient(45deg, transparent 45%, red 45%, red 55%, transparent 55%)",
+                      borderColor: selectedLayer.tint === null ? "#000000" : "rgba(0,0,0,0.3)",
+                      borderWidth: selectedLayer.tint === null ? 2 : 1,
+                    }}
+                    title="No tint"
+                  />
+                  <ColorWheelPicker value={selectedLayer.tint ?? ACCENT} onChange={(c) => updateLayer(selectedLayer.id, { tint: c })} />
+                  <span className="text-[10px]" style={{ color: "rgba(0,0,0,0.45)" }}>tap the wheel to pick any color</span>
+                </div>
+              </div>
+            )}
+
+            {selectedLayer.type === "fill" && (
+              <div className="flex flex-col gap-2">
+                <span className="text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>
+                  {selectedLayer.colors.length === 1 ? "Color" : "Colors (blended)"}
+                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedLayer.colors.map((c, i) => (
+                    <div key={i} className="relative">
+                      <ColorWheelPicker value={c} onChange={(newC) => updateFillColor(selectedLayer.id, i, newC)} />
+                      {selectedLayer.colors.length > 1 && (
+                        <button
+                          onClick={() => removeFillColor(selectedLayer.id, i)}
+                          className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
+                          style={{ backgroundColor: "#000000", color: "#FFFFFF" }}
+                          title="Remove this color"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => addFillColor(selectedLayer.id)}
+                    className="flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold transition-transform hover:scale-110"
+                    style={{ borderColor: ACCENT, color: ACCENT }}
+                    title="Add another color"
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="text-[10px]" style={{ color: "rgba(0,0,0,0.45)" }}>
+                  Add more than one color to blend them together.
+                </span>
+              </div>
+            )}
+
+            {selectedLayer.type === "text" && (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Color</span>
+                  <ColorWheelPicker value={selectedLayer.color} onChange={(c) => updateLayer(selectedLayer.id, { color: c })} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Backing</span>
+                  <div className="flex flex-1 items-center gap-2">
+                    <button
+                      onClick={() => updateLayer(selectedLayer.id, { bgColor: null })}
+                      className="h-6 w-6 flex-shrink-0 rounded-full border transition-transform hover:scale-110"
+                      style={{
+                        backgroundColor: "#FFFFFF",
+                        backgroundImage: "linear-gradient(45deg, transparent 45%, red 45%, red 55%, transparent 55%)",
+                        borderColor: selectedLayer.bgColor === null ? "#000000" : "rgba(0,0,0,0.3)",
+                        borderWidth: selectedLayer.bgColor === null ? 2 : 1,
+                      }}
+                      title="No backing"
+                    />
+                    <ColorWheelPicker value={selectedLayer.bgColor ?? "#FFFFFF"} onChange={(c) => updateLayer(selectedLayer.id, { bgColor: c })} />
+                    <span className="text-[10px]" style={{ color: "rgba(0,0,0,0.45)" }}>any backing color</span>
+                  </div>
+                </div>
+                {selectedLayer.bgColor && (
+                  <div className="flex items-center gap-2">
+                    <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Shape</span>
+                    <div className="flex flex-1 flex-wrap gap-1.5">
+                      {BG_SHAPES.map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => updateLayer(selectedLayer.id, { bgShape: s.id })}
+                          className="rounded-md px-2.5 py-1 text-[11px] transition-all"
+                          style={{
+                            backgroundColor: selectedLayer.bgShape === s.id ? ACCENT : "#FFFFFF",
+                            color: selectedLayer.bgShape === s.id ? "#FFF4E6" : "rgba(0,0,0,0.6)",
+                            border: `1px solid ${selectedLayer.bgShape === s.id ? ACCENT : "rgba(0,0,0,0.15)"}`,
+                          }}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            <div className="flex justify-end pt-1">
+              <button
+                onClick={() => removeLayer(selectedLayer.id)}
+                className="text-[11px] font-medium underline"
+                style={{ color: "rgba(0,0,0,0.5)" }}
+              >
+                delete
+              </button>
+            </div>
+          </div>
+        )}
+
+        <p className="text-center text-[11px] mt-3 max-w-xs" style={{ color: "rgba(0,0,0,0.45)" }}>
+          Tap an item below to add it, then drag it into place on the drum.
+        </p>
+      </div>
+
+      {/* ---------------- BELOW: steps + asset palette ---------------- */}
+      <div className="px-6 md:px-12 py-4 md:py-8 max-w-2xl mx-auto">
+        <p className="uppercase tracking-[0.25em] text-xs md:text-sm mb-3" style={{ color: ACCENT }}>
+          made by you, for you
+        </p>
+        <h1 className="font-serif leading-[1.05] mb-4">
+          <span className="block text-3xl md:text-5xl font-bold" style={{ color: "#000000" }}>Customize</span>
+          <span className="block text-3xl md:text-5xl font-bold" style={{ color: ACCENT }}>your tambourine</span>
+        </h1>
+        <p className="text-sm md:text-base mb-10" style={{ color: "rgba(0,0,0,0.62)" }}>
+          Design a tambourine that&apos;s uniquely yours.
+        </p>
+
+        <StepLabel n={1} title="Choose your size" />
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          {SIZES.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => setSize(s.id)}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-5 transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:shadow-md"
               style={{
-                width: "60%",
-                backgroundColor: "#FFF4E6",
-                border: "1px solid rgba(0,0,0,0.12)",
-                boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+                border: `1.5px solid ${size === s.id ? ACCENT : "rgba(0,0,0,0.12)"}`,
+                backgroundColor: size === s.id ? "#EFE3C4" : "transparent",
               }}
             >
-              <div
-                className="w-full aspect-square flex items-center justify-center"
-                style={{ backgroundColor: "#EFE3C4" }}
-              >
-                {photoUrl ? (
-                  <img src={photoUrl} alt="Your photo" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-[10px] px-2" style={{ color: "rgba(0,0,0,0.45)" }}>
-                    your photo here
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] md:text-xs font-medium px-2 py-2 leading-snug" style={{ color: "#DE4B33" }}>
-                {message || "your message here"}
-              </p>
-            </div>
-          </div>
+              <img
+                src={s.img}
+                alt=""
+                className="object-contain"
+                style={{ width: `${24 + (s.cm / MAX_CM) * 16}px`, height: `${24 + (s.cm / MAX_CM) * 16}px` }}
+              />
+              <span className="text-xs font-semibold tracking-wide" style={{ color: "#000000" }}>{s.label}</span>
+              <span className="text-[11px]" style={{ color: "rgba(0,0,0,0.62)" }}>{s.price} LE</span>
+            </button>
+          ))}
+        </div>
+
+        <StepLabel n={2} title="Choose your ribbon color" />
+        <div className="mb-8 flex items-center gap-3">
+          <span
+            className="h-8 w-8 flex-shrink-0 rounded-full"
+            style={{
+              backgroundColor: RIBBON_COLORS.find((c) => c.id === ribbonColor)!.hex,
+              border: "1.5px solid rgba(0,0,0,0.15)",
+              boxShadow: ribbonColor === "gold" ? "inset 0 0 6px rgba(255,255,255,0.6)" : undefined,
+            }}
+          />
+          <select
+            value={ribbonColor}
+            onChange={(e) => setRibbonColor(e.target.value as RibbonColorId)}
+            className="flex-1 rounded-xl px-3 py-3 text-sm outline-none"
+            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+          >
+            {RIBBON_COLORS.map((c) => (
+              <option key={c.id} value={c.id}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <StepLabel n={3} title="Design the drum face (optional)" />
+
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
+          Color it
+        </p>
+        <div className="flex gap-3 mb-8">
+          <button
+            onClick={addFill}
+            className="flex-1 flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
+            style={{ border: `1.5px solid ${ACCENT}`, backgroundColor: "#EFE3C4" }}
+          >
+            <span className="h-6 w-6 flex-shrink-0 rounded-full" style={{ background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }} />
+            <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
+              Add a solid color or blend
+              <br />
+              <span className="text-[11px]">Pick one color, or add more to blend them.</span>
+            </span>
+          </button>
+        </div>
+
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
+          Use your own pattern or photo
+        </p>
+        <button
+          onClick={() => patternFileInputRef.current?.click()}
+          className="w-full flex items-center gap-3 rounded-xl px-4 py-4 mb-8 text-left transition-colors"
+          style={{ border: `1.5px dashed ${ACCENT}`, backgroundColor: "#EFE3C4" }}
+        >
+          <PhotoUploadIcon />
+          <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
+            Upload your own photo or pattern
+            <br />
+            <span className="text-[11px]">It&apos;ll be shaped to fit the drum exactly — drag, resize, and tint it once it&apos;s added.</span>
+          </span>
+        </button>
+        <input ref={patternFileInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handlePatternUpload} />
+
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
+          Add text
+        </p>
+        <div className="flex gap-3 mb-10">
+          <button
+            onClick={() => addText("monogram")}
+            className="flex-1 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
+            style={{ backgroundColor: "#FFFFFF", border: `1px solid ${ACCENT}`, color: ACCENT }}
+          >
+            + Monogram / Names
+          </button>
+          <button
+            onClick={() => addText("message")}
+            className="flex-1 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
+            style={{ backgroundColor: "#FFFFFF", border: `1px solid ${ACCENT}`, color: ACCENT }}
+          >
+            + Message
+          </button>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowPreview(true)}
+            className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
+            style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
+          >
+            Preview my tambourine
+          </button>
+          <span className="text-lg font-semibold" style={{ color: "#000000" }}>{selectedSize.price} LE</span>
         </div>
       </div>
+
+      {/* ---------------- Full-screen preview + checkout ---------------- */}
+      {showPreview && (
+        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-8 px-6 py-10 overflow-y-auto" style={{ backgroundColor: "#FFF4E6" }}>
+          <button
+            onClick={() => setShowPreview(false)}
+            className="absolute top-6 right-6 text-2xl transition-all duration-150 hover:scale-110 active:scale-90 hover:opacity-70"
+            style={{ color: "#000000" }}
+            aria-label="Close"
+          >
+            ✕
+          </button>
+
+          <div className="relative w-full max-w-sm md:max-w-md">
+            <img src={selectedSize.img} alt="Your customized tambourine" className="w-full h-auto" draggable={false} />
+            {layers.slice().sort((a, b) => a.z - b.z).map((layer) => renderLayer(layer, false))}
+          </div>
+
+          <button
+            onClick={() => {
+              // TODO: wire this up to your real cart store once it exists
+              console.log("Tambourine order:", { size, ribbonColor, layers, price: selectedSize.price });
+            }}
+            className="inline-flex items-center justify-center gap-2 px-10 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
+            style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
+          >
+            Checkout — {selectedSize.price} LE
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -178,15 +914,10 @@ export default function CustomizeTambourinePage() {
 function StepLabel({ n, title }: { n: number; title: string }) {
   return (
     <div className="flex items-center gap-2 mb-3">
-      <span
-        className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold"
-        style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
-      >
+      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold" style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}>
         {n}
       </span>
-      <span className="uppercase tracking-[0.15em] text-[11px] font-medium" style={{ color: "#000000" }}>
-        {title}
-      </span>
+      <span className="uppercase tracking-[0.15em] text-[11px] font-medium" style={{ color: "#000000" }}>{title}</span>
     </div>
   );
 }
@@ -197,20 +928,6 @@ function PhotoUploadIcon() {
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <circle cx="9" cy="10" r="1.6" fill="#DE4B33" stroke="none" />
       <path d="M21 16l-5.5-5.5L9 17" />
-    </svg>
-  );
-}
-
-function TambourineIcon({ large = false }: { large?: boolean }) {
-  const s = large ? 56 : 24;
-  return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="#DE4B33" strokeWidth="1.4">
-      <circle cx="12" cy="12" r="9" />
-<circle cx="12" cy="12" r="7" strokeDasharray="1.5 3" />
-      <circle cx="3.5" cy="9" r="0.8" fill="#DE4B33" stroke="none" />
-      <circle cx="3.5" cy="15" r="0.8" fill="#DE4B33" stroke="none" />
-      <circle cx="20.5" cy="9" r="0.8" fill="#DE4B33" stroke="none" />
-      <circle cx="20.5" cy="15" r="0.8" fill="#DE4B33" stroke="none" />
     </svg>
   );
 }

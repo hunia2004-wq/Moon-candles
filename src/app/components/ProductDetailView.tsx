@@ -14,8 +14,6 @@ const GIVEAWAY_NAMES = [
   "Bloom Wand",
 ];
 
-// Products that have a dedicated customization flow. Maps the exact
-// product name (as stored in Supabase) to its customize route.
 const CUSTOMIZE_ROUTES: Record<string, string> = {
   "Tambourine": "/customize/tambourine",
   "Fan": "/customize/fan",
