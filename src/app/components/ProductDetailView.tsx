@@ -9,7 +9,7 @@ import type { Product } from "@/lib/supabase/types";
 const GIVEAWAY_NAMES = [
   "Mini Candles",
   "Quack and Kiss",
-  "Plain tambourine",
+  "Tambourine",
   "Fan",
   "Bloom Wand",
 ];
@@ -17,7 +17,7 @@ const GIVEAWAY_NAMES = [
 // Products that have a dedicated customization flow. Maps the exact
 // product name (as stored in Supabase) to its customize route.
 const CUSTOMIZE_ROUTES: Record<string, string> = {
-  "Plain tambourine": "/customize/tambourine",
+  "Tambourine": "/customize/tambourine",
   "Fan": "/customize/fan",
   "Mini Candles": "/customize-mini",
 };
@@ -295,21 +295,21 @@ export default function ProductDetailView({ product }: { product: Product }) {
               customize route (Tambourine, Fan). Outline style when Add
               to Cart is also present, filled/primary when it's the only
               option (Fan). */}
-          {customizeRoute && (
-            <button
-              onClick={() => router.push(customizeRoute)}
-              className={`rounded-full px-8 py-3.5 text-base font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] ${
-                customizeOnly ? "mt-8 shadow-md" : "mt-3"
-              }`}
-              style={
-                customizeOnly
-                  ? { backgroundColor: accent, color: "#FFF4E6" }
-                  : { backgroundColor: "transparent", color: accent, border: `1.5px solid ${accent}` }
-              }
-            >
-              Customize Your candle
-            </button>
-          )}
+         {customizeRoute && (
+  <button
+    onClick={() => router.push(customizeRoute)}
+    className={`rounded-full px-8 py-3.5 text-base font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] ${
+      customizeOnly ? "mt-8 shadow-md" : "mt-3"
+    }`}
+    style={
+      customizeOnly
+        ? { backgroundColor: accent, color: "#FFF4E6" }
+        : { backgroundColor: "transparent", color: accent, border: `1.5px solid ${accent}` }
+    }
+  >
+    Customize Your {product.name}
+  </button>
+)}
         </div>
       </main>
     </div>

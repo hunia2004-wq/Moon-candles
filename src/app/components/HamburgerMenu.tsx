@@ -17,7 +17,7 @@ const SHOP_ITEMS = [
 const GIVEAWAY_ITEMS = [
   { name: "Mini Candles", slug: "mini-candles" },
   { name: "Quack and Kiss", slug: "quack-and-kiss" },
-  { name: "Plain tambourine", slug: "plain-tambourine" },
+  { name: "Tambourine", slug: "Tambourine" },
   { name: "Fan", slug: "fan" },
  { name: "Bloom Wand", slug: "bloom-wand" },
 ];
