@@ -5,6 +5,7 @@ import type { CarouselCandle } from "@/lib/supabase/types";
 import { Caveat, Cormorant_Garamond } from "next/font/google";
 import CustomizationTeaser from "./components/CustomizationTeaser";
 import Link from "next/link";
+import OurCollection from "./components/OurCollection";
 
 const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 const cormorant = Cormorant_Garamond({
@@ -36,6 +37,18 @@ export default async function Home() {
   if (error) {
     console.error("Failed to fetch Iced Latte:", error.message);
   }
+  const { data: collectionProducts, error: collectionError } =
+  await supabase
+    .from("products")
+    .select("*")
+    .limit(3);
+
+if (collectionError) {
+  console.error(
+    "Failed to fetch collection:",
+    collectionError.message
+  );
+}
 
   const candles: CarouselCandle[] =
   marble?.colors?.map(
@@ -420,29 +433,32 @@ export default async function Home() {
       </div>
 
       {/* ================= MAIN CONTENT ================= */}
-      <main className="flex flex-1 w-full max-w-4xl flex-col items-center py-4 px-4 md:py-8 md:px-16">
-        <RevealOnScroll>
-          <div className="w-full flex flex-col items-center">
-            <p
-              className="uppercase tracking-[0.25em] text-xs md:text-sm mb-2"
-              style={{ color: "#000000" }}
-            >
-              fan favorites
-            </p>
+ <main className="flex flex-1 w-full max-w-4xl flex-col items-center py-4 px-4 md:py-8 md:px-16">
+  <RevealOnScroll>
+    <div className="w-full flex flex-col items-center">
+      <p
+        className="uppercase tracking-[0.25em] text-xs md:text-sm mb-2"
+        style={{ color: "#000000" }}
+      >
+        fan favorites
+      </p>
 
-            <h2
-              className="font-serif text-3xl md:text-5xl font-bold mb-6 text-center"
-              style={{ color: "#000000" }}
-            >
-              Best Sellers
-            </h2>
+      <h2
+        className="font-serif text-3xl md:text-5xl font-bold mb-6 text-center"
+        style={{ color: "#000000" }}
+      >
+        Best Sellers
+      </h2>
 
-            <CandleCarousel candles={candles} />
-          </div>
-        </RevealOnScroll>
+      <CandleCarousel candles={candles} />
+    </div>
+  </RevealOnScroll>
 
-        <CustomizationTeaser />
-      </main>
+  {/* OUR COLLECTION */}
+  <OurCollection />
+
+  <CustomizationTeaser />
+</main>
     </div>
   );
 }
