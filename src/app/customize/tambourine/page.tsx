@@ -37,13 +37,6 @@ const permanentMarker = Permanent_Marker({ subsets: ["latin"], weight: ["400"] }
 
 const ACCENT = "#DE4B33";
 
-/* ------------------------------------------------------------------ */
-/*  Sizes — each has its OWN image, which doubles as the mask source,  */
-/*  exactly like the fan uses its own photo as its mask. This is what  */
-/*  makes designs clip exactly to the real tambourine silhouette       */
-/*  instead of an approximated circle.                                 */
-/* ------------------------------------------------------------------ */
-
 const SIZES = [
   {
     id: "small",
@@ -96,10 +89,6 @@ const BG_SHAPES = [
   { id: "cloud", label: "Cloud" },
 ] as const;
 
-/* ------------------------------------------------------------------ */
-/*  Fonts — identical set/grouping to the fan customizer.              */
-/* ------------------------------------------------------------------ */
-
 const FONTS = [
   { id: "vibes", label: "Great Vibes", className: greatVibes.className, previewSize: 17 },
   { id: "dancing", label: "Dancing Script", className: dancingScript.className, previewSize: 16 },
@@ -140,10 +129,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   Playful: "#C08A3E",
 };
 
-/* ------------------------------------------------------------------ */
-/*  Layer model — identical shape to the fan customizer.               */
-/* ------------------------------------------------------------------ */
-
 type BaseLayer = {
   id: string;
   x: number;
@@ -180,8 +165,6 @@ type Layer = TextLayer | PatternLayer | FillLayer;
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
-
-/* ------------------------------------------------------------------ */
 
 function ColorWheelPicker({
   value,
@@ -293,6 +276,10 @@ function FontPicker({
 export default function CustomizeTambourinePage() {
   const [size, setSize] = useState<SizeId>("small");
   const [ribbonColor, setRibbonColor] = useState<RibbonColorId>(RIBBON_COLORS[0].id);
+  // The fork — either the customer supplies one finished design, or they
+  // build it here from the site's own tools. Made explicit in the layout
+  // via two cards, rather than one upload button doing double duty.
+  const [designMode, setDesignMode] = useState<"upload" | "build" | null>(null);
   const [layers, setLayers] = useState<Layer[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -304,22 +291,22 @@ export default function CustomizeTambourinePage() {
 
   const selectedSize = SIZES.find((s) => s.id === size)!;
 
-  function addText(role: "monogram" | "message") {
+  function addMessage() {
     const id = makeId();
     setLayers((prev) => [
       ...prev,
       {
         id,
         type: "text",
-        role,
-        content: role === "monogram" ? "Y & J" : "Your message",
-        fontSize: role === "monogram" ? 20 : 13,
-        font: role === "monogram" ? "playfair" : "poppins",
+        role: "message",
+        content: "Your message",
+        fontSize: 13,
+        font: "poppins",
         color: "#000000",
         bgColor: "#FFFFFF",
         bgShape: "rectangle",
         x: selectedSize.drumPos.x,
-        y: role === "monogram" ? selectedSize.drumPos.y : selectedSize.drumPos.y + 22,
+        y: selectedSize.drumPos.y,
         scale: 1,
         rotation: 0,
         z: nextZ.current++,
@@ -462,10 +449,6 @@ export default function CustomizeTambourinePage() {
     }
   }
 
-  // Fill/pattern layers are clipped to a CIRCLE sized and positioned to
-  // match the real drum face for the selected size — not the whole
-  // tambourine's silhouette. This is what confines designs to just the
-  // drum, leaving the frame and jingles untouched.
   function renderLayer(layer: Layer, interactive: boolean) {
     const isSelected = interactive && layer.id === selectedId;
 
@@ -532,7 +515,7 @@ export default function CustomizeTambourinePage() {
         style={{
           ...commonStyle,
           fontSize: layer.fontSize,
-          fontWeight: layer.role === "monogram" ? 700 : 500,
+          fontWeight: 500,
           color: layer.color,
           whiteSpace: "nowrap",
           backgroundColor: layer.bgColor ?? "transparent",
@@ -548,31 +531,32 @@ export default function CustomizeTambourinePage() {
 
   return (
     <div style={{ backgroundColor: "#FFF4E6" }} className="w-full min-h-screen">
-      {/* ---------------- TOP: live editor stage ---------------- */}
       <div className="flex flex-col items-center px-6 py-8">
-        <div
-          ref={stageRef}
-          className="relative w-full max-w-[220px] md:max-w-[320px] touch-none select-none"
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onClick={(e) => {
-            if (e.target === stageRef.current) setSelectedId(null);
-          }}
-        >
-          <img
-            src={selectedSize.img}
-            alt="Your customized tambourine"
-            className="w-full h-auto pointer-events-none"
-            draggable={false}
-          />
+        <div className="relative flex w-full max-w-[220px] md:max-w-[320px] items-center justify-center">
+          <div
+            ref={stageRef}
+            className="relative touch-none select-none"
+            style={{ width: `${(selectedSize.cm / MAX_CM) * 100}%` }}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onClick={(e) => {
+              if (e.target === stageRef.current) setSelectedId(null);
+            }}
+          >
+            <img
+              src={selectedSize.img}
+              alt="Your customized tambourine"
+              className="w-full h-auto pointer-events-none"
+              draggable={false}
+            />
 
-          {layers
-            .slice()
-            .sort((a, b) => a.z - b.z)
-            .map((layer) => renderLayer(layer, true))}
+            {layers
+              .slice()
+              .sort((a, b) => a.z - b.z)
+              .map((layer) => renderLayer(layer, true))}
+          </div>
         </div>
 
-        {/* Selected-layer controls — identical to the fan's panel */}
         {selectedLayer && (
           <div
             className="mt-4 flex w-full max-w-[320px] flex-col gap-3 rounded-xl px-4 py-3"
@@ -585,7 +569,7 @@ export default function CustomizeTambourinePage() {
                   onChange={(e) => updateLayer(selectedLayer.id, { content: e.target.value })}
                   className="w-full rounded-lg px-3 py-2 text-sm"
                   style={{ border: `1px solid ${ACCENT}`, backgroundColor: "#FFFFFF", color: "#000000" }}
-                  placeholder={selectedLayer.role === "monogram" ? "Your initials" : "Your message"}
+                  placeholder="Your message"
                 />
                 <div>
                   <span className="mb-1.5 block text-[11px] font-medium" style={{ color: "rgba(0,0,0,0.55)" }}>
@@ -611,19 +595,6 @@ export default function CustomizeTambourinePage() {
                 step={0.05}
                 value={selectedLayer.scale}
                 onChange={(e) => updateLayer(selectedLayer.id, { scale: Number(e.target.value) })}
-                className="flex-1"
-              />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Rotate</span>
-              <input
-                type="range"
-                min={-180}
-                max={180}
-                step={1}
-                value={selectedLayer.rotation}
-                onChange={(e) => updateLayer(selectedLayer.id, { rotation: Number(e.target.value) })}
                 className="flex-1"
               />
             </div>
@@ -750,7 +721,6 @@ export default function CustomizeTambourinePage() {
         </p>
       </div>
 
-      {/* ---------------- BELOW: steps + asset palette ---------------- */}
       <div className="px-6 md:px-12 py-4 md:py-8 max-w-2xl mx-auto">
         <p className="uppercase tracking-[0.25em] text-xs md:text-sm mb-3" style={{ color: ACCENT }}>
           made by you, for you
@@ -811,62 +781,122 @@ export default function CustomizeTambourinePage() {
 
         <StepLabel n={3} title="Design the drum face (optional)" />
 
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
-          Color it
-        </p>
-        <div className="flex gap-3 mb-8">
-          <button
-            onClick={addFill}
-            className="flex-1 flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
-            style={{ border: `1.5px solid ${ACCENT}`, backgroundColor: "#EFE3C4" }}
-          >
-            <span className="h-6 w-6 flex-shrink-0 rounded-full" style={{ background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }} />
-            <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
-              Add a solid color or blend
-              <br />
-              <span className="text-[11px]">Pick one color, or add more to blend them.</span>
-            </span>
-          </button>
-        </div>
+        {designMode === null ? (
+          // The fork, made explicit in the layout — two clearly different
+          // paths instead of a pile of tools with no framing.
+          <div className="grid grid-cols-2 gap-3 mb-8">
+            <button
+              onClick={() => setDesignMode("upload")}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-6 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]"
+              style={{ border: `1.5px dashed ${ACCENT}`, backgroundColor: "#EFE3C4" }}
+            >
+              <PhotoUploadIcon />
+              <span className="text-xs font-semibold" style={{ color: "#000000" }}>
+                Upload your own design
+              </span>
+              <span className="text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>
+                One finished image, shaped to the drum
+              </span>
+            </button>
+            <button
+              onClick={() => setDesignMode("build")}
+              className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-6 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]"
+              style={{ border: `1.5px dashed ${ACCENT}`, backgroundColor: "#EFE3C4" }}
+            >
+              <PaletteIcon />
+              <span className="text-xs font-semibold" style={{ color: "#000000" }}>
+                Design it here
+              </span>
+              <span className="text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>
+                Color, photo, and message
+              </span>
+            </button>
+          </div>
+        ) : (
+          <div className="mb-8">
+            <button
+              onClick={() => setDesignMode(null)}
+              className="mb-3 text-[11px] font-medium underline"
+              style={{ color: ACCENT }}
+            >
+              ← choose a different way to design it
+            </button>
 
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
-          Use your own pattern or photo
-        </p>
-        <button
-          onClick={() => patternFileInputRef.current?.click()}
-          className="w-full flex items-center gap-3 rounded-xl px-4 py-4 mb-8 text-left transition-colors"
-          style={{ border: `1.5px dashed ${ACCENT}`, backgroundColor: "#EFE3C4" }}
-        >
-          <PhotoUploadIcon />
-          <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
-            Upload your own photo or pattern
-            <br />
-            <span className="text-[11px]">It&apos;ll be shaped to fit the drum exactly — drag, resize, and tint it once it&apos;s added.</span>
-          </span>
-        </button>
-        <input ref={patternFileInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handlePatternUpload} />
+            {designMode === "upload" && (
+              <>
+                <button
+                  onClick={() => patternFileInputRef.current?.click()}
+                  className="w-full flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
+                  style={{ border: `1.5px dashed ${ACCENT}`, backgroundColor: "#EFE3C4" }}
+                >
+                  <PhotoUploadIcon />
+                  <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
+                    Upload your own finished design
+                    <br />
+                    <span className="text-[11px]">It&apos;ll be shaped to fit the drum exactly — drag, resize, and tint it once it&apos;s added.</span>
+                  </span>
+                </button>
+                <input ref={patternFileInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handlePatternUpload} />
+              </>
+            )}
 
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
-          Add text
-        </p>
-        <div className="flex gap-3 mb-10">
-          <button
-            onClick={() => addText("monogram")}
-            className="flex-1 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
-            style={{ backgroundColor: "#FFFFFF", border: `1px solid ${ACCENT}`, color: ACCENT }}
-          >
-            + Monogram / Names
-          </button>
-          <button
-            onClick={() => addText("message")}
-            className="flex-1 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
-            style={{ backgroundColor: "#FFFFFF", border: `1px solid ${ACCENT}`, color: ACCENT }}
-          >
-            + Message
-          </button>
-        </div>
+            {designMode === "build" && (
+              <div className="flex flex-col gap-6">
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
+                    Color
+                  </p>
+                  <button
+                    onClick={addFill}
+                    className="w-full flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
+                    style={{ border: `1.5px solid ${ACCENT}`, backgroundColor: "#EFE3C4" }}
+                  >
+                    <span className="h-6 w-6 flex-shrink-0 rounded-full" style={{ background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }} />
+                    <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
+                      Add a solid color or blend
+                      <br />
+                      <span className="text-[11px]">Pick one color, or add more to blend them.</span>
+                    </span>
+                  </button>
+                </div>
 
-        <div className="flex items-center gap-4">
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
+                    Photo
+                  </p>
+                  <button
+                    onClick={() => patternFileInputRef.current?.click()}
+                    className="w-full flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
+                    style={{ border: `1.5px dashed ${ACCENT}`, backgroundColor: "#EFE3C4" }}
+                  >
+                    <PhotoUploadIcon />
+                    <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
+                      Add your own photo
+                      <br />
+                      <span className="text-[11px]">JPG, PNG up to 8MB — drag and resize once it&apos;s added.</span>
+                    </span>
+                  </button>
+                  <input ref={patternFileInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handlePatternUpload} />
+                </div>
+
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
+                    Message
+                  </p>
+                  <button
+                    onClick={addMessage}
+                    className="w-full rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 hover:scale-[1.01] active:scale-[0.98]"
+                    style={{ backgroundColor: "#FFFFFF", border: `1px solid ${ACCENT}`, color: ACCENT }}
+                  >
+                    + Add a message
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-4 mt-8">
           <button
             onClick={() => setShowPreview(true)}
             className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
@@ -878,7 +908,6 @@ export default function CustomizeTambourinePage() {
         </div>
       </div>
 
-      {/* ---------------- Full-screen preview + checkout ---------------- */}
       {showPreview && (
         <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-8 px-6 py-10 overflow-y-auto" style={{ backgroundColor: "#FFF4E6" }}>
           <button
@@ -890,9 +919,11 @@ export default function CustomizeTambourinePage() {
             ✕
           </button>
 
-          <div className="relative w-full max-w-sm md:max-w-md">
-            <img src={selectedSize.img} alt="Your customized tambourine" className="w-full h-auto" draggable={false} />
-            {layers.slice().sort((a, b) => a.z - b.z).map((layer) => renderLayer(layer, false))}
+          <div className="relative flex w-full max-w-sm md:max-w-md items-center justify-center">
+            <div className="relative" style={{ width: `${(selectedSize.cm / MAX_CM) * 100}%` }}>
+              <img src={selectedSize.img} alt="Your customized tambourine" className="w-full h-auto" draggable={false} />
+              {layers.slice().sort((a, b) => a.z - b.z).map((layer) => renderLayer(layer, false))}
+            </div>
           </div>
 
           <button
@@ -928,6 +959,17 @@ function PhotoUploadIcon() {
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <circle cx="9" cy="10" r="1.6" fill="#DE4B33" stroke="none" />
       <path d="M21 16l-5.5-5.5L9 17" />
+    </svg>
+  );
+}
+
+function PaletteIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DE4B33" strokeWidth="1.6">
+      <path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-1 .8-1.5 1.8-1.5H16a5 5 0 0 0 5-5c0-4-4-7-9-7Z" />
+      <circle cx="7.5" cy="10.5" r="1.1" fill="#DE4B33" stroke="none" />
+      <circle cx="11" cy="7" r="1.1" fill="#DE4B33" stroke="none" />
+      <circle cx="15.5" cy="8.5" r="1.1" fill="#DE4B33" stroke="none" />
     </svg>
   );
 }
