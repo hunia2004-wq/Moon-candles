@@ -2,12 +2,20 @@ import CandleCarousel from "./components/CandleCarousel";
 import { createClient } from "@/lib/supabase/server";
 import RevealOnScroll from "./components/RevealOnScroll";
 import type { CarouselCandle } from "@/lib/supabase/types";
-import { Caveat } from "next/font/google";
+import { Caveat, Cormorant_Garamond } from "next/font/google";
 import CustomizationTeaser from "./components/CustomizationTeaser";
 import Link from "next/link";
 
 const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
+const cormorant = Cormorant_Garamond({
 
+  subsets: ["latin"],
+
+  weight: ["500", "600"],
+
+  style: ["italic"],
+
+});
 const STRIPE_COUNT = 21;
 
 const MOON_IMG =
@@ -20,32 +28,32 @@ export default async function Home() {
   const supabase = await createClient();
 
   const { data: marble, error } = await supabase
-  .from("products")
-  .select("*")
-  .eq("name", "Iced Latte")
-  .single();
+    .from("products")
+    .select("*")
+    .eq("name", "Iced Latte")
+    .single();
 
-if (error) {
-  console.error("Failed to fetch Iced Latte:", error.message);
-}
+  if (error) {
+    console.error("Failed to fetch Iced Latte:", error.message);
+  }
 
   const candles: CarouselCandle[] =
-    marble?.colors?.map(
-      (color: {
-        name: string;
-        hex: string | null;
-        image_url?: string;
-      }) => ({
-        productId: marble.id,
-        colorName: color.name,
-        name: marble.name,
-        description: marble.description,
-        price: marble.price,
-        size_ml: marble.size_ml,
-        scents: marble.scents,
-        image: color.image_url ?? null,
-      })
-    ) ?? [];
+  marble?.colors?.map(
+    (color: {
+      name: string;
+      hex: string | null;
+      image_url?: string;
+    }) => ({
+      productId: marble.id,
+      colorName: color.name,
+      name: color.name,
+      description: marble.description,
+      price: marble.price,
+      size_ml: marble.size_ml,
+      scents: marble.scents,
+      image: color.image_url ?? null,
+    })
+  ) ?? [];
 
   return (
     <div
@@ -53,6 +61,7 @@ if (error) {
       style={{ backgroundColor: "#efe3c4" }}
     >
       <div className="relative w-full overflow-hidden">
+        {/* STRIPES */}
         <div className="absolute inset-0 flex">
           {Array.from({ length: STRIPE_COUNT }).map((_, i) => (
             <div
@@ -65,245 +74,221 @@ if (error) {
             />
           ))}
         </div>
-        
-{/* ================= MOBILE HERO — FLOOR SCENE ================= */}
-<div
-  className="relative z-10 flex md:hidden"
-  
-  style={{
-    width: "100%",
-    height: "330px",
-    overflow: "hidden",
-  }}
->
- {/* MULTIPLE LEAF SHADOWS */}
-<div
-  className="absolute pointer-events-none"
-  style={{
-    top: "-35px",
-    right: "-35px",
-    width: "260px",
-    height: "260px",
-    zIndex: 1,
-    opacity: 0.3,
-    filter: "blur(5px)",
-  }}
->
-  {/* Leaf 1 */}
-  <div
-    style={{
-      position: "absolute",
-      width: "48px",
-      height: "120px",
-      right: "45px",
-      top: "-20px",
-      background: "#46553D",
-      borderRadius: "100% 0 100% 0",
-      transform: "rotate(25deg)",
-    }}
-  />
 
-  {/* Leaf 2 */}
-  <div
-    style={{
-      position: "absolute",
-      width: "42px",
-      height: "105px",
-      right: "95px",
-      top: "5px",
-      background: "#46553D",
-      borderRadius: "100% 0 100% 0",
-      transform: "rotate(55deg)",
-    }}
-  />
+        {/* ================= MOBILE HERO — FLOOR SCENE ================= */}
+        <div
+          className="relative z-10 flex md:hidden"
+          style={{
+            width: "100%",
+            height: "330px",
+            overflow: "hidden",
+          }}
+        >
+          {/* MULTIPLE LEAF SHADOWS */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              top: "-35px",
+              right: "-35px",
+              width: "260px",
+              height: "260px",
+              zIndex: 1,
+              opacity: 0.3,
+              filter: "blur(5px)",
+            }}
+          >
+            {/* Leaf 1 */}
+            <div
+              style={{
+                position: "absolute",
+                width: "48px",
+                height: "120px",
+                right: "45px",
+                top: "-20px",
+                background: "#46553D",
+                borderRadius: "100% 0 100% 0",
+                transform: "rotate(25deg)",
+              }}
+            />
 
-  {/* Leaf 3 */}
-  <div
-    style={{
-      position: "absolute",
-      width: "55px",
-      height: "130px",
-      right: "5px",
-      top: "30px",
-      background: "#46553D",
-      borderRadius: "100% 0 100% 0",
-      transform: "rotate(5deg)",
-    }}
-  />
+            {/* Leaf 2 */}
+            <div
+              style={{
+                position: "absolute",
+                width: "42px",
+                height: "105px",
+                right: "95px",
+                top: "5px",
+                background: "#46553D",
+                borderRadius: "100% 0 100% 0",
+                transform: "rotate(55deg)",
+              }}
+            />
 
-  {/* Leaf 4 */}
-  <div
-    style={{
-      position: "absolute",
-      width: "38px",
-      height: "95px",
-      right: "135px",
-      top: "45px",
-      background: "#46553D",
-      borderRadius: "100% 0 100% 0",
-      transform: "rotate(75deg)",
-    }}
-  />
+            {/* Leaf 3 */}
+            <div
+              style={{
+                position: "absolute",
+                width: "55px",
+                height: "130px",
+                right: "5px",
+                top: "30px",
+                background: "#46553D",
+                borderRadius: "100% 0 100% 0",
+                transform: "rotate(5deg)",
+              }}
+            />
 
-  {/* Leaf 5 */}
-  <div
-    style={{
-      position: "absolute",
-      width: "46px",
-      height: "115px",
-      right: "65px",
-      top: "80px",
-      background: "#46553D",
-      borderRadius: "100% 0 100% 0",
-      transform: "rotate(35deg)",
-    }}
-  />
+            {/* Leaf 4 */}
+            <div
+              style={{
+                position: "absolute",
+                width: "38px",
+                height: "95px",
+                right: "135px",
+                top: "45px",
+                background: "#46553D",
+                borderRadius: "100% 0 100% 0",
+                transform: "rotate(75deg)",
+              }}
+            />
 
-  {/* Leaf 6 */}
-  <div
-    style={{
-      position: "absolute",
-      width: "35px",
-      height: "90px",
-      right: "145px",
-      top: "105px",
-      background: "#46553D",
-      borderRadius: "100% 0 100% 0",
-      transform: "rotate(65deg)",
-    }}
-  />
+            {/* Leaf 5 */}
+            <div
+              style={{
+                position: "absolute",
+                width: "46px",
+                height: "115px",
+                right: "65px",
+                top: "80px",
+                background: "#46553D",
+                borderRadius: "100% 0 100% 0",
+                transform: "rotate(35deg)",
+              }}
+            />
 
-  {/* Leaf 7 */}
-  <div
-    style={{
-      position: "absolute",
-      width: "52px",
-      height: "125px",
-      right: "-10px",
-      top: "105px",
-      background: "#46553D",
-      borderRadius: "100% 0 100% 0",
-      transform: "rotate(-10deg)",
-    }}
-  />
+            {/* Leaf 6 */}
+            <div
+              style={{
+                position: "absolute",
+                width: "35px",
+                height: "90px",
+                right: "145px",
+                top: "105px",
+                background: "#46553D",
+                borderRadius: "100% 0 100% 0",
+                transform: "rotate(65deg)",
+              }}
+            />
 
-  {/* Leaf 8 */}
-  <div
-    style={{
-      position: "absolute",
-      width: "32px",
-      height: "80px",
-      right: "105px",
-      top: "145px",
-      background: "#46553D",
-      borderRadius: "100% 0 100% 0",
-      transform: "rotate(45deg)",
-    }}
-  />
-</div>
-  
-  {/* FLOOR */}
-  <div
-    className="absolute"
-    style={{
-      left: 0,
-      right: 0,
-      bottom: 0,
-      height: "40px",
-      background: "#efe3c4",
-      zIndex: 1,
-    }}
-  />
-{/* CANDLE FLOOR SHADOW */}
-<div
-  className="absolute"
-  style={{
-    width: "350px",
-    height: "22px",
-    left: "58%",
-    bottom: "18px",
-    transform: "translateX(-50%)",
-    background:
-      "radial-gradient(ellipse at center, rgba(55, 48, 35, 0.42) 0%, rgba(55, 48, 35, 0.30) 35%, rgba(55, 48, 35, 0.15) 60%, rgba(55, 48, 35, 0) 85%)",
-    filter: "blur(5px)",
-    borderRadius: "50%",
-    zIndex: 3,
-  }}
-/>
+            {/* Leaf 7 */}
+            <div
+              style={{
+                position: "absolute",
+                width: "52px",
+                height: "125px",
+                right: "-10px",
+                top: "105px",
+                background: "#46553D",
+                borderRadius: "100% 0 100% 0",
+                transform: "rotate(-10deg)",
+              }}
+            />
 
-  {/* MOON HORIZONTAL CONTACT SHADOW */}
-  <div
-    className="absolute"
-    style={{
-      width: "285px",
-      height: "22px",
-      left: "125px",
-      bottom: "25px",
-      transform: "translateX(-50%)",
-      background:
-        "radial-gradient(ellipse at center, rgba(55, 48, 35, 0.40) 0%, rgba(55, 48, 35, 0.28) 30%, rgba(55, 48, 35, 0.13) 58%, rgba(55, 48, 35, 0) 85%)",
-      filter: "blur(6px)",
-      borderRadius: "50%",
-      zIndex: 2,
-    }}
-  />
+            {/* Leaf 8 */}
+            <div
+              style={{
+                position: "absolute",
+                width: "32px",
+                height: "80px",
+                right: "105px",
+                top: "145px",
+                background: "#46553D",
+                borderRadius: "100% 0 100% 0",
+                transform: "rotate(45deg)",
+              }}
+            />
+          </div>
 
-  {/* MOON */}
-  <img
-    src={MOON_IMG}
-    alt=""
-    style={{
-      position: "absolute",
-      height: "260px",
-      width: "auto",
-      left: "12px",
-      bottom: "24px",
-      display: "block",
-      zIndex: 3,
-      filter: "none",
-    }}
-  />
-{/* SHOP NOW BUTTON */}
-<div
-  className="absolute z-10"
-  style={{
-    left: "79%",
-    bottom: "230px",
-    transform: "translateX(-50%)",
-  }}
->
-  <Link
-    href="/shop"
-    className="inline-flex items-center justify-center transition-colors bg-[#47684b] hover:bg-[#7C966F] active:bg-[#7C966F]"
-    style={{
-      color: "#ffffff",
-      fontSize: "14px",
-      padding: "8px 15px",
-      borderRadius: "5px",
-      whiteSpace: "nowrap",
-      textDecoration: "none",
-    }}
-  >
-    Shop Now
-  </Link>
-</div>
+          {/* FLOOR */}
+          <div
+            className="absolute"
+            style={{
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: "40px",
+              background: "#efe3c4",
+              zIndex: 1,
+            }}
+          />
 
-  {/* CANDLES */}
-  <img
-    src={CANDLES_IMG}
-    alt="Moon Candles collection"
-    style={{
-      position: "absolute",
-      width: "280px",
-      height: "225px",
-      objectFit: "contain",
-      left: "100px",
-      bottom: "-25px",
-      zIndex: 4,
-     filter: "none",
-    }}
-  />
-</div>
+          {/* CANDLE FLOOR SHADOW */}
+          <div
+            className="absolute"
+            style={{
+              width: "350px",
+              height: "22px",
+              left: "58%",
+              bottom: "18px",
+              transform: "translateX(-50%)",
+              background:
+                "radial-gradient(ellipse at center, rgba(55, 48, 35, 0.42) 0%, rgba(55, 48, 35, 0.30) 35%, rgba(55, 48, 35, 0.15) 60%, rgba(55, 48, 35, 0) 85%)",
+              filter: "blur(5px)",
+              borderRadius: "50%",
+              zIndex: 3,
+            }}
+          />
+
+          {/* MOON HORIZONTAL CONTACT SHADOW */}
+          <div
+            className="absolute"
+            style={{
+              width: "285px",
+              height: "22px",
+              left: "125px",
+              bottom: "25px",
+              transform: "translateX(-50%)",
+              background:
+                "radial-gradient(ellipse at center, rgba(55, 48, 35, 0.40) 0%, rgba(55, 48, 35, 0.28) 30%, rgba(55, 48, 35, 0.13) 58%, rgba(55, 48, 35, 0) 85%)",
+              filter: "blur(6px)",
+              borderRadius: "50%",
+              zIndex: 2,
+            }}
+          />
+
+          {/* MOON */}
+          <img
+            src={MOON_IMG}
+            alt=""
+            style={{
+              position: "absolute",
+              height: "260px",
+              width: "auto",
+              left: "12px",
+              bottom: "24px",
+              display: "block",
+              zIndex: 3,
+              filter: "none",
+            }}
+          />
+
+          {/* CANDLES */}
+          <img
+            src={CANDLES_IMG}
+            alt="Moon Candles collection"
+            style={{
+              position: "absolute",
+              width: "280px",
+              height: "225px",
+              objectFit: "contain",
+              left: "100px",
+              bottom: "-25px",
+              zIndex: 4,
+              filter: "none",
+            }}
+          />
+        </div>
 
         {/* ================= DESKTOP HERO — unchanged ================= */}
         <div className="hidden md:flex relative z-10 items-center justify-center gap-8 max-w-6xl mx-auto px-12 py-16">
@@ -324,8 +309,6 @@ if (error) {
               }}
             />
 
-            
-
             <div
               className="absolute z-10 flex justify-center"
               style={{
@@ -333,9 +316,7 @@ if (error) {
                 bottom: "31%",
                 width: "40%",
               }}
-            >
-              
-            </div>
+            />
           </div>
 
           <div
@@ -354,6 +335,32 @@ if (error) {
         </div>
       </div>
 
+      {/* ================= SHOP NOW BUTTON ================= */}
+      {/* This is now BELOW the entire stripes + moon + candles hero */}
+      <div
+        className="flex w-full justify-center"
+        style={{
+          backgroundColor: "#efe3c4",
+          paddingTop: "18px",
+          paddingBottom: "8px",
+        }}
+      >
+        <Link
+          href="/shop"
+          className="inline-flex items-center justify-center transition-colors bg-[#47684b] hover:bg-[#7C966F] active:bg-[#7C966F]"
+          style={{
+            color: "#ffffff",
+            fontSize: "14px",
+            padding: "9px 18px",
+            borderRadius: "5px",
+            whiteSpace: "nowrap",
+            textDecoration: "none",
+          }}
+        >
+          Shop Now
+        </Link>
+      </div>
+
       {/* ================= MOBILE TEXT SECTION ================= */}
       <div
         className="md:hidden flex flex-col items-center text-center w-full"
@@ -363,18 +370,30 @@ if (error) {
           paddingBottom: "35px",
         }}
       >
-        <h1
-          style={{
-            color: "#657A55",
-            fontFamily: "Georgia, serif",
-            fontSize: "27px",
-            fontWeight: 500,
-            margin: -10,
-            marginTop: -30,
-          }}
-        >
-          Light up your moon
-        </h1>
+  <h1
+  style={{
+    color: "#657A55",
+    fontFamily: "Georgia, serif",
+    fontSize: "27px",
+    fontWeight: 500,
+    margin: -10,
+    marginTop: -40,
+    lineHeight: 1.1,
+  }}
+>
+  Light up your{" "}
+  <span
+    style={{
+      fontFamily: "Georgia, serif",
+      fontSize: "27px",
+      fontWeight: 500,
+      fontStyle: "italic",
+      letterSpacing: "0.02em",
+    }}
+  >
+    Moon
+  </span>
+</h1>
 
         <p
           style={{
@@ -402,27 +421,27 @@ if (error) {
 
       {/* ================= MAIN CONTENT ================= */}
       <main className="flex flex-1 w-full max-w-4xl flex-col items-center py-4 px-4 md:py-8 md:px-16">
-       <RevealOnScroll>
+        <RevealOnScroll>
           <div className="w-full flex flex-col items-center">
             <p
               className="uppercase tracking-[0.25em] text-xs md:text-sm mb-2"
-              style={{ color: "#DE4B33" }}
+              style={{ color: "#000000" }}
             >
               fan favorites
             </p>
+
             <h2
               className="font-serif text-3xl md:text-5xl font-bold mb-6 text-center"
               style={{ color: "#000000" }}
             >
               Best Sellers
             </h2>
+
             <CandleCarousel candles={candles} />
           </div>
         </RevealOnScroll>
 
         <CustomizationTeaser />
-
-        
       </main>
     </div>
   );
