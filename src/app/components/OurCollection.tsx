@@ -1,264 +1,142 @@
 "use client";
 
 import Link from "next/link";
+import { Caveat } from "next/font/google";
+import AutoCenteredImage from "./AutoCenteredImage";
+
+const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 
 const CANDLES_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section/candless%20hero.png";
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/collection/Coll%20candles.png";
 
 const MOON_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section/moon%20hero.png";
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/collection/Coll%20giveaways.png";
 
 export default function OurCollection() {
   return (
-    <section
-      className="w-full"
-      style={{
-        backgroundColor: "#8FAA82",
-        padding: "65px 5%",
-      }}
-    >
-      {/* HEADER */}
-
-      <div
-        className="flex flex-col items-center text-center"
-        style={{ marginBottom: "35px" }}
-      >
+    <section className="w-full py-16 md:py-24" style={{ backgroundColor: "#FFF4E6" }}>
+      <div className="mx-auto max-w-4xl px-6 text-center">
         <p
-          style={{
-            color: "#efe3c4",
-            fontSize: "11px",
-            letterSpacing: "0.3em",
-            textTransform: "uppercase",
-            margin: "0 0 9px",
-          }}
+          className="mb-2 text-xs font-semibold uppercase tracking-[0.25em]"
+          style={{ color: "#6E86C7" }}
         >
-          explore the moon
+          Explore
         </p>
-
         <h2
-          style={{
-            color: "#000000",
-            fontFamily: "Georgia, serif",
-            fontSize: "clamp(32px, 4vw, 46px)",
-            fontWeight: 500,
-            lineHeight: 1,
-            margin: 0,
-          }}
+          className="mb-12 text-3xl font-bold md:mb-16 md:text-5xl"
+          style={{ color: "#000000" }}
         >
           Our Collection
         </h2>
       </div>
 
-      {/* ================= CARDS ================= */}
-
-      <div
-        className="mx-auto flex w-full max-w-7xl flex-col gap-5 md:flex-row"
-      >
-        {/* ================= CANDLES ================= */}
-
-        <div
-          className="group relative flex min-h-[260px] flex-1 overflow-hidden"
-          style={{
-            backgroundColor: "#efe3c4",
-            borderRadius: "18px",
-          }}
-        >
-          {/* IMAGE SIDE */}
-
-          <div
-            className="relative flex w-[47%] items-center justify-center"
-            style={{
-              overflow: "hidden",
-            }}
-          >
-            <img
-              src={CANDLES_IMG}
-              alt="Shop our candles"
-              className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
-              style={{
-                padding: "12px",
-              }}
-            />
-
-            {/* subtle circle */}
-            <div
-              className="pointer-events-none absolute"
-              style={{
-                width: "155px",
-                height: "155px",
-                borderRadius: "50%",
-                border: "1px solid rgba(71,104,75,0.18)",
-              }}
-            />
-          </div>
-
-          {/* TEXT SIDE */}
-
-          <div
-            className="flex w-[53%] flex-col justify-center"
-            style={{
-              padding: "30px 28px 30px 5px",
-            }}
-          >
-            <span
-              style={{
-                color: "#7A9567",
-                fontSize: "10px",
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-                marginBottom: "9px",
-              }}
-            >
-              hand poured
-            </span>
-
-            <h3
-              style={{
-                color: "#000000",
-                fontFamily: "Georgia, serif",
-                fontSize: "clamp(25px, 3vw, 37px)",
-                fontWeight: 500,
-                lineHeight: 0.98,
-                margin: "0 0 12px",
-              }}
-            >
-              Shop Our
-              <br />
-              Candles
-            </h3>
-
-            <p
-              style={{
-                color: "#6f7565",
-                fontSize: "12px",
-                lineHeight: 1.5,
-                margin: "0 0 20px",
-                maxWidth: "190px",
-              }}
-            >
-              Discover scents made to light up your Moon.
-            </p>
-
-            <Link
-              href="/shop"
-              className="w-fit transition-all duration-300 hover:scale-105"
-              style={{
-                backgroundColor: "#47684b",
-                color: "#ffffff",
-                fontSize: "11px",
-                letterSpacing: "0.04em",
-                padding: "9px 16px",
-                borderRadius: "5px",
-                textDecoration: "none",
-              }}
-            >
-              Shop Candles
-            </Link>
-          </div>
-        </div>
-
-        {/* ================= GIVEAWAYS ================= */}
-
-        <div
-          className="group relative flex min-h-[260px] flex-1 overflow-hidden"
-          style={{
-            backgroundColor: "#efe3c4",
-            borderRadius: "18px",
-          }}
-        >
-          {/* IMAGE SIDE */}
-
-          <div
-            className="relative flex w-[47%] items-center justify-center"
-            style={{
-              overflow: "hidden",
-            }}
-          >
-            <img
-              src={MOON_IMG}
-              alt="Shop our giveaways"
-              className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105"
-              style={{
-                padding: "18px",
-              }}
-            />
-
-            <div
-              className="pointer-events-none absolute"
-              style={{
-                width: "155px",
-                height: "155px",
-                borderRadius: "50%",
-                border: "1px solid rgba(71,104,75,0.18)",
-              }}
-            />
-          </div>
-
-          {/* TEXT SIDE */}
-
-          <div
-            className="flex w-[53%] flex-col justify-center"
-            style={{
-              padding: "30px 28px 30px 5px",
-            }}
-          >
-            <span
-              style={{
-                color: "#7A9567",
-                fontSize: "10px",
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-                marginBottom: "9px",
-              }}
-            >
-              little surprises
-            </span>
-
-            <h3
-              style={{
-                color: "#000000",
-                fontFamily: "Georgia, serif",
-                fontSize: "clamp(25px, 3vw, 37px)",
-                fontWeight: 500,
-                lineHeight: 0.98,
-                margin: "0 0 12px",
-              }}
-            >
-              Shop Our
-              <br />
-              Giveaways
-            </h3>
-
-            <p
-              style={{
-                color: "#6f7565",
-                fontSize: "12px",
-                lineHeight: 1.5,
-                margin: "0 0 20px",
-                maxWidth: "190px",
-              }}
-            >
-              Little Moon treasures made to make you smile.
-            </p>
-
-            <Link
-              href="/shop?category=giveaways"
-              className="w-fit transition-all duration-300 hover:scale-105"
-              style={{
-                backgroundColor: "#47684b",
-                color: "#ffffff",
-                fontSize: "11px",
-                letterSpacing: "0.04em",
-                padding: "9px 16px",
-                borderRadius: "5px",
-                textDecoration: "none",
-              }}
-            >
-              Shop Giveaways
-            </Link>
-          </div>
-        </div>
+      <div className="mx-auto grid max-w-4xl grid-cols-2 gap-3 px-4 md:gap-8 md:px-6">
+        <CollectionCard
+          img={CANDLES_IMG}
+          imgAlt="Shop our candles"
+          eyebrow="for the everyday ritual"
+          title="Candles"
+          href="/shop"
+          ctaLabel="Shop Candles"
+          accent="#D8A1AF"
+        />
+        <CollectionCard
+          img={MOON_IMG}
+          imgAlt="Shop our giveaways"
+          eyebrow="for gifting joy"
+          title="Giveaways"
+          href="/shop?category=giveaways"
+          ctaLabel="Shop Giveaways"
+          accent="#6E86C7"
+        />
       </div>
     </section>
+  );
+}
+
+function CollectionCard({
+  img,
+  imgAlt,
+  eyebrow,
+  title,
+  href,
+  ctaLabel,
+  accent,
+}: {
+  img: string;
+  imgAlt: string;
+  eyebrow: string;
+  title: string;
+  href: string;
+  ctaLabel: string;
+  accent: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group relative flex flex-col items-center pt-2 pb-4 px-3 text-center transition-transform duration-300 hover:-translate-y-1 md:pt-4 md:pb-6 md:px-6"
+    >
+      {/* Photo badge with a moon-phase "bite" — a second circle, matching
+          the card's own accent, overlapping the top-right edge of the
+          white circle. Purely decorative, doesn't touch the photo. */}
+      <div className="relative mb-4 h-24 w-24 md:mb-6 md:h-44 md:w-44">
+        <div
+          className="absolute inset-0 rounded-full opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-40"
+          style={{ backgroundColor: accent }}
+          aria-hidden
+        />
+        <div
+          className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+          style={{ backgroundColor: "#FFFFFF", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }}
+        >
+          <AutoCenteredImage
+            src={img}
+            alt={imgAlt}
+            paddingRatio={0.08}
+            className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-110"
+          />
+        </div>
+        {/* the "bite" */}
+        <span
+          className="absolute rounded-full transition-transform duration-300 group-hover:scale-110"
+          style={{
+            top: "-4%",
+            right: "-8%",
+            width: "34%",
+            height: "34%",
+            backgroundColor: accent,
+          }}
+          aria-hidden
+        />
+      </div>
+
+      <p
+        className={`${caveat.className} mb-2 text-base leading-tight md:mb-3 md:text-2xl`}
+        style={{ color: accent }}
+      >
+        {eyebrow}
+      </p>
+
+      <h3 className="mb-4 text-lg font-bold md:mb-6 md:text-3xl" style={{ color: "#000000" }}>
+        {title}
+      </h3>
+
+      <span
+        className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition-all duration-300 group-hover:gap-2 md:gap-1.5 md:px-5 md:py-2 md:text-xs"
+        style={{ backgroundColor: accent, color: "#FFF4E6" }}
+      >
+        {ctaLabel}
+        <ArrowIcon />
+      </span>
+    </Link>
+  );
+}
+
+function ArrowIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <path d="M5 12h14" />
+      <path d="M13 6l6 6-6 6" />
+    </svg>
   );
 }

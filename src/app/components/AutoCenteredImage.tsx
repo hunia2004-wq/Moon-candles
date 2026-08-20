@@ -15,10 +15,14 @@ export default function AutoCenteredImage({
   src,
   alt,
   className,
+  style,
+  paddingRatio = 0.35,
 }: {
   src: string;
   alt: string;
   className?: string;
+  style?: React.CSSProperties;
+  paddingRatio?: number;
 }) {
   const [croppedSrc, setCroppedSrc] = useState<string | null>(null);
   const cache = useRef<Map<string, string>>(new Map());
@@ -112,7 +116,7 @@ export default function AutoCenteredImage({
           bottom - centroidY
         );
 
-        const padding = halfSpan * 0.35;
+        const padding = halfSpan * paddingRatio;
         const half = halfSpan + padding;
         const size = half * 2;
 
@@ -147,12 +151,12 @@ export default function AutoCenteredImage({
     };
   }, [src]);
 
-  return (
-    <img
-      src={croppedSrc ?? src}
-      alt={alt}
-      className={className}
-      style={{ opacity: croppedSrc ? 1 : 0.4, transition: "opacity 0.15s" }}
-    />
-  );
+ return (
+  <img
+    src={croppedSrc ?? src}
+    alt={alt}
+    className={className}
+    style={{ opacity: croppedSrc ? 1 : 0.4, transition: "opacity 0.15s", ...style }}
+  />
+);
 }
