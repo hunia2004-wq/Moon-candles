@@ -4,7 +4,10 @@ import Link from "next/link";
 import { Caveat } from "next/font/google";
 import AutoCenteredImage from "./AutoCenteredImage";
 
-const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
+const caveat = Caveat({
+  subsets: ["latin"],
+  weight: ["600", "700"],
+});
 
 const CANDLES_IMG =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/collection/Coll%20candles.png";
@@ -14,32 +17,207 @@ const MOON_IMG =
 
 export default function OurCollection() {
   return (
-    <section className="w-full py-16 md:py-24" style={{ backgroundColor: "#FFF4E6" }}>
-      <div className="mx-auto max-w-4xl px-6 text-center">
-        <p
-          className="mb-2 text-xs font-semibold uppercase tracking-[0.25em]"
-          style={{ color: "#6E86C7" }}
+    <section
+      className="relative w-full overflow-hidden py-16 md:py-24"
+      style={{ backgroundColor: "#87977B" }}
+    >
+      {/* =====================================================
+          SECTION EDGE WAVES
+
+          Softens the section into the page instead of reading
+          as a hard-edged rectangular box.
+      ===================================================== */}
+
+      <div className="absolute inset-x-0 top-0 z-30 -translate-y-[1px]">
+        <svg
+          viewBox="0 0 1440 60"
+          className="h-[36px] w-full md:h-[56px]"
+          preserveAspectRatio="none"
+          aria-hidden="true"
         >
-          Explore
-        </p>
+          <path
+            d="M0,0 L1440,0 L1440,30 C1200,55 1080,5 840,30 C600,55 480,5 240,30 C120,42 60,36 0,30 Z"
+            fill="#efe3c4"
+          />
+        </svg>
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 z-30 translate-y-[1px]">
+        <svg
+          viewBox="0 0 1440 60"
+          className="h-[36px] w-full md:h-[56px]"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M0,60 L1440,60 L1440,30 C1200,5 1080,55 840,30 C600,5 480,55 240,30 C120,18 60,24 0,30 Z"
+            fill="#efe3c4"
+          />
+        </svg>
+      </div>
+
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
+
+      <div className="relative z-20 mx-auto max-w-5xl px-6 text-center">
+        
+
         <h2
-          className="mb-12 text-3xl font-bold md:mb-16 md:text-5xl"
-          style={{ color: "#000000" }}
+          className="text-5xl font-normal tracking-tight md:text-[76px]"
+          style={{
+            color: "black",
+            fontFamily: "Georgia, serif",
+            lineHeight: "0.95",
+          }}
         >
           Our Collection
         </h2>
       </div>
 
-      <div className="mx-auto grid max-w-4xl grid-cols-2 gap-3 px-4 md:gap-8 md:px-6">
+     {/* =====================================================
+    CURVED RIBBON — thicker flowing fabric sash
+===================================================== */}
+
+<div className="relative left-1/2 z-700 mt-1 w-screen -translate-x-1/2 md:mt-14">
+  <svg
+    viewBox="0 0 1600 230"
+    className="h-auto w-full overflow-visible"
+    aria-hidden="true"
+  >
+    <defs>
+      <filter
+        id="ribbon-shadow"
+        x="-20%"
+        y="-30%"
+        width="140%"
+        height="160%"
+      >
+        <feDropShadow
+          dx="0"
+          dy="5"
+          stdDeviation="4"
+          floodColor="#8d8178"
+          floodOpacity="0.18"
+        />
+      </filter>
+    </defs>
+
+    {/* =================================================
+        THICKER RIBBON
+    ================================================= */}
+
+    <path
+      d="
+        M -20,35
+
+        C 130,-10
+          270,-10
+          410,50
+
+        C 535,115
+          650,155
+          775,105
+
+        C 910,50
+          1025,50
+          1150,105
+
+        C 1290,165
+          1425,160
+          1620,45
+
+        L 1620,155
+
+        C 1430,220
+          1285,215
+          1140,160
+
+        C 1015,105
+          905,105
+          785,160
+
+        C 650,215
+          525,175
+          400,115
+
+        C 270,55
+          130,60
+          -20,130
+
+        Z
+      "
+      fill="#efe3c4"
+      filter="url(#ribbon-shadow)"
+    />
+
+    {/* =================================================
+        TEXT CENTERLINE
+        Exactly centered inside the thicker ribbon
+    ================================================= */}
+
+    <path
+      id="ribbon-text-path"
+      d="
+        M -10,82
+
+        C 130,25
+          270,25
+          405,82
+
+        C 535,145
+          650,180
+          780,132
+
+        C 910,78
+          1025,78
+          1145,132
+
+        C 1290,190
+          1435,185
+          1610,82
+      "
+      fill="none"
+    />
+
+    <text
+      style={{
+        fill: "#000000",
+        fontSize: "32px",
+        fontWeight: 450,
+        letterSpacing: "3px",
+      }}
+    >
+      <textPath
+        href="#ribbon-text-path"
+        startOffset="50%"
+        textAnchor="middle"
+      >
+        CRUELTY FREE ✦ PARABEN FREE ✦ GLUTEN FREE ✦ MADE BY MOON
+      </textPath>
+    </text>
+  </svg>
+</div>
+
+      {/* =====================================================
+          COLLECTION CARDS
+
+          Tucked up slightly into the ribbon above so the two
+          pieces read as one continuous composition.
+      ===================================================== */}
+
+      <div className="relative z-20 mx-auto -mt-6 grid max-w-[1020px] grid-cols-2 gap-3 px-4 md:-mt-10 md:gap-7 md:px-6">
         <CollectionCard
           img={CANDLES_IMG}
           imgAlt="Shop our candles"
-          eyebrow="for the everyday ritual"
+          eyebrow="handmade scented"
           title="Candles"
-          href="/shop"
+          href="/shop?category=candles"
           ctaLabel="Shop Candles"
-          accent="#D8A1AF"
+          accent="#D58E9E"
+          imgBg="#F7E1E6"
         />
+
         <CollectionCard
           img={MOON_IMG}
           imgAlt="Shop our giveaways"
@@ -48,11 +226,16 @@ export default function OurCollection() {
           href="/shop?category=giveaways"
           ctaLabel="Shop Giveaways"
           accent="#6E86C7"
+          imgBg="#DEE5F7"
         />
       </div>
     </section>
   );
 }
+
+/* =========================================================
+   COLLECTION CARD
+========================================================= */
 
 function CollectionCard({
   img,
@@ -62,6 +245,7 @@ function CollectionCard({
   href,
   ctaLabel,
   accent,
+  imgBg,
 }: {
   img: string;
   imgAlt: string;
@@ -70,71 +254,177 @@ function CollectionCard({
   href: string;
   ctaLabel: string;
   accent: string;
+  imgBg: string;
 }) {
   return (
     <Link
       href={href}
-      className="group relative flex flex-col items-center pt-2 pb-4 px-3 text-center transition-transform duration-300 hover:-translate-y-1 md:pt-4 md:pb-6 md:px-6"
+      className="
+        group
+        relative
+        block
+        overflow-hidden
+        rounded-t-[400px]
+        rounded-b-[30px]
+        border-2
+        p-[6px]
+        transition-transform
+        duration-300
+        hover:-translate-y-2
+        md:rounded-t-[500px]
+        md:rounded-b-[38px]
+        md:p-2
+      "
+      style={{
+        backgroundColor: "#FFF4E6",
+        borderColor: "#F6E9D9",
+        boxShadow: "0 10px 30px rgba(50, 55, 45, 0.10)",
+      }}
     >
-      {/* Photo badge with a moon-phase "bite" — a second circle, matching
-          the card's own accent, overlapping the top-right edge of the
-          white circle. Purely decorative, doesn't touch the photo. */}
-      <div className="relative mb-4 h-24 w-24 md:mb-6 md:h-44 md:w-44">
+      {/* Inner border */}
+
+      <div
+        className="
+          relative
+          overflow-hidden
+          rounded-t-[400px]
+          rounded-b-[24px]
+          border
+          md:rounded-t-[500px]
+          md:rounded-b-[31px]
+        "
+        style={{
+          borderColor: `${accent}90`,
+          backgroundColor: "#FFF4E6",
+        }}
+      >
+        {/* =================================================
+            IMAGE
+        ================================================= */}
+
         <div
-          className="absolute inset-0 rounded-full opacity-0 blur-xl transition-opacity duration-300 group-hover:opacity-40"
-          style={{ backgroundColor: accent }}
-          aria-hidden
-        />
-        <div
-          className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full"
-          style={{ backgroundColor: "#FFFFFF", boxShadow: "0 8px 24px rgba(0,0,0,0.1)" }}
+          className="
+            relative
+            aspect-[0.85]
+            w-full
+            overflow-hidden
+          "
+          style={{
+            backgroundColor: imgBg,
+          }}
         >
           <AutoCenteredImage
             src={img}
             alt={imgAlt}
-            paddingRatio={0.08}
-            className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-110"
+            paddingRatio={0}
+            className="
+              h-full
+              w-full
+              object-cover
+              transition-transform
+              duration-500
+              group-hover:scale-[1.025]
+            "
           />
         </div>
-        {/* the "bite" */}
-        <span
-          className="absolute rounded-full transition-transform duration-300 group-hover:scale-110"
-          style={{
-            top: "-4%",
-            right: "-8%",
-            width: "34%",
-            height: "34%",
-            backgroundColor: accent,
-          }}
-          aria-hidden
-        />
+
+        {/* =================================================
+            CARD CONTENT
+        ================================================= */}
+
+        <div
+          className="
+            flex
+            flex-col
+            items-center
+            px-2
+            pb-4
+            pt-4
+            text-center
+            md:px-6
+            md:pb-7
+            md:pt-5
+          "
+        >
+          <p
+            className={`${caveat.className} mb-1 text-[15px] leading-tight md:mb-2 md:text-[25px]`}
+            style={{
+              color: accent,
+            }}
+          >
+            {eyebrow}
+          </p>
+
+          <h3
+            className="
+              mb-3
+              text-[24px]
+              font-normal
+              leading-none
+              md:mb-6
+              md:text-[46px]
+            "
+            style={{
+              color: "#111111",
+              fontFamily: "Georgia, serif",
+            }}
+          >
+            {title}
+          </h3>
+
+          <span
+            className="
+              inline-flex
+              min-h-[38px]
+              w-full
+              items-center
+              justify-center
+              gap-1.5
+              whitespace-nowrap
+              rounded-full
+              px-3
+              py-2
+              text-[8px]
+              font-medium
+              uppercase
+              tracking-[0.08em]
+              transition-all
+              duration-300
+              group-hover:px-6
+              md:min-h-[50px]
+              md:px-9
+              md:text-[13px]
+            "
+            style={{
+              backgroundColor: accent,
+              color: "#FFF4E6",
+            }}
+          >
+            {ctaLabel}
+
+            <ArrowIcon />
+          </span>
+        </div>
       </div>
-
-      <p
-        className={`${caveat.className} mb-2 text-base leading-tight md:mb-3 md:text-2xl`}
-        style={{ color: accent }}
-      >
-        {eyebrow}
-      </p>
-
-      <h3 className="mb-4 text-lg font-bold md:mb-6 md:text-3xl" style={{ color: "#000000" }}>
-        {title}
-      </h3>
-
-      <span
-        className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide transition-all duration-300 group-hover:gap-2 md:gap-1.5 md:px-5 md:py-2 md:text-xs"
-        style={{ backgroundColor: accent, color: "#FFF4E6" }}
-      >
-        {ctaLabel}
-        <ArrowIcon />
-      </span>
     </Link>
   );
 }
 
+/* =========================================================
+   ARROW
+========================================================= */
+
 function ArrowIcon() {
   return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
       <path d="M5 12h14" />
       <path d="M13 6l6 6-6 6" />
     </svg>
