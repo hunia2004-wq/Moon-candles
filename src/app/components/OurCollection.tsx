@@ -23,9 +23,6 @@ export default function OurCollection() {
     >
       {/* =====================================================
           SECTION EDGE WAVES
-
-          Softens the section into the page instead of reading
-          as a hard-edged rectangular box.
       ===================================================== */}
 
       <div className="absolute inset-x-0 top-0 z-30 -translate-y-[1px]">
@@ -61,8 +58,6 @@ export default function OurCollection() {
       ===================================================== */}
 
       <div className="relative z-20 mx-auto max-w-5xl px-6 text-center">
-        
-
         <h2
           className="text-5xl font-normal tracking-tight md:text-[76px]"
           style={{
@@ -75,135 +70,131 @@ export default function OurCollection() {
         </h2>
       </div>
 
-     {/* =====================================================
-    CURVED RIBBON — thicker flowing fabric sash
-===================================================== */}
+      {/* =====================================================
+          CURVED RIBBON — THICKER FLOWING FABRIC SASH
+      ===================================================== */}
 
-<div className="relative left-1/2 z-700 mt-1 w-screen -translate-x-1/2 md:mt-14">
-  <svg
-    viewBox="0 0 1600 230"
-    className="h-auto w-full overflow-visible"
-    aria-hidden="true"
-  >
-    <defs>
-      <filter
-        id="ribbon-shadow"
-        x="-20%"
-        y="-30%"
-        width="140%"
-        height="160%"
-      >
-        <feDropShadow
-          dx="0"
-          dy="5"
-          stdDeviation="4"
-          floodColor="#8d8178"
-          floodOpacity="0.18"
-        />
-      </filter>
-    </defs>
+      <div className="relative left-1/2 z-700 mt-1 w-screen -translate-x-1/2 md:mt-14">
+        <svg
+          viewBox="0 0 1600 230"
+          className="h-auto w-full overflow-visible"
+          aria-hidden="true"
+        >
+          <defs>
+            <filter
+              id="ribbon-shadow"
+              x="-20%"
+              y="-30%"
+              width="140%"
+              height="160%"
+            >
+              <feDropShadow
+                dx="0"
+                dy="5"
+                stdDeviation="4"
+                floodColor="#8d8178"
+                floodOpacity="0.18"
+              />
+            </filter>
+          </defs>
 
-    {/* =================================================
-        THICKER RIBBON
-    ================================================= */}
+          {/* =================================================
+              THICKER RIBBON
+          ================================================= */}
 
-    <path
-      d="
-        M -20,35
+          <path
+            d="
+              M -20,35
 
-        C 130,-10
-          270,-10
-          410,50
+              C 130,-10
+                270,-10
+                410,50
 
-        C 535,115
-          650,155
-          775,105
+              C 535,115
+                650,155
+                775,105
 
-        C 910,50
-          1025,50
-          1150,105
+              C 910,50
+                1025,50
+                1150,105
 
-        C 1290,165
-          1425,160
-          1620,45
+              C 1290,165
+                1425,160
+                1620,45
 
-        L 1620,155
+              L 1620,185
 
-        C 1430,220
-          1285,215
-          1140,160
+              C 1430,250
+                1285,245
+                1140,190
 
-        C 1015,105
-          905,105
-          785,160
+              C 1015,135
+                905,135
+                785,190
 
-        C 650,215
-          525,175
-          400,115
+              C 650,245
+                525,205
+                400,145
 
-        C 270,55
-          130,60
-          -20,130
+              C 270,85
+                130,90
+                -20,160
 
-        Z
-      "
-      fill="#efe3c4"
-      filter="url(#ribbon-shadow)"
-    />
+              Z
+            "
+            fill="#efe3c4"
+            filter="url(#ribbon-shadow)"
+          />
 
-    {/* =================================================
-        TEXT CENTERLINE
-        Exactly centered inside the thicker ribbon
-    ================================================= */}
+          {/* =================================================
+              TEXT CENTERLINE
+          ================================================= */}
 
-    <path
-      id="ribbon-text-path"
-      d="
-        M -10,82
+          <path
+            id="ribbon-text-path"
+            d="
+              M -10,98
 
-        C 130,25
-          270,25
-          405,82
+              C 130,43
+                270,43
+                405,100
 
-        C 535,145
-          650,180
-          780,132
+              C 535,163
+                650,198
+                780,150
 
-        C 910,78
-          1025,78
-          1145,132
+              C 910,96
+                1025,96
+                1145,150
 
-        C 1290,190
-          1435,185
-          1610,82
-      "
-      fill="none"
-    />
+              C 1290,208
+                1435,203
+                1610,100
+            "
+            fill="none"
+          />
 
-    <text
-      style={{
-        fill: "#000000",
-        fontSize: "32px",
-        fontWeight: 450,
-        letterSpacing: "3px",
-      }}
-    >
-      <textPath
-        href="#ribbon-text-path"
-        startOffset="50%"
-        textAnchor="middle"
-      >
-        CRUELTY FREE ✦ PARABEN FREE ✦ GLUTEN FREE ✦ MADE BY MOON
-      </textPath>
-    </text>
-  </svg>
-</div>
+          <text
+            style={{
+              fill: "#000000",
+              fontSize: "30px",
+              fontWeight: 500,
+              letterSpacing: "9px",
+            }}
+          >
+            <textPath
+              href="#ribbon-text-path"
+              startOffset="50%"
+              textAnchor="middle"
+            >
+              SCENTED ✦ HANDMADE ✦ GIFTED WITH LOVE ✦ MADE BY MOON
+            </textPath>
+          </text>
+        </svg>
+      </div>
 
       {/* =====================================================
           COLLECTION CARDS
-
-          Tucked up slightly into the ribbon above so the two
-          pieces read as one continuous composition.
       ===================================================== */}
 
       <div className="relative z-20 mx-auto -mt-6 grid max-w-[1020px] grid-cols-2 gap-3 px-4 md:-mt-10 md:gap-7 md:px-6">
@@ -215,7 +206,7 @@ export default function OurCollection() {
           href="/shop?category=candles"
           ctaLabel="Shop Candles"
           accent="#D58E9E"
-          imgBg="#F7E1E6"
+          imgBg="linear-gradient(135deg, #FFF9F5 0%, #FDECEF 55%, #F9DDE4 100%)"
         />
 
         <CollectionCard
@@ -226,7 +217,7 @@ export default function OurCollection() {
           href="/shop?category=giveaways"
           ctaLabel="Shop Giveaways"
           accent="#6E86C7"
-          imgBg="#DEE5F7"
+          imgBg="linear-gradient(135deg, #FFF9F5 0%, #F1F4FF 55%, #E3E9FA 100%)"
         />
       </div>
     </section>
@@ -305,12 +296,12 @@ function CollectionCard({
         <div
           className="
             relative
-            aspect-[0.85]
+            aspect-[1]
             w-full
             overflow-hidden
           "
           style={{
-            backgroundColor: imgBg,
+            background: imgBg,
           }}
         >
           <AutoCenteredImage

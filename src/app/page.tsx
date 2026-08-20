@@ -437,17 +437,18 @@ if (collectionError) {
   <RevealOnScroll>
     <div className="w-full flex flex-col items-center">
       <p
-        className="uppercase tracking-[0.25em] text-xs md:text-sm mb-2"
+        className="uppercase tracking-[0.20em] text-xs md:text-sm mb-1"
         style={{ color: "#000000" }}
       >
         fan favorites
       </p>
 
       <h2
-        className="font-serif text-3xl md:text-5xl font-bold mb-6 text-center"
+        className="font-serif text-3xl md:text-5xl font-bold text-center"
         style={{ color: "#000000" }}
       >
         Best Sellers
+       
       </h2>
 
       <CandleCarousel candles={candles} />
