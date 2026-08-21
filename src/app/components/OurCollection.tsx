@@ -13,7 +13,7 @@ const CANDLES_IMG =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/collection/Coll%20candles.png";
 
 const MOON_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/collection/Coll%20giveaways.png";
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/collection/coll%20giveaways.png";
 
 export default function OurCollection() {
   return (
