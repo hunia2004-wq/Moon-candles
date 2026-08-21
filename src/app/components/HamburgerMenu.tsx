@@ -109,7 +109,7 @@ export default function HamburgerMenu() {
   href="/shop?category=candles"
   onClick={closeAll}
   className="mt-1 mb-2 block text-sm font-bold uppercase tracking-wide"
-  style={{ color: "#DE4B33" }}
+  style={{ color: "#D8A1AF" }}
 >
   Candles
 </Link>
@@ -130,7 +130,7 @@ export default function HamburgerMenu() {
   href="/shop?category=giveaways"
   onClick={closeAll}
   className="mt-4 mb-2 block text-sm font-bold uppercase tracking-wide"
-  style={{ color: "#DE4B33" }}
+  style={{ color: "#6E86C7" }}
 >
   Giveaways
 </Link>

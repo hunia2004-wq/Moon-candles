@@ -19,7 +19,7 @@ export default function OurCollection() {
   return (
     <section
       className="relative w-full overflow-hidden py-16 md:py-24"
-      style={{ backgroundColor: "#87977B" }}
+      style={{ backgroundColor: "#8FAA82" }}
     >
       {/* =====================================================
           SECTION EDGE WAVES
@@ -205,7 +205,7 @@ export default function OurCollection() {
           title="Candles"
           href="/shop?category=candles"
           ctaLabel="Shop Candles"
-          accent="#D58E9E"
+          accent="#D8A1AF"
           imgBg="linear-gradient(135deg, #FFF9F5 0%, #FDECEF 55%, #F9DDE4 100%)"
         />
 

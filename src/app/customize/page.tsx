@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import CandleLabelWrap from "../components/CandleLabelWrap";
 
 const SIZES = [
   {
@@ -327,46 +328,11 @@ export default function CustomizeCandlePage() {
       ✕
     </button>
 
-    <div className="relative w-full max-w-sm md:max-w-md">
-      <img src={selectedSize.img} alt="Your customized candle" className="w-full h-auto" />
-
-      {photoUrl && (
-        <div
-          className="absolute rounded-md overflow-hidden"
-          style={{
-            left: `${photoPos.x}%`,
-            top: `${photoPos.y}%`,
-            width: "34%",
-            aspectRatio: "1 / 1",
-            transform: "translate(-50%, -50%)",
-            boxShadow: "0 2px 8px rgba(53,36,28,0.25)",
-          }}
-        >
-          <img
-            src={photoUrl}
-            alt="Your photo"
-            className="w-full h-full object-cover"
-            style={{ transform: `scale(${photoScale})` }}
-          />
-        </div>
-      )}
-
-      <p
-        className="absolute text-center px-1"
-        style={{
-          left: `${textPos.x}%`,
-          top: `${textPos.y}%`,
-          transform: "translate(-50%, -50%)",
-          width: "40%",
-          fontSize: "13px",
-          fontWeight: 600,
-          color: "#DE4B33",
-          textShadow: "0 1px 2px rgba(255,255,255,0.6)",
-        }}
-      >
-        {message}
-      </p>
-    </div>
+        <CandleLabelWrap
+      candleImg={selectedSize.img}
+      photoUrl={photoUrl}
+      message={message}
+    />
 
 <button
   onClick={() => {

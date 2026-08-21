@@ -35,7 +35,7 @@ export default function CustomizationTeaser() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:gap-10">
           <TicketCard
             accent="#DE4B33"
-            accentDark="#B23A26"
+            accentDark="#DE4B33"
             tag="Candles"
             img={CANDLE_IMG}
             imgAlt="A customized candle with a photo and message"
@@ -44,9 +44,9 @@ export default function CustomizationTeaser() {
             href="/customize"
             ctaLabel="Customize your candle"
           />
-          <TicketCard
+                    <TicketCard
             accent="#DE4B33"
-            accentDark="#B23A26"
+            accentDark="#DE4B33"
             tag="Giveaways"
             img={GIVEAWAY_IMG}
             imgAlt="A customized giveaway with a handwritten note"
@@ -54,6 +54,8 @@ export default function CustomizationTeaser() {
             description="Small treats, big meaning. Personalize a giveaway your guests will actually keep."
             href="/shop?category=giveaways"
             ctaLabel="Customize your giveaways"
+            imgFit="contain"
+            imgBg="#f1ddc1"
           />
         </div>
       </div>
@@ -71,6 +73,8 @@ function TicketCard({
   description,
   href,
   ctaLabel,
+  imgFit = "cover",
+  imgBg,
 }: {
   accent: string;
   accentDark: string;
@@ -81,6 +85,8 @@ function TicketCard({
   description: string;
   href: string;
   ctaLabel: string;
+  imgFit?: "cover" | "contain";
+  imgBg?: string;
 }) {
   return (
     <Link
@@ -99,12 +105,19 @@ function TicketCard({
         className="relative overflow-hidden rounded-2xl shadow-lg"
         style={{ backgroundColor: accent }}
       >
-        {/* Photo half */}
-        <div className="relative aspect-[4/3] w-full overflow-hidden">
+               {/* Photo half */}
+        <div
+          className="relative aspect-[4/3] w-full overflow-hidden"
+          style={imgBg ? { backgroundColor: imgBg } : undefined}
+        >
           <img
             src={img}
+            style={{ transform: "scale(1.155)" }}
             alt={imgAlt}
-            className="h-full w-full object-cover transition-transform duration=500 group-hover:scale-105"
+            className={`h-full w-full transition-transform duration=500 group-hover:scale-105 ${
+              imgFit === "contain" ? "object-contain" : "object-cover"
+              
+            }`}
           />
           <div
             className="pointer-events-none absolute inset-0"
