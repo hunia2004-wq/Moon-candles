@@ -19,7 +19,7 @@ const GIVEAWAY_ITEMS = [
   { name: "Quack and Kiss", slug: "quack-and-kiss" },
   { name: "Tambourine", slug: "Tambourine" },
   { name: "Fan", slug: "fan" },
- { name: "Bloom Wand", slug: "bloom-wand" },
+  { name: "Bloom Wand", slug: "bloom-wand" },
 ];
 
 export default function HamburgerMenu() {
@@ -41,16 +41,9 @@ export default function HamburgerMenu() {
         <Menu size={24} />
       </button>
 
-      {open && (
+            {open && (
         <div className="fixed inset-0 z-[999] flex">
-          {/* Backdrop */}
-          <div
-            className="flex-1 bg-black/30"
-            onClick={closeAll}
-            aria-hidden="true"
-          />
-
-          {/* Panel */}
+          {/* Panel — comes first now, so it renders on the left */}
           <div
             className="flex h-full w-full max-w-sm flex-col overflow-y-auto px-6 py-6"
             style={{ backgroundColor: "#FFF4E6" }}
@@ -105,46 +98,46 @@ export default function HamburgerMenu() {
                 {shopOpen && (
                   <div className="flex flex-col gap-1 pb-3 pl-4 text-sm normal-case tracking-normal">
                     {/* Candles group */}
-                   <Link
-  href="/shop?category=candles"
-  onClick={closeAll}
-  className="mt-1 mb-2 block text-sm font-bold uppercase tracking-wide"
-  style={{ color: "#D8A1AF" }}
->
-  Candles
-</Link>
-               {SHOP_ITEMS.map((item) => (
-  <Link
-    key={item.slug}
-    href={`/product/by-name/${encodeURIComponent(item.name)}`}
-    onClick={closeAll}
-    className="py-1.5"
-    style={{ color: "#000000" }}
-  >
-    {item.name}
-  </Link>
-))}
+                    <Link
+                      href="/shop?category=candles"
+                      onClick={closeAll}
+                      className="mt-1 mb-2 block text-sm font-bold uppercase tracking-wide"
+                      style={{ color: "#D8A1AF" }}
+                    >
+                      Candles
+                    </Link>
+                    {SHOP_ITEMS.map((item) => (
+                      <Link
+                        key={item.slug}
+                        href={`/product/by-name/${encodeURIComponent(item.name)}`}
+                        onClick={closeAll}
+                        className="py-1.5"
+                        style={{ color: "#000000" }}
+                      >
+                        {item.name}
+                      </Link>
+                    ))}
 
                     {/* Giveaways group */}
-         <Link
-  href="/shop?category=giveaways"
-  onClick={closeAll}
-  className="mt-4 mb-2 block text-sm font-bold uppercase tracking-wide"
-  style={{ color: "#6E86C7" }}
->
-  Giveaways
-</Link>
-                {GIVEAWAY_ITEMS.map((item) => (
-  <Link
-    key={item.slug}
-    href={`/product/by-name/${encodeURIComponent(item.name)}`}
-    onClick={closeAll}
-    className="py-1.5"
-    style={{ color: "#000000" }}
-  >
-    {item.name}
-  </Link>
-))}
+                    <Link
+                      href="/shop?category=giveaways"
+                      onClick={closeAll}
+                      className="mt-4 mb-2 block text-sm font-bold uppercase tracking-wide"
+                      style={{ color: "#6E86C7" }}
+                    >
+                      Giveaways
+                    </Link>
+                    {GIVEAWAY_ITEMS.map((item) => (
+                      <Link
+                        key={item.slug}
+                        href={`/product/by-name/${encodeURIComponent(item.name)}`}
+                        onClick={closeAll}
+                        className="py-1.5"
+                        style={{ color: "#000000" }}
+                      >
+                        {item.name}
+                      </Link>
+                    ))}
                   </div>
                 )}
               </div>
@@ -157,8 +150,15 @@ export default function HamburgerMenu() {
               >
                 Customize Your candle
               </Link>
-            </nav>
+                    </nav>
           </div>
+
+          {/* Backdrop — now after the panel, filling the remaining space to its right */}
+          <div
+            className="flex-1 bg-black/30"
+            onClick={closeAll}
+            aria-hidden="true"
+          />
         </div>
       )}
     </>
