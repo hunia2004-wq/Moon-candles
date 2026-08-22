@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import type { Product } from "@/lib/supabase/types";
-import { motion } from "framer-motion";
 
 type OrderLine = {
   id: string;
@@ -30,11 +32,19 @@ const CUSTOMIZE_ROUTES: Record<string, string> = {
   "Mini Candles": "/customize-mini",
 };
 
-const CUSTOMIZE_ONLY_NAMES = ["Fan", "Mini Candles"];
+const CUSTOMIZE_ONLY_NAMES = [
+  "Fan",
+  "Mini Candles",
+];
 
-const QUACK_AND_KISS_NAMES = ["Quack and Kiss"];
+const QUACK_AND_KISS_NAMES = [
+  "Quack and Kiss",
+];
 
-const TWO_COLOR_PRODUCTS = ["Noor Al Qamar", "Noor El Kamar"];
+const TWO_COLOR_PRODUCTS = [
+  "Noor Al Qamar",
+  "Noor El Kamar",
+];
 
 export default function ProductDetailView({
   product,
@@ -46,208 +56,781 @@ export default function ProductDetailView({
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const preselectedColor = searchParams.get("color");
+  /*
+   * ============================================================
+   * PRODUCT NAME
+   * ============================================================
+   *
+   * IMPORTANT:
+   * Keep the original product object as the source of truth.
+   *
+   * Some Supabase rows may expose the name as `name`, while older
+   * data/types may use another property.
+   */
 
-  const isGiveaway = GIVEAWAY_NAMES.includes(product.name);
-  const isQuackAndKiss = QUACK_AND_KISS_NAMES.includes(product.name);
-  const isTwoColorProduct = TWO_COLOR_PRODUCTS.includes(product.name);
+  const rawProduct = product as Product & {
+    name?: string | null;
+    product_name?: string | null;
+    title?: string | null;
+    display_name?: string | null;
+  };
 
-  const accent = isGiveaway ? "#6E86C7" : "#D8A1AF";
-  const accentDark = isGiveaway ? "#5A70B0" : "#B5798A";
+  const productName =
+    typeof rawProduct.name === "string" &&
+    rawProduct.name.trim()
+      ? rawProduct.name.trim()
+      : typeof rawProduct.product_name === "string" &&
+        rawProduct.product_name.trim()
+      ? rawProduct.product_name.trim()
+      : typeof rawProduct.title === "string" &&
+        rawProduct.title.trim()
+      ? rawProduct.title.trim()
+      : typeof rawProduct.display_name === "string" &&
+        rawProduct.display_name.trim()
+      ? rawProduct.display_name.trim()
+      : "Product";
 
-  const customizeRoute = CUSTOMIZE_ROUTES[product.name];
-  const customizeOnly = CUSTOMIZE_ONLY_NAMES.includes(product.name);
+  const normalizedProductName =
+    productName.trim().toLowerCase();
 
-  const initialColorIndex = Math.max(
-    0,
-    product.colors?.findIndex((c) => c.name === preselectedColor) ?? 0
+  const preselectedColor =
+    searchParams.get("color");
+
+  const isGiveaway =
+    GIVEAWAY_NAMES.some(
+      (name) =>
+        name.toLowerCase() ===
+        normalizedProductName
+    );
+
+  const isQuackAndKiss =
+    QUACK_AND_KISS_NAMES.some(
+      (name) =>
+        name.toLowerCase() ===
+        normalizedProductName
+    );
+
+  const isTwoColorProduct =
+    TWO_COLOR_PRODUCTS.some(
+      (name) =>
+        name.toLowerCase() ===
+        normalizedProductName
+    );
+
+  const accent = isGiveaway
+    ? "#6E86C7"
+    : "#D8A1AF";
+
+  const accentDark = isGiveaway
+    ? "#5A70B0"
+    : "#B5798A";
+
+  const customizeRoute =
+    CUSTOMIZE_ROUTES[productName];
+
+  const customizeOnly =
+    CUSTOMIZE_ONLY_NAMES.some(
+      (name) =>
+        name.toLowerCase() ===
+        normalizedProductName
+    );
+
+  /*
+   * ============================================================
+   * INITIAL COLOR
+   * ============================================================
+   */
+
+  const getInitialColorIndex = () => {
+    if (!product.colors?.length) {
+      return 0;
+    }
+
+    if (!preselectedColor) {
+      return 0;
+    }
+
+    const foundIndex =
+      product.colors.findIndex(
+        (color) =>
+          color.name?.toLowerCase() ===
+          preselectedColor.toLowerCase()
+      );
+
+    return foundIndex >= 0
+      ? foundIndex
+      : 0;
+  };
+
+  const [
+    selectedColorIndex,
+    setSelectedColorIndex,
+  ] = useState(
+    getInitialColorIndex
   );
 
-  const [selectedColorIndex, setSelectedColorIndex] = useState(
-    initialColorIndex === -1 ? 0 : initialColorIndex
-  );
+  const [
+    selectedOptionIndex,
+    setSelectedOptionIndex,
+  ] = useState(0);
 
-  const [selectedOptionIndex, setSelectedOptionIndex] = useState(0);
+  const [
+    selectedImageIndex,
+    setSelectedImageIndex,
+  ] = useState(0);
 
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-
-  const [selectedScent, setSelectedScent] = useState<string | null>(
+  const [
+    selectedScent,
+    setSelectedScent,
+  ] = useState<string | null>(
     product.scents?.[0] ?? null
   );
 
-  const [quantity, setQuantity] = useState(1);
+  const [
+    selectedNoorWhite,
+    setSelectedNoorWhite,
+  ] = useState(false);
 
-  // Noor El Qamar — two color variants
-  const [selectedNoorWhite, setSelectedNoorWhite] = useState(false);
-  const [selectedNoorGray, setSelectedNoorGray] = useState(false);
+  const [
+    selectedNoorGray,
+    setSelectedNoorGray,
+  ] = useState(false);
 
-  const [noorWhiteQuantity, setNoorWhiteQuantity] = useState(1);
-  const [noorGrayQuantity, setNoorGrayQuantity] = useState(1);
+  const [
+    noorWhiteQuantity,
+    setNoorWhiteQuantity,
+  ] = useState(1);
 
-  // Quack and Kiss — bride/groom duck
-  const [selectedBride, setSelectedBride] = useState(false);
-  const [selectedGroom, setSelectedGroom] = useState(false);
+  const [
+    noorGrayQuantity,
+    setNoorGrayQuantity,
+  ] = useState(1);
 
-  const [brideQuantity, setBrideQuantity] = useState(1);
-  const [groomQuantity, setGroomQuantity] = useState(1);
+  const [
+    selectedBride,
+    setSelectedBride,
+  ] = useState(false);
 
-  const [orderLines, setOrderLines] = useState<OrderLine[]>([]);
+  const [
+    selectedGroom,
+    setSelectedGroom,
+  ] = useState(false);
 
-  const hasColors = (product.colors?.length ?? 0) > 0;
+  const [
+    brideQuantity,
+    setBrideQuantity,
+  ] = useState(1);
 
-  const selectedColor = product.colors?.[selectedColorIndex];
+  const [
+    groomQuantity,
+    setGroomQuantity,
+  ] = useState(1);
 
-  const hasOptions = !!selectedColor?.options?.length;
+  const [
+    orderLines,
+    setOrderLines,
+  ] = useState<OrderLine[]>([]);
+
+  const imageScrollRef =
+    useRef<HTMLDivElement>(null);
+
+  const imageRefs =
+    useRef<(HTMLDivElement | null)[]>(
+      []
+    );
+
+  const hasColors =
+    (product.colors?.length ?? 0) > 0;
+
+  const selectedColor =
+    product.colors?.[
+      selectedColorIndex
+    ];
+
+  const hasOptions =
+    !!selectedColor?.options?.length;
 
   const selectedOption = hasOptions
-    ? selectedColor!.options![selectedOptionIndex]
+    ? selectedColor!.options![
+        selectedOptionIndex
+      ]
     : undefined;
 
   const displayPrice =
-    selectedOption?.price ?? selectedColor?.price ?? product.price;
+    selectedOption?.price ??
+    selectedColor?.price ??
+    product.price;
 
   /*
-   * NORMAL GALLERY
-   *
-   * The selected option controls the gallery when options exist.
-   * Otherwise the selected color controls it.
-   * Otherwise product.image_urls is used.
+   * ============================================================
+   * RESET WHEN PRODUCT CHANGES
+   * ============================================================
    */
-  const gallery = (() => {
-    if (hasOptions && selectedOption) {
-      if (selectedOption.image_urls?.length) {
-        return selectedOption.image_urls;
-      }
 
-      if (selectedOption.image_url) {
-        return [selectedOption.image_url];
-      }
-    }
-
-    if (hasColors && selectedColor) {
-      if (selectedColor.image_urls?.length) {
-        return selectedColor.image_urls;
-      }
-
-      if (selectedColor.image_url) {
-        return [selectedColor.image_url];
-      }
-    }
-
-    return product.image_urls ?? [];
-  })();
-
-  const displayImage = gallery[selectedImageIndex] ?? gallery[0];
-
-  /*
-   * Keep selected image inside the current gallery.
-   * This is important when switching colors/options because
-   * different variants may have different numbers of images.
-   */
   useEffect(() => {
-    if (gallery.length === 0) {
-      setSelectedImageIndex(0);
+    const colorFromUrl =
+      searchParams.get("color");
+
+    let newColorIndex = 0;
+
+    if (product.colors?.length) {
+      const foundIndex =
+        product.colors.findIndex(
+          (color) =>
+            color.name?.toLowerCase() ===
+            colorFromUrl?.toLowerCase()
+        );
+
+      if (foundIndex >= 0) {
+        newColorIndex =
+          foundIndex;
+      }
+    }
+
+    setSelectedColorIndex(
+      newColorIndex
+    );
+
+    setSelectedOptionIndex(0);
+    setSelectedImageIndex(0);
+
+    setSelectedScent(
+      product.scents?.[0] ?? null
+    );
+
+    setSelectedNoorWhite(false);
+    setSelectedNoorGray(false);
+
+    setNoorWhiteQuantity(1);
+    setNoorGrayQuantity(1);
+
+    setSelectedBride(false);
+    setSelectedGroom(false);
+
+    setBrideQuantity(1);
+    setGroomQuantity(1);
+
+    setOrderLines([]);
+
+    imageRefs.current = [];
+
+    requestAnimationFrame(() => {
+      imageScrollRef.current?.scrollTo({
+        left: 0,
+        behavior: "auto",
+      });
+    });
+  }, [
+    product.id,
+    searchParams,
+  ]);
+
+  /*
+   * ============================================================
+   * URL COLOR CHANGE
+   * ============================================================
+   */
+
+  useEffect(() => {
+    if (!product.colors?.length) {
       return;
     }
 
-    setSelectedImageIndex((current) =>
-      Math.min(current, gallery.length - 1)
+    const colorFromUrl =
+      searchParams.get("color");
+
+    if (!colorFromUrl) {
+      return;
+    }
+
+    const foundIndex =
+      product.colors.findIndex(
+        (color) =>
+          color.name?.toLowerCase() ===
+          colorFromUrl.toLowerCase()
+      );
+
+    if (
+      foundIndex >= 0 &&
+      foundIndex !==
+        selectedColorIndex
+    ) {
+      setSelectedColorIndex(
+        foundIndex
+      );
+
+      setSelectedOptionIndex(0);
+      setSelectedImageIndex(0);
+    }
+  }, [
+    searchParams,
+    product.id,
+    product.colors,
+    selectedColorIndex,
+  ]);
+
+  /*
+   * ============================================================
+   * GALLERY
+   * ============================================================
+   */
+
+  const galleryItems = (() => {
+    const items: {
+      url: string;
+      colorName: string | null;
+    }[] = [];
+
+    const addImage = (
+      url?: string | null,
+      colorName?: string | null
+    ) => {
+      if (!url) return;
+
+      if (
+        !items.some(
+          (item) =>
+            item.url === url
+        )
+      ) {
+        items.push({
+          url,
+          colorName:
+            colorName ?? null,
+        });
+      }
+    };
+
+    const addImages = (
+      urls?: string[],
+      colorName?: string | null
+    ) => {
+      if (!urls) return;
+
+      urls.forEach((url) => {
+        addImage(
+          url,
+          colorName
+        );
+      });
+    };
+
+    if (selectedColor) {
+      if (
+        hasOptions &&
+        selectedOption
+      ) {
+        addImages(
+          selectedOption.image_urls,
+          selectedColor.name
+        );
+
+        addImage(
+          selectedOption.image_url,
+          selectedColor.name
+        );
+      }
+
+      addImages(
+        selectedColor.image_urls,
+        selectedColor.name
+      );
+
+      addImage(
+        selectedColor.image_url,
+        selectedColor.name
+      );
+
+      selectedColor.options?.forEach(
+        (
+          option,
+          optionIndex
+        ) => {
+          if (
+            hasOptions &&
+            optionIndex ===
+              selectedOptionIndex
+          ) {
+            return;
+          }
+
+          addImages(
+            option.image_urls,
+            selectedColor.name
+          );
+
+          addImage(
+            option.image_url,
+            selectedColor.name
+          );
+        }
+      );
+
+      if (items.length === 0) {
+        addImages(
+          product.image_urls,
+          selectedColor.name
+        );
+      }
+    }
+
+    if (!selectedColor) {
+      addImages(
+        product.image_urls,
+        null
+      );
+    }
+
+    return items;
+  })();
+
+  const gallery =
+    galleryItems.map(
+      (item) => item.url
     );
-  }, [gallery.length]);
+
+  const galleryColorNames =
+    galleryItems.map(
+      (item) =>
+        item.colorName
+    );
+
+  const activeGalleryColor =
+    galleryColorNames[
+      selectedImageIndex
+    ] ??
+    selectedColor?.name ??
+    null;
+
+  /*
+   * ============================================================
+   * GALLERY SCROLLING
+   * ============================================================
+   */
+
+  function scrollToImage(
+    index: number
+  ) {
+    if (!gallery.length) {
+      return;
+    }
+
+    const safeIndex =
+      Math.max(
+        0,
+        Math.min(
+          index,
+          gallery.length - 1
+        )
+      );
+
+    const container =
+      imageScrollRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    const slide =
+      imageRefs.current[
+        safeIndex
+      ];
+
+    if (!slide) {
+      return;
+    }
+
+    const containerWidth =
+      container.clientWidth;
+
+    const slideLeft =
+      slide.offsetLeft;
+
+    const slideWidth =
+      slide.clientWidth;
+
+    const targetLeft =
+      slideLeft -
+      (containerWidth -
+        slideWidth) /
+        2;
+
+    container.scrollTo({
+      left: Math.max(
+        0,
+        targetLeft
+      ),
+      behavior: "smooth",
+    });
+
+    setSelectedImageIndex(
+      safeIndex
+    );
+  }
+
+  function handleGalleryScroll() {
+    const container =
+      imageScrollRef.current;
+
+    if (
+      !container ||
+      gallery.length <= 1
+    ) {
+      return;
+    }
+
+    const containerCenter =
+      container.scrollLeft +
+      container.clientWidth /
+        2;
+
+    let closestIndex = 0;
+    let closestDistance =
+      Infinity;
+
+    imageRefs.current.forEach(
+      (
+        slide,
+        index
+      ) => {
+        if (!slide) return;
+
+        const slideCenter =
+          slide.offsetLeft +
+          slide.clientWidth /
+            2;
+
+        const distance =
+          Math.abs(
+            slideCenter -
+              containerCenter
+          );
+
+        if (
+          distance <
+          closestDistance
+        ) {
+          closestDistance =
+            distance;
+
+          closestIndex =
+            index;
+        }
+      }
+    );
+
+    setSelectedImageIndex(
+      closestIndex
+    );
+  }
+
+  function nextImage() {
+    if (gallery.length <= 1) {
+      return;
+    }
+
+    const next =
+      selectedImageIndex >=
+      gallery.length - 1
+        ? 0
+        : selectedImageIndex + 1;
+
+    scrollToImage(next);
+  }
+
+  function previousImage() {
+    if (gallery.length <= 1) {
+      return;
+    }
+
+    const previous =
+      selectedImageIndex <= 0
+        ? gallery.length - 1
+        : selectedImageIndex - 1;
+
+    scrollToImage(previous);
+  }
+
+  /*
+   * ============================================================
+   * LOAD CART
+   * ============================================================
+   */
 
   function createLineId(
     colorName: string,
     scentName: string | null
   ): string {
-    return [product.id, colorName || "default", scentName || "unscented"]
+    return [
+      product.id,
+      colorName || "default",
+      scentName || "unscented",
+    ]
       .join("-")
       .toLowerCase()
       .replace(/\s+/g, "-");
   }
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (
+      typeof window ===
+      "undefined"
+    ) {
+      return;
+    }
 
     try {
-      const existingCart = JSON.parse(
-        localStorage.getItem("cart") || "[]"
-      );
+      const existingCart =
+        JSON.parse(
+          localStorage.getItem(
+            "cart"
+          ) || "[]"
+        );
 
       if (isTwoColorProduct) {
-        const whiteItem = existingCart.find(
-          (item: any) =>
-            item.productId === product.id &&
-            item.productName === product.name &&
-            item.color === "White"
-        );
+        const whiteItem =
+          existingCart.find(
+            (item: any) =>
+              item.productId ===
+                product.id &&
+              item.productName ===
+                productName &&
+              item.color ===
+                "White"
+          );
 
-        const grayItem = existingCart.find(
-          (item: any) =>
-            item.productId === product.id &&
-            item.productName === product.name &&
-            item.color === "Gray"
-        );
+        const grayItem =
+          existingCart.find(
+            (item: any) =>
+              item.productId ===
+                product.id &&
+              item.productName ===
+                productName &&
+              item.color ===
+                "Gray"
+          );
 
         if (whiteItem) {
-          setSelectedNoorWhite(true);
-          setNoorWhiteQuantity(Number(whiteItem.quantity) || 1);
+          setSelectedNoorWhite(
+            true
+          );
+
+          setNoorWhiteQuantity(
+            Number(
+              whiteItem.quantity
+            ) || 1
+          );
         }
 
         if (grayItem) {
-          setSelectedNoorGray(true);
-          setNoorGrayQuantity(Number(grayItem.quantity) || 1);
+          setSelectedNoorGray(
+            true
+          );
+
+          setNoorGrayQuantity(
+            Number(
+              grayItem.quantity
+            ) || 1
+          );
         }
 
         return;
       }
 
       if (isQuackAndKiss) {
-        const brideItem = existingCart.find(
-          (item: any) =>
-            item.productId === product.id &&
-            item.productName === product.name &&
-            item.color === "Bride"
-        );
+        const brideItem =
+          existingCart.find(
+            (item: any) =>
+              item.productId ===
+                product.id &&
+              item.productName ===
+                productName &&
+              item.color ===
+                "Bride"
+          );
 
-        const groomItem = existingCart.find(
-          (item: any) =>
-            item.productId === product.id &&
-            item.productName === product.name &&
-            item.color === "Groom"
-        );
+        const groomItem =
+          existingCart.find(
+            (item: any) =>
+              item.productId ===
+                product.id &&
+              item.productName ===
+                productName &&
+              item.color ===
+                "Groom"
+          );
 
         if (brideItem) {
           setSelectedBride(true);
-          setBrideQuantity(Number(brideItem.quantity) || 1);
+
+          setBrideQuantity(
+            Number(
+              brideItem.quantity
+            ) || 1
+          );
         }
 
         if (groomItem) {
           setSelectedGroom(true);
-          setGroomQuantity(Number(groomItem.quantity) || 1);
+
+          setGroomQuantity(
+            Number(
+              groomItem.quantity
+            ) || 1
+          );
         }
 
         return;
       }
 
-      const productItems = existingCart.filter(
-        (item: any) =>
-          item.productId === product.id &&
-          item.productName === product.name
-      );
+      const productItems =
+        existingCart.filter(
+          (item: any) =>
+            item.productId ===
+              product.id &&
+            item.productName ===
+              productName
+        );
 
-      const lines: OrderLine[] = productItems.map((item: any) => {
-        const colorName = item.color ?? product.name;
-        const scentName = item.scent ?? null;
+      const lines: OrderLine[] =
+        productItems.map(
+          (item: any) => {
+            const colorName =
+              item.color ??
+              productName;
 
-        return {
-          id: item.id || createLineId(colorName, scentName),
-          colorName,
-          scentName,
-          price: Number(item.price) || Number(product.price),
-          quantity: Number(item.quantity) || 1,
-          image: item.image ?? "",
-        };
-      });
+            const scentName =
+              item.scent ?? null;
+
+            return {
+              id:
+                item.id ||
+                createLineId(
+                  colorName,
+                  scentName
+                ),
+
+              colorName,
+              scentName,
+
+              price:
+                Number(
+                  item.price
+                ) ||
+                Number(
+                  product.price
+                ),
+
+              quantity:
+                Number(
+                  item.quantity
+                ) || 1,
+
+              image:
+                item.image ?? "",
+            };
+          }
+        );
 
       setOrderLines(lines);
     } catch {
@@ -255,131 +838,195 @@ export default function ProductDetailView({
     }
   }, [
     product.id,
-    product.name,
+    productName,
     isTwoColorProduct,
     isQuackAndKiss,
   ]);
 
+  /*
+   * ============================================================
+   * RESET GALLERY WHEN COLOR CHANGES
+   * ============================================================
+   */
+
   useEffect(() => {
     setSelectedOptionIndex(0);
     setSelectedImageIndex(0);
+
+    imageRefs.current = [];
+
+    requestAnimationFrame(() => {
+      imageScrollRef.current?.scrollTo({
+        left: 0,
+        behavior: "auto",
+      });
+    });
   }, [selectedColorIndex]);
+
+  /*
+   * ============================================================
+   * RESET GALLERY WHEN OPTION CHANGES
+   * ============================================================
+   */
 
   useEffect(() => {
     setSelectedImageIndex(0);
+
+    imageRefs.current = [];
+
+    requestAnimationFrame(() => {
+      imageScrollRef.current?.scrollTo({
+        left: 0,
+        behavior: "auto",
+      });
+    });
   }, [selectedOptionIndex]);
 
-  /* ------------------------------------------------------------------ */
-  /* IMAGE CAROUSEL                                                      */
-  /* ------------------------------------------------------------------ */
-
-  function goToPreviousImage() {
-    setSelectedImageIndex((current) =>
-      current === 0 ? 0 : current - 1
-    );
-  }
-
-  function goToNextImage() {
-    setSelectedImageIndex((current) =>
-      current === gallery.length - 1
-        ? current
-        : current + 1
-    );
-  }
-
   /*
-   * This handles the actual swipe/drag.
-   *
-   * Drag left  -> next image
-   * Drag right -> previous image
-   *
-   * The image itself is now draggable instead of only
-   * the thumbnails being horizontally scrollable.
+   * ============================================================
+   * GALLERY SCROLL LISTENER
+   * ============================================================
    */
-  function handleImageDragEnd(
-    _: MouseEvent | TouchEvent | PointerEvent,
-    info: { offset: { x: number }; velocity: { x: number } }
-  ) {
-    if (gallery.length <= 1) return;
 
-    const offset = info.offset.x;
-    const velocity = info.velocity.x;
+  useEffect(() => {
+    const container =
+      imageScrollRef.current;
 
-    const swipeDistance = 50;
-    const swipeVelocity = 300;
-
-    if (
-      offset < -swipeDistance ||
-      velocity < -swipeVelocity
-    ) {
-      goToNextImage();
+    if (!container) {
       return;
     }
 
-    if (
-      offset > swipeDistance ||
-      velocity > swipeVelocity
-    ) {
-      goToPreviousImage();
-    }
-  }
+    let ticking = false;
 
-  /* ------------------------------------------------------------------ */
-  /* Noor El Qamar — White / Gray                                       */
-  /* ------------------------------------------------------------------ */
+    const onScroll = () => {
+      if (ticking) {
+        return;
+      }
+
+      ticking = true;
+
+      requestAnimationFrame(() => {
+        handleGalleryScroll();
+        ticking = false;
+      });
+    };
+
+    container.addEventListener(
+      "scroll",
+      onScroll,
+      {
+        passive: true,
+      }
+    );
+
+    return () => {
+      container.removeEventListener(
+        "scroll",
+        onScroll
+      );
+    };
+  }, [gallery.length]);
+
+  /*
+   * ============================================================
+   * NOOR EL QAMAR
+   * ============================================================
+   */
 
   function addNoorWhiteToCart() {
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
+    const existingCart =
+      JSON.parse(
+        localStorage.getItem(
+          "cart"
+        ) || "[]"
+      );
 
-    const existingIndex = existingCart.findIndex(
-      (item: any) =>
-        item.productId === product.id &&
-        item.productName === product.name &&
-        item.color === "White"
-    );
+    const existingIndex =
+      existingCart.findIndex(
+        (item: any) =>
+          item.productId ===
+            product.id &&
+          item.productName ===
+            productName &&
+          item.color ===
+            "White"
+      );
 
     const newItem = {
       id: `${product.id}-white`,
       productId: product.id,
-      productName: product.name,
-      price: Number(displayPrice),
-      quantity: noorWhiteQuantity,
+      productName,
+      price: Number(
+        displayPrice
+      ),
+      quantity:
+        noorWhiteQuantity,
       scent: null,
       color: "White",
-      image: displayImage ?? "",
+      image:
+        gallery[0] ?? "",
     };
 
-    const updatedCart = [...existingCart];
+    const updatedCart = [
+      ...existingCart,
+    ];
 
-    if (existingIndex !== -1) {
-      updatedCart[existingIndex] = {
-        ...updatedCart[existingIndex],
+    if (
+      existingIndex !== -1
+    ) {
+      updatedCart[
+        existingIndex
+      ] = {
+        ...updatedCart[
+          existingIndex
+        ],
         ...newItem,
       };
     } else {
-      updatedCart.push(newItem);
+      updatedCart.push(
+        newItem
+      );
     }
 
-    localStorage.setItem("cart", JSON.stringify(updatedCart));
-    window.dispatchEvent(new Event("cartUpdated"));
+    localStorage.setItem(
+      "cart",
+      JSON.stringify(
+        updatedCart
+      )
+    );
 
-    setSelectedNoorWhite(true);
+    window.dispatchEvent(
+      new Event("cartUpdated")
+    );
+
+    setSelectedNoorWhite(
+      true
+    );
 
     setOrderLines((prev) => {
       const id = `${product.id}-white`;
 
-      const existingLineIndex = prev.findIndex(
-        (line) => line.id === id
-      );
+      const existingLineIndex =
+        prev.findIndex(
+          (line) =>
+            line.id === id
+        );
 
-      if (existingLineIndex !== -1) {
-        const updated = [...prev];
+      if (
+        existingLineIndex !== -1
+      ) {
+        const updated = [
+          ...prev,
+        ];
 
-        updated[existingLineIndex] = {
-          ...updated[existingLineIndex],
-          quantity: noorWhiteQuantity,
+        updated[
+          existingLineIndex
+        ] = {
+          ...updated[
+            existingLineIndex
+          ],
+          quantity:
+            noorWhiteQuantity,
         };
 
         return updated;
@@ -391,66 +1038,112 @@ export default function ProductDetailView({
           id,
           colorName: "White",
           scentName: null,
-          price: Number(displayPrice),
-          quantity: noorWhiteQuantity,
-          image: displayImage ?? "",
+          price: Number(
+            displayPrice
+          ),
+          quantity:
+            noorWhiteQuantity,
+          image:
+            gallery[0] ?? "",
         },
       ];
     });
   }
 
   function addNoorGrayToCart() {
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
+    const existingCart =
+      JSON.parse(
+        localStorage.getItem(
+          "cart"
+        ) || "[]"
+      );
 
-    const existingIndex = existingCart.findIndex(
-      (item: any) =>
-        item.productId === product.id &&
-        item.productName === product.name &&
-        item.color === "Gray"
-    );
+    const existingIndex =
+      existingCart.findIndex(
+        (item: any) =>
+          item.productId ===
+            product.id &&
+          item.productName ===
+            productName &&
+          item.color ===
+            "Gray"
+      );
 
     const newItem = {
       id: `${product.id}-gray`,
       productId: product.id,
-      productName: product.name,
-      price: Number(displayPrice),
-      quantity: noorGrayQuantity,
+      productName,
+      price: Number(
+        displayPrice
+      ),
+      quantity:
+        noorGrayQuantity,
       scent: null,
       color: "Gray",
-      image: displayImage ?? "",
+      image:
+        gallery[0] ?? "",
     };
 
-    const updatedCart = [...existingCart];
+    const updatedCart = [
+      ...existingCart,
+    ];
 
-    if (existingIndex !== -1) {
-      updatedCart[existingIndex] = {
-        ...updatedCart[existingIndex],
+    if (
+      existingIndex !== -1
+    ) {
+      updatedCart[
+        existingIndex
+      ] = {
+        ...updatedCart[
+          existingIndex
+        ],
         ...newItem,
       };
     } else {
-      updatedCart.push(newItem);
+      updatedCart.push(
+        newItem
+      );
     }
 
-    localStorage.setItem("cart", JSON.stringify(updatedCart));
-    window.dispatchEvent(new Event("cartUpdated"));
+    localStorage.setItem(
+      "cart",
+      JSON.stringify(
+        updatedCart
+      )
+    );
 
-    setSelectedNoorGray(true);
+    window.dispatchEvent(
+      new Event("cartUpdated")
+    );
+
+    setSelectedNoorGray(
+      true
+    );
 
     setOrderLines((prev) => {
       const id = `${product.id}-gray`;
 
-      const existingLineIndex = prev.findIndex(
-        (line) => line.id === id
-      );
+      const existingLineIndex =
+        prev.findIndex(
+          (line) =>
+            line.id === id
+        );
 
-      if (existingLineIndex !== -1) {
-        const updated = [...prev];
+      if (
+        existingLineIndex !== -1
+      ) {
+        const updated = [
+          ...prev,
+        ];
 
-        updated[existingLineIndex] = {
-          ...updated[existingLineIndex],
-          quantity: noorGrayQuantity,
+        updated[
+          existingLineIndex
+        ] = {
+          ...updated[
+            existingLineIndex
+          ],
+          quantity:
+            noorGrayQuantity,
         };
 
         return updated;
@@ -462,9 +1155,13 @@ export default function ProductDetailView({
           id,
           colorName: "Gray",
           scentName: null,
-          price: Number(displayPrice),
-          quantity: noorGrayQuantity,
-          image: displayImage ?? "",
+          price: Number(
+            displayPrice
+          ),
+          quantity:
+            noorGrayQuantity,
+          image:
+            gallery[0] ?? "",
         },
       ];
     });
@@ -475,17 +1172,24 @@ export default function ProductDetailView({
   ) {
     const id = `${product.id}-${color.toLowerCase()}`;
 
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
+    const existingCart =
+      JSON.parse(
+        localStorage.getItem(
+          "cart"
+        ) || "[]"
+      );
 
-    const updatedCart = existingCart.filter(
-      (item: any) => item.id !== id
-    );
+    const updatedCart =
+      existingCart.filter(
+        (item: any) =>
+          item.id !== id
+      );
 
     localStorage.setItem(
       "cart",
-      JSON.stringify(updatedCart)
+      JSON.stringify(
+        updatedCart
+      )
     );
 
     window.dispatchEvent(
@@ -493,16 +1197,23 @@ export default function ProductDetailView({
     );
 
     setOrderLines((prev) =>
-      prev.filter((line) => line.id !== id)
+      prev.filter(
+        (line) =>
+          line.id !== id
+      )
     );
 
     if (color === "White") {
-      setSelectedNoorWhite(false);
+      setSelectedNoorWhite(
+        false
+      );
       setNoorWhiteQuantity(1);
     }
 
     if (color === "Gray") {
-      setSelectedNoorGray(false);
+      setSelectedNoorGray(
+        false
+      );
       setNoorGrayQuantity(1);
     }
   }
@@ -516,17 +1227,22 @@ export default function ProductDetailView({
       return;
     }
 
-    const safeQuantity = Math.max(
-      1,
-      newQuantity
-    );
+    const safeQuantity =
+      Math.max(
+        1,
+        newQuantity
+      );
 
     const id = `${product.id}-${color.toLowerCase()}`;
 
     if (color === "White") {
-      setNoorWhiteQuantity(safeQuantity);
+      setNoorWhiteQuantity(
+        safeQuantity
+      );
     } else {
-      setNoorGrayQuantity(safeQuantity);
+      setNoorGrayQuantity(
+        safeQuantity
+      );
     }
 
     setOrderLines((prev) =>
@@ -534,29 +1250,37 @@ export default function ProductDetailView({
         line.id === id
           ? {
               ...line,
-              quantity: safeQuantity,
+              quantity:
+                safeQuantity,
             }
           : line
       )
     );
 
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
+    const existingCart =
+      JSON.parse(
+        localStorage.getItem(
+          "cart"
+        ) || "[]"
+      );
 
-    const updatedCart = existingCart.map(
-      (item: any) =>
-        item.id === id
-          ? {
-              ...item,
-              quantity: safeQuantity,
-            }
-          : item
-    );
+    const updatedCart =
+      existingCart.map(
+        (item: any) =>
+          item.id === id
+            ? {
+                ...item,
+                quantity:
+                  safeQuantity,
+              }
+            : item
+      );
 
     localStorage.setItem(
       "cart",
-      JSON.stringify(updatedCart)
+      JSON.stringify(
+        updatedCart
+      )
     );
 
     window.dispatchEvent(
@@ -564,47 +1288,72 @@ export default function ProductDetailView({
     );
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Quack and Kiss — Bride / Groom                                     */
-  /* ------------------------------------------------------------------ */
+  /*
+   * ============================================================
+   * QUACK & KISS
+   * ============================================================
+   */
 
   function addBrideToCart() {
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
+    const existingCart =
+      JSON.parse(
+        localStorage.getItem(
+          "cart"
+        ) || "[]"
+      );
 
-    const existingIndex = existingCart.findIndex(
-      (item: any) =>
-        item.productId === product.id &&
-        item.productName === product.name &&
-        item.color === "Bride"
-    );
+    const existingIndex =
+      existingCart.findIndex(
+        (item: any) =>
+          item.productId ===
+            product.id &&
+          item.productName ===
+            productName &&
+          item.color ===
+            "Bride"
+      );
 
     const newItem = {
       id: `${product.id}-bride`,
       productId: product.id,
-      productName: product.name,
-      price: Number(displayPrice),
-      quantity: brideQuantity,
+      productName,
+      price: Number(
+        displayPrice
+      ),
+      quantity:
+        brideQuantity,
       scent: null,
       color: "Bride",
-      image: displayImage ?? "",
+      image:
+        gallery[0] ?? "",
     };
 
-    const updatedCart = [...existingCart];
+    const updatedCart = [
+      ...existingCart,
+    ];
 
-    if (existingIndex !== -1) {
-      updatedCart[existingIndex] = {
-        ...updatedCart[existingIndex],
+    if (
+      existingIndex !== -1
+    ) {
+      updatedCart[
+        existingIndex
+      ] = {
+        ...updatedCart[
+          existingIndex
+        ],
         ...newItem,
       };
     } else {
-      updatedCart.push(newItem);
+      updatedCart.push(
+        newItem
+      );
     }
 
     localStorage.setItem(
       "cart",
-      JSON.stringify(updatedCart)
+      JSON.stringify(
+        updatedCart
+      )
     );
 
     window.dispatchEvent(
@@ -616,16 +1365,27 @@ export default function ProductDetailView({
     setOrderLines((prev) => {
       const id = `${product.id}-bride`;
 
-      const existingLineIndex = prev.findIndex(
-        (line) => line.id === id
-      );
+      const existingLineIndex =
+        prev.findIndex(
+          (line) =>
+            line.id === id
+        );
 
-      if (existingLineIndex !== -1) {
-        const updated = [...prev];
+      if (
+        existingLineIndex !== -1
+      ) {
+        const updated = [
+          ...prev,
+        ];
 
-        updated[existingLineIndex] = {
-          ...updated[existingLineIndex],
-          quantity: brideQuantity,
+        updated[
+          existingLineIndex
+        ] = {
+          ...updated[
+            existingLineIndex
+          ],
+          quantity:
+            brideQuantity,
         };
 
         return updated;
@@ -635,53 +1395,81 @@ export default function ProductDetailView({
         ...prev,
         {
           id,
-          colorName: "Bride",
+          colorName:
+            "Bride",
           scentName: null,
-          price: Number(displayPrice),
-          quantity: brideQuantity,
-          image: displayImage ?? "",
+          price: Number(
+            displayPrice
+          ),
+          quantity:
+            brideQuantity,
+          image:
+            gallery[0] ?? "",
         },
       ];
     });
   }
 
   function addGroomToCart() {
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
+    const existingCart =
+      JSON.parse(
+        localStorage.getItem(
+          "cart"
+        ) || "[]"
+      );
 
-    const existingIndex = existingCart.findIndex(
-      (item: any) =>
-        item.productId === product.id &&
-        item.productName === product.name &&
-        item.color === "Groom"
-    );
+    const existingIndex =
+      existingCart.findIndex(
+        (item: any) =>
+          item.productId ===
+            product.id &&
+          item.productName ===
+            productName &&
+          item.color ===
+            "Groom"
+      );
 
     const newItem = {
       id: `${product.id}-groom`,
       productId: product.id,
-      productName: product.name,
-      price: Number(displayPrice),
-      quantity: groomQuantity,
+      productName,
+      price: Number(
+        displayPrice
+      ),
+      quantity:
+        groomQuantity,
       scent: null,
       color: "Groom",
-      image: displayImage ?? "",
+      image:
+        gallery[0] ?? "",
     };
 
-    const updatedCart = [...existingCart];
+    const updatedCart = [
+      ...existingCart,
+    ];
 
-    if (existingIndex !== -1) {
-      updatedCart[existingIndex] = {
-        ...updatedCart[existingIndex],
+    if (
+      existingIndex !== -1
+    ) {
+      updatedCart[
+        existingIndex
+      ] = {
+        ...updatedCart[
+          existingIndex
+        ],
         ...newItem,
       };
     } else {
-      updatedCart.push(newItem);
+      updatedCart.push(
+        newItem
+      );
     }
 
     localStorage.setItem(
       "cart",
-      JSON.stringify(updatedCart)
+      JSON.stringify(
+        updatedCart
+      )
     );
 
     window.dispatchEvent(
@@ -693,16 +1481,27 @@ export default function ProductDetailView({
     setOrderLines((prev) => {
       const id = `${product.id}-groom`;
 
-      const existingLineIndex = prev.findIndex(
-        (line) => line.id === id
-      );
+      const existingLineIndex =
+        prev.findIndex(
+          (line) =>
+            line.id === id
+        );
 
-      if (existingLineIndex !== -1) {
-        const updated = [...prev];
+      if (
+        existingLineIndex !== -1
+      ) {
+        const updated = [
+          ...prev,
+        ];
 
-        updated[existingLineIndex] = {
-          ...updated[existingLineIndex],
-          quantity: groomQuantity,
+        updated[
+          existingLineIndex
+        ] = {
+          ...updated[
+            existingLineIndex
+          ],
+          quantity:
+            groomQuantity,
         };
 
         return updated;
@@ -712,11 +1511,16 @@ export default function ProductDetailView({
         ...prev,
         {
           id,
-          colorName: "Groom",
+          colorName:
+            "Groom",
           scentName: null,
-          price: Number(displayPrice),
-          quantity: groomQuantity,
-          image: displayImage ?? "",
+          price: Number(
+            displayPrice
+          ),
+          quantity:
+            groomQuantity,
+          image:
+            gallery[0] ?? "",
         },
       ];
     });
@@ -727,17 +1531,24 @@ export default function ProductDetailView({
   ) {
     const id = `${product.id}-${type.toLowerCase()}`;
 
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
+    const existingCart =
+      JSON.parse(
+        localStorage.getItem(
+          "cart"
+        ) || "[]"
+      );
 
-    const updatedCart = existingCart.filter(
-      (item: any) => item.id !== id
-    );
+    const updatedCart =
+      existingCart.filter(
+        (item: any) =>
+          item.id !== id
+      );
 
     localStorage.setItem(
       "cart",
-      JSON.stringify(updatedCart)
+      JSON.stringify(
+        updatedCart
+      )
     );
 
     window.dispatchEvent(
@@ -745,7 +1556,10 @@ export default function ProductDetailView({
     );
 
     setOrderLines((prev) =>
-      prev.filter((line) => line.id !== id)
+      prev.filter(
+        (line) =>
+          line.id !== id
+      )
     );
 
     if (type === "Bride") {
@@ -768,17 +1582,22 @@ export default function ProductDetailView({
       return;
     }
 
-    const safeQuantity = Math.max(
-      1,
-      newQuantity
-    );
+    const safeQuantity =
+      Math.max(
+        1,
+        newQuantity
+      );
 
     const id = `${product.id}-${type.toLowerCase()}`;
 
     if (type === "Bride") {
-      setBrideQuantity(safeQuantity);
+      setBrideQuantity(
+        safeQuantity
+      );
     } else {
-      setGroomQuantity(safeQuantity);
+      setGroomQuantity(
+        safeQuantity
+      );
     }
 
     setOrderLines((prev) =>
@@ -786,29 +1605,37 @@ export default function ProductDetailView({
         line.id === id
           ? {
               ...line,
-              quantity: safeQuantity,
+              quantity:
+                safeQuantity,
             }
           : line
       )
     );
 
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
+    const existingCart =
+      JSON.parse(
+        localStorage.getItem(
+          "cart"
+        ) || "[]"
+      );
 
-    const updatedCart = existingCart.map(
-      (item: any) =>
-        item.id === id
-          ? {
-              ...item,
-              quantity: safeQuantity,
-            }
-          : item
-    );
+    const updatedCart =
+      existingCart.map(
+        (item: any) =>
+          item.id === id
+            ? {
+                ...item,
+                quantity:
+                  safeQuantity,
+              }
+            : item
+      );
 
     localStorage.setItem(
       "cart",
-      JSON.stringify(updatedCart)
+      JSON.stringify(
+        updatedCart
+      )
     );
 
     window.dispatchEvent(
@@ -816,32 +1643,42 @@ export default function ProductDetailView({
     );
   }
 
-  /* ------------------------------------------------------------------ */
-  /* Normal candles / regular products                                  */
-  /* ------------------------------------------------------------------ */
+  /*
+   * ============================================================
+   * REGULAR CART
+   * ============================================================
+   */
 
   function addRegularProductToCart() {
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
+    const existingCart =
+      JSON.parse(
+        localStorage.getItem(
+          "cart"
+        ) || "[]"
+      );
 
     const productColor =
-      selectedColor?.name ?? product.name;
+      selectedColor?.name ??
+      productName;
 
     const productScent =
       selectedScent ?? null;
 
-    const lineId = createLineId(
-      productColor,
-      productScent
-    );
+    const lineId =
+      createLineId(
+        productColor,
+        productScent
+      );
 
     const existingIndex =
       existingCart.findIndex(
         (item: any) =>
-          item.productId === product.id &&
-          item.productName === product.name &&
-          (item.color ?? product.name) ===
+          item.productId ===
+            product.id &&
+          item.productName ===
+            productName &&
+          (item.color ??
+            productName) ===
             productColor &&
           (item.scent ?? null) ===
             productScent
@@ -850,35 +1687,56 @@ export default function ProductDetailView({
     const newQuantity =
       existingIndex !== -1
         ? Number(
-            existingCart[existingIndex].quantity
+            existingCart[
+              existingIndex
+            ].quantity
           ) || 1
         : 1;
 
     const newItem = {
       id: lineId,
-      productId: product.id,
-      productName: product.name,
-      price: Number(displayPrice),
-      quantity: newQuantity,
-      scent: productScent,
-      color: productColor,
-      image: displayImage ?? "",
+      productId:
+        product.id,
+      productName,
+      price: Number(
+        displayPrice
+      ),
+      quantity:
+        newQuantity,
+      scent:
+        productScent,
+      color:
+        productColor,
+      image:
+        gallery[0] ?? "",
     };
 
-    const updatedCart = [...existingCart];
+    const updatedCart = [
+      ...existingCart,
+    ];
 
-    if (existingIndex !== -1) {
-      updatedCart[existingIndex] = {
-        ...updatedCart[existingIndex],
+    if (
+      existingIndex !== -1
+    ) {
+      updatedCart[
+        existingIndex
+      ] = {
+        ...updatedCart[
+          existingIndex
+        ],
         ...newItem,
       };
     } else {
-      updatedCart.push(newItem);
+      updatedCart.push(
+        newItem
+      );
     }
 
     localStorage.setItem(
       "cart",
-      JSON.stringify(updatedCart)
+      JSON.stringify(
+        updatedCart
+      )
     );
 
     window.dispatchEvent(
@@ -888,19 +1746,34 @@ export default function ProductDetailView({
     setOrderLines((prev) => {
       const existingLineIndex =
         prev.findIndex(
-          (line) => line.id === lineId
+          (line) =>
+            line.id === lineId
         );
 
-      if (existingLineIndex !== -1) {
-        const updated = [...prev];
+      if (
+        existingLineIndex !== -1
+      ) {
+        const updated = [
+          ...prev,
+        ];
 
-        updated[existingLineIndex] = {
-          ...updated[existingLineIndex],
-          colorName: productColor,
-          scentName: productScent,
-          price: Number(displayPrice),
-          quantity: newQuantity,
-          image: displayImage ?? "",
+        updated[
+          existingLineIndex
+        ] = {
+          ...updated[
+            existingLineIndex
+          ],
+          colorName:
+            productColor,
+          scentName:
+            productScent,
+          price: Number(
+            displayPrice
+          ),
+          quantity:
+            newQuantity,
+          image:
+            gallery[0] ?? "",
         };
 
         return updated;
@@ -910,11 +1783,17 @@ export default function ProductDetailView({
         ...prev,
         {
           id: lineId,
-          colorName: productColor,
-          scentName: productScent,
-          price: Number(displayPrice),
-          quantity: newQuantity,
-          image: displayImage ?? "",
+          colorName:
+            productColor,
+          scentName:
+            productScent,
+          price: Number(
+            displayPrice
+          ),
+          quantity:
+            newQuantity,
+          image:
+            gallery[0] ?? "",
         },
       ];
     });
@@ -929,63 +1808,48 @@ export default function ProductDetailView({
       return;
     }
 
-    const safeQuantity = Math.max(
-      1,
-      newQuantity
-    );
+    const safeQuantity =
+      Math.max(
+        1,
+        newQuantity
+      );
 
     setOrderLines((prev) =>
       prev.map((line) =>
         line.id === lineId
           ? {
               ...line,
-              quantity: safeQuantity,
+              quantity:
+                safeQuantity,
             }
           : line
       )
     );
 
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
-
-    const updatedCart = existingCart.map(
-      (item: any) =>
-        item.id === lineId
-          ? {
-              ...item,
-              quantity: safeQuantity,
-            }
-          : item
-    );
-
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(updatedCart)
-    );
-
-    window.dispatchEvent(
-      new Event("cartUpdated")
-    );
-  }
-
-  function removeLine(id: string) {
-    setOrderLines((prev) =>
-      prev.filter((line) => line.id !== id)
-    );
-
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
+    const existingCart =
+      JSON.parse(
+        localStorage.getItem(
+          "cart"
+        ) || "[]"
+      );
 
     const updatedCart =
-      existingCart.filter(
-        (item: any) => item.id !== id
+      existingCart.map(
+        (item: any) =>
+          item.id === lineId
+            ? {
+                ...item,
+                quantity:
+                  safeQuantity,
+              }
+            : item
       );
 
     localStorage.setItem(
       "cart",
-      JSON.stringify(updatedCart)
+      JSON.stringify(
+        updatedCart
+      )
     );
 
     window.dispatchEvent(
@@ -993,696 +1857,549 @@ export default function ProductDetailView({
     );
   }
 
-  const totalQuantity = orderLines.reduce(
-    (sum, line) => sum + line.quantity,
-    0
-  );
+  function removeLine(
+    id: string
+  ) {
+    setOrderLines((prev) =>
+      prev.filter(
+        (line) =>
+          line.id !== id
+      )
+    );
+
+    const existingCart =
+      JSON.parse(
+        localStorage.getItem(
+          "cart"
+        ) || "[]"
+      );
+
+    const updatedCart =
+      existingCart.filter(
+        (item: any) =>
+          item.id !== id
+      );
+
+    localStorage.setItem(
+      "cart",
+      JSON.stringify(
+        updatedCart
+      )
+    );
+
+    window.dispatchEvent(
+      new Event("cartUpdated")
+    );
+  }
+
+  const totalQuantity =
+    orderLines.reduce(
+      (sum, line) =>
+        sum + line.quantity,
+      0
+    );
 
   const totalOrderPrice =
     orderLines.reduce(
       (sum, line) =>
-        sum + line.price * line.quantity,
+        sum +
+        line.price *
+          line.quantity,
       0
     );
 
+  /*
+   * ============================================================
+   * RENDER
+   * ============================================================
+   */
+
   return (
     <div
-      className="flex flex-1 flex-col items-center font-sans"
+      className="relative min-h-screen w-full overflow-visible font-sans"
       style={{
-        backgroundColor: "#efe3c4",
+        backgroundColor:
+          "#EFE3C4",
+        color: "#000000",
       }}
     >
       {!isMenuOpen && (
         <button
-          onClick={() => router.back()}
+          onClick={() =>
+            router.back()
+          }
           aria-label="Go back"
-          className="group fixed left-5 top-24 z-40 flex items-center justify-center md:left-10 md:top-28"
-          style={{ color: "#000000" }}
+          className="group fixed left-6 top-24 z-40 flex items-center gap-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-60 md:left-10 md:top-28"
         >
           <ArrowLeft
-            size={26}
-            strokeWidth={1.7}
+            size={20}
+            strokeWidth={1.8}
             className="transition-transform duration-200 group-hover:-translate-x-1"
           />
         </button>
       )}
 
-      <main className="grid w-full max-w-6xl grid-cols-1 items-start gap-8 px-6 py-16 md:grid-cols-[180px_1fr_1fr] md:gap-10 md:px-16">
+      <main className="relative mx-auto w-full max-w-7xl overflow-visible px-5 pb-16 pt-2 md:px-10 md:pt-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12">
 
-        {/* COLOR OPTIONS */}
+          {/* LEFT */}
 
-        {hasColors && !isTwoColorProduct && (
-          <div className="order-2 flex flex-row flex-wrap justify-center gap-2 md:order-1 md:flex-col md:justify-start md:pt-24">
-            <p
-              className="mb-1 hidden text-xs font-semibold uppercase tracking-[0.15em] md:block"
-              style={{ color: accent }}
-            >
-              Options
-            </p>
+          <section className="min-w-0">
+            <div className="relative">
 
-            {product.colors.map(
-              (color, index) => {
-                const swatchImg =
-                  color.options?.[0]
-                    ?.image_url ??
-                  color.image_url;
-
-                return (
-                  <button
-                    key={`${color.name}-${index}`}
-                    onClick={() =>
-                      setSelectedColorIndex(
-                        index
-                      )
-                    }
-                    title={color.name}
-                    className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-full border-2 shadow-sm transition-all duration-150 hover:scale-110 active:scale-95"
-                    style={{
-                      borderColor:
-                        index ===
-                        selectedColorIndex
-                          ? accent
-                          : "transparent",
-                      backgroundColor:
-                        color.hex ??
-                        "#ccc",
-                      boxShadow:
-                        index ===
-                        selectedColorIndex
-                          ? "0 0 0 3px rgba(71,104,75,0.15)"
-                          : "0 2px 6px rgba(0,0,0,0.1)",
-                    }}
-                  >
-                    {swatchImg && (
-                      <img
-                        src={swatchImg}
-                        alt={color.name}
-                        className="h-full w-full object-cover"
-                      />
-                    )}
-                  </button>
-                );
-              }
-            )}
-          </div>
-        )}
-
-        {/* PRODUCT IMAGE */}
-
-        <div className="order-1 flex w-full flex-col items-center gap-3 md:order-2">
-
-          <h1
-            className="text-center text-2xl font-bold uppercase leading-tight tracking-wide md:text-4xl"
-            style={{ color: "#000000" }}
-          >
-            {product.name}
-          </h1>
-
-          {/* =====================================================
-              SWIPEABLE PRODUCT IMAGE CAROUSEL
-             ===================================================== */}
-
-          <div className="relative flex aspect-square w-full max-w-sm items-center justify-center">
-
-            <div
-              className="absolute h-[80%] w-[80%] rounded-full opacity-60 blur-3xl"
-              style={{
-                background: `radial-gradient(circle, ${accent}, transparent 70%)`,
-              }}
-            />
-
-            <div
-              className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-3xl"
-              style={{
-                backgroundColor: "#FFFFFF",
-                boxShadow:
-                  "0 20px 40px rgba(70,85,61,0.15)",
-                touchAction: "pan-y",
-              }}
-            >
-              {gallery.length > 0 && (
-                <motion.div
-                  className="flex h-full w-full"
-                  drag={gallery.length > 1 ? "x" : false}
-                  dragConstraints={{
-                    left: 0,
-                    right: 0,
-                  }}
-                  dragElastic={0.12}
-                  onDragEnd={handleImageDragEnd}
-                  animate={{
-                    x: `-${selectedImageIndex * 100}%`,
-                  }}
-                  transition={{
-                    type: "spring",
-                    stiffness: 350,
-                    damping: 35,
-                  }}
-                  style={{
-                    cursor:
-                      gallery.length > 1
-                        ? "grab"
-                        : "default",
-                  }}
-                  whileTap={{
-                    cursor:
-                      gallery.length > 1
-                        ? "grabbing"
-                        : "default",
-                  }}
-                >
-                  {gallery.map((url, index) => (
-                    <div
-                      key={`${url}-${index}`}
-                      className="flex h-full w-full flex-shrink-0 items-center justify-center p-6"
-                    >
-                      <img
-                        src={url}
-                        alt={`${product.name} image ${
-                          index + 1
-                        }`}
-                        className="pointer-events-none h-full w-full select-none object-contain"
-                        draggable={false}
-                      />
-                    </div>
-                  ))}
-                </motion.div>
-              )}
-            </div>
-          </div>
-
-          {/* =====================================================
-              IMAGE COUNTER
-             ===================================================== */}
-
-          {gallery.length > 1 && (
-            <div
-              className="flex items-center justify-center gap-2"
-              aria-label={`Image ${
-                selectedImageIndex + 1
-              } of ${gallery.length}`}
-            >
-              {gallery.map((_, index) => (
-                <button
-                  key={`dot-${index}`}
-                  type="button"
-                  onClick={() =>
-                    setSelectedImageIndex(index)
-                  }
-                  aria-label={`Go to image ${
-                    index + 1
-                  }`}
-                  className="rounded-full transition-all duration-200"
-                  style={{
-                    width:
-                      index === selectedImageIndex
-                        ? 22
-                        : 7,
-                    height: 7,
-                    backgroundColor:
-                      index === selectedImageIndex
-                        ? accent
-                        : "rgba(0,0,0,0.18)",
-                  }}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* =====================================================
-              SCROLLABLE THUMBNAILS
-             ===================================================== */}
-
-          {gallery.length > 1 && (
-            <div className="w-full max-w-sm">
               <div
-                className="flex gap-2 overflow-x-auto pb-2"
+                className="pointer-events-none absolute left-[8%] top-[8%] h-[75%] w-[75%] rounded-full opacity-20 blur-3xl"
                 style={{
-                  scrollbarWidth: "thin",
+                  backgroundColor:
+                    accent,
+                }}
+              />
+
+              <div
+                ref={imageScrollRef}
+                className="relative flex h-[min(62vw,600px)] w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden scroll-smooth"
+                style={{
+                  scrollbarWidth:
+                    "none",
                   WebkitOverflowScrolling:
                     "touch",
+                  touchAction:
+                    "pan-x pan-y",
+                  overscrollBehaviorX:
+                    "contain",
+                  overscrollBehaviorY:
+                    "auto",
+                  scrollSnapType:
+                    "x mandatory",
                 }}
               >
-                {gallery.map((url, index) => (
-                  <button
-                    key={`${url}-${index}`}
-                    type="button"
-                    onClick={() =>
-                      setSelectedImageIndex(
-                        index
-                      )
-                    }
-                    className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 shadow-sm transition-all duration-150 hover:scale-105 active:scale-95"
-                    style={{
-                      backgroundColor: "#FFFFFF",
-                      borderColor:
-                        index ===
-                        selectedImageIndex
-                          ? accent
-                          : "transparent",
-                    }}
-                  >
-                    <img
-                      src={url}
-                      alt={`${product.name} image ${
-                        index + 1
-                      }`}
-                      className="h-full w-full object-contain"
-                    />
-                  </button>
-                ))}
+                {gallery.length > 0 ? (
+                  gallery.map(
+                    (
+                      url,
+                      index
+                    ) => (
+                      <div
+                        key={`${product.id}-${url}-${index}`}
+                        ref={(
+                          element
+                        ) => {
+                          imageRefs.current[
+                            index
+                          ] =
+                            element;
+                        }}
+                        className="flex h-full w-full flex-shrink-0 snap-center snap-always items-center justify-center px-4 py-2 md:px-8"
+                        style={{
+                          scrollSnapAlign:
+                            "center",
+                        }}
+                      >
+                        <img
+                          src={url}
+                          alt={`${productName} image ${
+                            index + 1
+                          }`}
+                          className="h-full w-full select-none object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.10)]"
+                          draggable={
+                            false
+                          }
+                        />
+                      </div>
+                    )
+                  )
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-sm opacity-40">
+                    No image available
+                  </div>
+                )}
+
+                {gallery.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={
+                        previousImage
+                      }
+                      aria-label="Previous image"
+                      className="absolute left-1 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-[#EFE3C4]/90 backdrop-blur transition-all hover:-translate-x-1 md:flex"
+                      style={{
+                        borderColor:
+                          "#D8C9B0",
+                      }}
+                    >
+                      <ChevronLeft
+                        size={19}
+                      />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={
+                        nextImage
+                      }
+                      aria-label="Next image"
+                      className="absolute right-1 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-[#EFE3C4]/90 backdrop-blur transition-all hover:translate-x-1 md:flex"
+                      style={{
+                        borderColor:
+                          "#D8C9B0",
+                      }}
+                    >
+                      <ChevronRight
+                        size={19}
+                      />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
-          )}
 
-          {/* SELECTED COLOR */}
+            {hasColors &&
+              activeGalleryColor && (
+                <div className="mt-1 flex justify-center">
+                  <span
+                    className="rounded-full px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.15em]"
+                    style={{
+                      backgroundColor:
+                        `${accent}1A`,
+                      color:
+                        accent,
+                    }}
+                  >
+                    {
+                      activeGalleryColor
+                    }
+                  </span>
+                </div>
+              )}
 
-          {hasColors &&
-            selectedColor &&
-            !isTwoColorProduct && (
-              <span
-                className="rounded-full px-4 py-1 text-xs font-semibold uppercase tracking-wide"
+            <div className="mt-3 flex flex-col items-center text-center">
+
+              <p
+                className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em]"
                 style={{
-                  backgroundColor: "#FFFFFF",
                   color: accent,
                 }}
               >
-                {selectedColor.name}
-              </span>
-            )}
+                Handpoured With Love
+              </p>
 
-          {/* OPTIONS */}
+              <h1
+                className="max-w-xl px-3 text-3xl font-bold uppercase leading-[1.1] tracking-wide md:text-5xl"
+                style={{
+                  fontFamily:
+                    "Georgia, serif",
+                  color:
+                    "#000000",
+                }}
+              >
+                {productName}
+              </h1>
 
-          {hasOptions &&
-            !isTwoColorProduct && (
-              <div className="mt-1 flex flex-wrap justify-center gap-2">
-                {selectedColor!.options!.map(
-                  (option, index) => {
-                    const isSelected =
-                      index ===
-                      selectedOptionIndex;
+              <div
+                className="mt-1 h-[2px] w-10 rounded-full"
+                style={{
+                  backgroundColor:
+                    accent,
+                }}
+              />
 
-                    return (
-                      <button
-                        key={`${option.name}-${index}`}
-                        onClick={() => {
-                          setSelectedOptionIndex(
-                            index
-                          );
-                          setSelectedImageIndex(
-                            0
-                          );
-                        }}
-                        className="rounded-full px-4 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all duration-150"
+              <div className="mt-2 flex items-center justify-center gap-4">
+
+                <div className="flex items-baseline gap-1.5">
+                  <span
+                    className="text-2xl font-bold md:text-3xl"
+                    style={{
+                      color:
+                        accent,
+                    }}
+                  >
+                    {
+                      displayPrice
+                    }
+                  </span>
+
+                  <span className="text-[9px] font-bold uppercase tracking-wider">
+                    EGP
+                  </span>
+                </div>
+
+                {product.size_ml && (
+                  <>
+                    <span
+                      className="h-5 w-px"
+                      style={{
+                        backgroundColor:
+                          "#C8B99D",
+                      }}
+                    />
+
+                    <div className="flex items-baseline gap-1.5">
+                      <span
+                        className="text-[9px] font-bold uppercase tracking-[0.18em]"
                         style={{
-                          backgroundColor:
-                            isSelected
-                              ? accent
-                              : "#FFFFFF",
                           color:
-                            isSelected
-                              ? "#FFF4E6"
-                              : accent,
-                          border: `1px solid ${accent}`,
+                            accent,
                         }}
                       >
-                        {option.name}
-                      </button>
-                    );
-                  }
+                        Size
+                      </span>
+
+                      <span className="text-sm font-semibold">
+                        {
+                          product.size_ml
+                        }{" "}
+                        ml
+                      </span>
+                    </div>
+                  </>
                 )}
               </div>
-            )}
-        </div>
+            </div>
 
-        {/* PRODUCT INFORMATION */}
-
-        <div
-          className="order-3 flex w-full flex-col rounded-3xl p-6 text-center md:p-8 md:text-left"
-          style={{
-            backgroundColor: "#FFFFFF",
-            boxShadow:
-              "0 12px 30px rgba(110,134,199,0.08)",
-          }}
-        >
-          {product.size_ml && (
-            <span
-              className="self-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide md:self-start"
-              style={{
-                backgroundColor: "#efe3c4",
-                color: accent,
-              }}
-            >
-              {product.size_ml} ml
-            </span>
-          )}
-
-          {product.description && (
-            <p
-              className="mt-4 text-sm leading-relaxed"
-              style={{
-                color: "#000000",
-                opacity: 0.75,
-              }}
-            >
-              {product.description}
-            </p>
-          )}
-
-          <p
-            className="mt-6 text-3xl font-bold"
-            style={{ color: accent }}
-          >
-            {displayPrice}{" "}
-            <span className="text-lg font-medium">
-              EGP
-            </span>
-          </p>
-
-          <div
-            className="mt-4 h-px w-full"
-            style={{
-              backgroundColor: "#efe3c4",
-            }}
-          />
-
-          {/* =====================================================
-              NOOR EL QAMAR — White / Gray
-             ===================================================== */}
-
-          {!customizeOnly &&
-            isTwoColorProduct && (
-              <div className="mt-8">
-
-                <div className="flex w-full gap-3">
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedNoorWhite)
-                        return;
-
-                      addNoorWhiteToCart();
-                    }}
-                    className="flex-1 rounded-xl border px-5 py-4 text-sm font-semibold uppercase tracking-wide transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
-                    style={{
-                      backgroundColor:
-                        selectedNoorWhite
-                          ? "#FFFFFF"
-                          : "#F3F3F3",
-                      color: "#000000",
-                      borderColor:
-                        selectedNoorWhite
-                          ? "#000000"
-                          : "#D8D8D8",
-                      boxShadow:
-                        selectedNoorWhite
-                          ? "0 4px 12px rgba(0,0,0,0.10)"
-                          : "none",
-                    }}
-                  >
-                    White
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedNoorGray)
-                        return;
-
-                      addNoorGrayToCart();
-                    }}
-                    className="flex-1 rounded-xl border px-5 py-4 text-sm font-semibold uppercase tracking-wide transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
-                    style={{
-                      backgroundColor:
-                        selectedNoorGray
-                          ? "#808080"
-                          : "#F3F3F3",
-                      color:
-                        selectedNoorGray
-                          ? "#FFFFFF"
-                          : "#000000",
-                      borderColor:
-                        selectedNoorGray
-                          ? "#606060"
-                          : "#D8D8D8",
-                      boxShadow:
-                        selectedNoorGray
-                          ? "0 4px 12px rgba(0,0,0,0.10)"
-                          : "none",
-                    }}
-                  >
-                    Gray
-                  </button>
-                </div>
-
-                <div className="mt-4 flex flex-col gap-3">
-
-                  {selectedNoorWhite && (
-                    <div
-                      className="rounded-xl px-4 py-4"
+            {gallery.length > 1 && (
+              <div className="mt-2 flex justify-center gap-2">
+                {gallery.map(
+                  (
+                    _,
+                    index
+                  ) => (
+                    <button
+                      key={`dot-${product.id}-${index}`}
+                      type="button"
+                      aria-label={`Go to image ${
+                        index + 1
+                      }`}
+                      onClick={() =>
+                        scrollToImage(
+                          index
+                        )
+                      }
+                      className="h-1.5 rounded-full transition-all duration-300"
                       style={{
+                        width:
+                          selectedImageIndex ===
+                          index
+                            ? "28px"
+                            : "6px",
                         backgroundColor:
-                          "#efe3c4",
+                          selectedImageIndex ===
+                          index
+                            ? accent
+                            : "#D8C9B0",
                       }}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-4 w-4 rounded-full border border-black/20"
-                            style={{
-                              backgroundColor:
-                                "#FFFFFF",
-                            }}
-                          />
-
-                          <p className="text-sm font-semibold">
-                            White
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateNoorQuantity(
-                                "White",
-                                noorWhiteQuantity -
-                                  1
-                              )
-                            }
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-base font-bold transition-all hover:scale-110 active:scale-95"
-                            style={{
-                              backgroundColor:
-                                "#FFFFFF",
-                              color:
-                                "#000000",
-                            }}
-                          >
-                            −
-                          </button>
-
-                          <span className="w-5 text-center text-sm font-semibold">
-                            {
-                              noorWhiteQuantity
-                            }
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateNoorQuantity(
-                                "White",
-                                noorWhiteQuantity +
-                                  1
-                              )
-                            }
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-base font-bold transition-all hover:scale-110 active:scale-95"
-                            style={{
-                              backgroundColor:
-                                "#FFFFFF",
-                              color:
-                                "#000000",
-                            }}
-                          >
-                            +
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeNoorColor(
-                                "White"
-                              )
-                            }
-                            className="ml-2 text-xs underline transition-opacity hover:opacity-100"
-                            style={{
-                              color:
-                                "#000000",
-                              opacity: 0.5,
-                            }}
-                          >
-                            remove
-                          </button>
-
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedNoorGray && (
-                    <div
-                      className="rounded-xl px-4 py-4"
-                      style={{
-                        backgroundColor:
-                          "#efe3c4",
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-4 w-4 rounded-full border border-black/20"
-                            style={{
-                              backgroundColor:
-                                "#808080",
-                            }}
-                          />
-
-                          <p className="text-sm font-semibold">
-                            Gray
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateNoorQuantity(
-                                "Gray",
-                                noorGrayQuantity -
-                                  1
-                              )
-                            }
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-base font-bold transition-all hover:scale-110 active:scale-95"
-                            style={{
-                              backgroundColor:
-                                "#FFFFFF",
-                              color:
-                                "#000000",
-                            }}
-                          >
-                            −
-                          </button>
-
-                          <span className="w-5 text-center text-sm font-semibold">
-                            {
-                              noorGrayQuantity
-                            }
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateNoorQuantity(
-                                "Gray",
-                                noorGrayQuantity +
-                                  1
-                              )
-                            }
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-base font-bold transition-all hover:scale-110 active:scale-95"
-                            style={{
-                              backgroundColor:
-                                "#FFFFFF",
-                              color:
-                                "#000000",
-                            }}
-                          >
-                            +
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeNoorColor(
-                                "Gray"
-                              )
-                            }
-                            className="ml-2 text-xs underline transition-opacity hover:opacity-100"
-                            style={{
-                              color:
-                                "#000000",
-                              opacity: 0.5,
-                            }}
-                          >
-                            remove
-                          </button>
-
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {orderLines.length > 0 && (
-                  <div
-                    className="mt-4 flex items-center justify-between rounded-xl px-4 py-4"
-                    style={{
-                      backgroundColor:
-                        "#FFFFFF",
-                      border: `1px solid ${accent}`,
-                    }}
-                  >
-                    <span className="text-sm font-semibold">
-                      {totalQuantity} item
-                      {totalQuantity !== 1
-                        ? "s"
-                        : ""}{" "}
-                      total
-                    </span>
-
-                    <span
-                      className="text-lg font-bold"
-                      style={{
-                        color: accent,
-                      }}
-                    >
-                      {totalOrderPrice} EGP
-                    </span>
-                  </div>
+                    />
+                  )
                 )}
               </div>
             )}
 
-          {/* =====================================================
-              SCENTS
-             ===================================================== */}
+            {hasColors &&
+              !isTwoColorProduct && (
+                <div className="mt-2">
 
-          {!customizeOnly &&
-            !isGiveaway &&
-            !isTwoColorProduct &&
-            !isQuackAndKiss && (
-              <div className="mt-6">
-
-                {product.scents?.length > 0 ? (
-                  <>
+                  <div className="mb-1">
                     <p
-                      className="mb-2 text-xs font-semibold uppercase tracking-[0.15em]"
+                      className="text-[10px] font-bold uppercase tracking-[0.22em]"
                       style={{
-                        color: accent,
+                        color:
+                          accent,
                       }}
                     >
-                      Scent: {selectedScent}
+                      Color
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
+                    {product.colors.map(
+                      (
+                        color,
+                        index
+                      ) => {
+                        const swatchImg =
+                          color
+                            .options?.[0]
+                            ?.image_url ??
+                          color.image_url;
+
+                        const selected =
+                          index ===
+                          selectedColorIndex;
+
+                        return (
+                          <button
+                            key={`${color.name}-${index}`}
+                            type="button"
+                            title={
+                              color.name
+                            }
+                            aria-label={`Select ${color.name}`}
+                            onClick={() => {
+                              setSelectedColorIndex(
+                                index
+                              );
+
+                              setSelectedOptionIndex(
+                                0
+                              );
+
+                              setSelectedImageIndex(
+                                0
+                              );
+
+                              imageRefs.current =
+                                [];
+                            }}
+                            className="relative h-12 w-12 overflow-hidden rounded-full border-2 transition-all duration-200 hover:scale-110 active:scale-95"
+                            style={{
+                              borderColor:
+                                selected
+                                  ? accent
+                                  : "#FFF4E6",
+                              backgroundColor:
+                                color.hex ??
+                                "#CCCCCC",
+                              boxShadow:
+                                selected
+                                  ? `0 0 0 3px ${accent}30`
+                                  : "0 2px 8px rgba(0,0,0,0.12)",
+                            }}
+                          >
+                            {swatchImg && (
+                              <img
+                                src={
+                                  swatchImg
+                                }
+                                alt={
+                                  color.name
+                                }
+                                className="h-full w-full object-cover"
+                              />
+                            )}
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {hasOptions &&
+              !isTwoColorProduct && (
+                <div className="mt-5">
+
+                  <p
+                    className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+                    style={{
+                      color:
+                        accent,
+                    }}
+                  >
+                    Style
+                  </p>
+
+                  <div className="flex flex-wrap gap-2">
+                    {selectedColor!.options!.map(
+                      (
+                        option,
+                        index
+                      ) => {
+                        const isSelected =
+                          index ===
+                          selectedOptionIndex;
+
+                        return (
+                          <button
+                            key={`${option.name}-${index}`}
+                            type="button"
+                            onClick={() => {
+                              setSelectedOptionIndex(
+                                index
+                              );
+
+                              setSelectedImageIndex(
+                                0
+                              );
+
+                              imageRefs.current =
+                                [];
+                            }}
+                            className="rounded-full border px-5 py-2.5 text-xs font-semibold uppercase tracking-wide transition-all duration-200 hover:-translate-y-0.5"
+                            style={{
+                              backgroundColor:
+                                isSelected
+                                  ? accent
+                                  : "transparent",
+                              color:
+                                isSelected
+                                  ? "#FFF4E6"
+                                  : "#000000",
+                              borderColor:
+                                accent,
+                            }}
+                          >
+                            {
+                              option.name
+                            }
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+              )}
+          </section>
+
+          {/* RIGHT */}
+
+          <section className="flex flex-col lg:pt-6">
+
+            {product.description && (
+              <p
+                className="mt-1 max-w-lg text-sm leading-7"
+                style={{
+                  color:
+                    "rgba(0,0,0,0.62)",
+                }}
+              >
+                {
+                  product.description
+                }
+              </p>
+            )}
+
+            {!customizeOnly &&
+              !isGiveaway &&
+              !isTwoColorProduct &&
+              !isQuackAndKiss && (
+                <div className="mt-5">
+
+                  <div className="mb-2 flex items-center justify-between">
+                    <p
+                      className="text-[10px] font-bold uppercase tracking-[0.2em]"
+                      style={{
+                        color:
+                          accent,
+                      }}
+                    >
+                      Scent
                     </p>
 
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    <span className="text-xs font-semibold">
+                      {selectedScent ??
+                        "Unscented"}
+                    </span>
+                  </div>
 
+                  {product.scents?.length >
+                  0 ? (
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {product.scents.map(
-                        (scent, index) => {
-                          const isSelected =
+                        (
+                          scent,
+                          index
+                        ) => {
+                          const selected =
                             scent ===
                             selectedScent;
 
@@ -1695,585 +2412,711 @@ export default function ProductDetailView({
                                   scent
                                 )
                               }
-                              className="rounded-full px-3 py-2 text-center text-xs font-medium uppercase tracking-wide transition-all duration-150 hover:scale-[1.03] active:scale-[0.97]"
+                              className="rounded-xl border px-3 py-3 text-xs font-medium transition-all hover:-translate-y-0.5"
                               style={{
                                 backgroundColor:
-                                  isSelected
+                                  selected
                                     ? accent
-                                    : "#ffffff",
+                                    : "transparent",
                                 color:
-                                  isSelected
+                                  selected
                                     ? "#FFF4E6"
                                     : "#000000",
-                                border:
-                                  isSelected
-                                    ? "none"
-                                    : `1px solid ${accent}`,
+                                borderColor:
+                                  accent,
                               }}
                             >
-                              {scent}
+                              {
+                                scent
+                              }
                             </button>
                           );
                         }
                       )}
                     </div>
-                  </>
-                ) : (
-                  <span
-                    className="inline-block rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-wide"
-                    style={{
-                      backgroundColor:
-                        "#efe3c4",
-                      color: accent,
-                    }}
-                  >
-                    Unscented
-                  </span>
-                )}
-              </div>
-            )}
-
-          {/* =====================================================
-              QUACK AND KISS — Bride / Groom
-             ===================================================== */}
-
-          {!customizeOnly &&
-            isQuackAndKiss && (
-              <div className="mt-8">
-
-                <div className="flex w-full gap-3">
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedBride)
-                        return;
-
-                      addBrideToCart();
-                    }}
-                    className="flex-1 rounded-xl border px-5 py-4 text-sm font-semibold uppercase tracking-wide transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
-                    style={{
-                      backgroundColor:
-                        selectedBride
-                          ? "#D8A1AF"
-                          : "#F3F3F3",
-                      color:
-                        selectedBride
-                          ? "#FFF4E6"
-                          : "#000000",
-                      borderColor:
-                        selectedBride
-                          ? "#D8A1AF"
-                          : "#D8D8D8",
-                      boxShadow:
-                        selectedBride
-                          ? "0 4px 12px rgba(0,0,0,0.10)"
-                          : "none",
-                    }}
-                  >
-                    Bride Duck
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedGroom)
-                        return;
-
-                      addGroomToCart();
-                    }}
-                    className="flex-1 rounded-xl border px-5 py-4 text-sm font-semibold uppercase tracking-wide transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
-                    style={{
-                      backgroundColor:
-                        selectedGroom
-                          ? "#6E86C7"
-                          : "#F3F3F3",
-                      color:
-                        selectedGroom
-                          ? "#FFF4E6"
-                          : "#000000",
-                      borderColor:
-                        selectedGroom
-                          ? "#6E86C7"
-                          : "#D8D8D8",
-                      boxShadow:
-                        selectedGroom
-                          ? "0 4px 12px rgba(0,0,0,0.10)"
-                          : "none",
-                    }}
-                  >
-                    Groom Duck
-                  </button>
-
-                </div>
-
-                <div className="mt-4 flex flex-col gap-3">
-
-                  {selectedBride && (
-                    <div
-                      className="rounded-xl px-4 py-4"
-                      style={{
-                        backgroundColor:
-                          "#efe3c4",
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-4 w-4 rounded-full border border-black/20"
-                            style={{
-                              backgroundColor:
-                                "#D8A1AF",
-                            }}
-                          />
-
-                          <p className="text-sm font-semibold">
-                            Bride Duck
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateDuckQuantity(
-                                "Bride",
-                                brideQuantity -
-                                  1
-                              )
-                            }
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-base font-bold transition-all hover:scale-110 active:scale-95"
-                            style={{
-                              backgroundColor:
-                                "#FFFFFF",
-                              color:
-                                "#000000",
-                            }}
-                          >
-                            −
-                          </button>
-
-                          <span className="w-5 text-center text-sm font-semibold">
-                            {
-                              brideQuantity
-                            }
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateDuckQuantity(
-                                "Bride",
-                                brideQuantity +
-                                  1
-                              )
-                            }
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-base font-bold transition-all hover:scale-110 active:scale-95"
-                            style={{
-                              backgroundColor:
-                                "#FFFFFF",
-                              color:
-                                "#000000",
-                            }}
-                          >
-                            +
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeDuck(
-                                "Bride"
-                              )
-                            }
-                            className="ml-2 text-xs underline transition-opacity hover:opacity-100"
-                            style={{
-                              color:
-                                "#000000",
-                              opacity: 0.5,
-                            }}
-                          >
-                            remove
-                          </button>
-
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedGroom && (
-                    <div
-                      className="rounded-xl px-4 py-4"
-                      style={{
-                        backgroundColor:
-                          "#efe3c4",
-                      }}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-4 w-4 rounded-full border border-black/20"
-                            style={{
-                              backgroundColor:
-                                "#6E86C7",
-                            }}
-                          />
-
-                          <p className="text-sm font-semibold">
-                            Groom Duck
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateDuckQuantity(
-                                "Groom",
-                                groomQuantity -
-                                  1
-                              )
-                            }
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-base font-bold transition-all hover:scale-110 active:scale-95"
-                            style={{
-                              backgroundColor:
-                                "#FFFFFF",
-                              color:
-                                "#000000",
-                            }}
-                          >
-                            −
-                          </button>
-
-                          <span className="w-5 text-center text-sm font-semibold">
-                            {
-                              groomQuantity
-                            }
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateDuckQuantity(
-                                "Groom",
-                                groomQuantity +
-                                  1
-                              )
-                            }
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-base font-bold transition-all hover:scale-110 active:scale-95"
-                            style={{
-                              backgroundColor:
-                                "#FFFFFF",
-                              color:
-                                "#000000",
-                            }}
-                          >
-                            +
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeDuck(
-                                "Groom"
-                              )
-                            }
-                            className="ml-2 text-xs underline transition-opacity hover:opacity-100"
-                            style={{
-                              color:
-                                "#000000",
-                              opacity: 0.5,
-                            }}
-                          >
-                            remove
-                          </button>
-
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {orderLines.length > 0 && (
-                  <div
-                    className="mt-4 flex items-center justify-between rounded-xl px-4 py-4"
-                    style={{
-                      backgroundColor:
-                        "#FFFFFF",
-                      border: `1px solid ${accent}`,
-                    }}
-                  >
-                    <span className="text-sm font-semibold">
-                      {totalQuantity} item
-                      {totalQuantity !== 1
-                        ? "s"
-                        : ""}{" "}
-                      total
-                    </span>
-
+                  ) : (
                     <span
-                      className="text-lg font-bold"
-                      style={{
-                        color: accent,
-                      }}
-                    >
-                      {totalOrderPrice} EGP
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-          {/* =====================================================
-              NORMAL CANDLES
-             ===================================================== */}
-
-          {!customizeOnly &&
-            !isGiveaway &&
-            !isQuackAndKiss &&
-            !isTwoColorProduct && (
-              <>
-                <button
-                  type="button"
-                  onClick={
-                    addRegularProductToCart
-                  }
-                  className="mt-8 w-full rounded-full px-8 py-3.5 text-base font-semibold shadow-md transition-all hover:scale-[1.03] active:scale-[0.97]"
-                  style={{
-                    backgroundColor:
-                      accent,
-                    color: "#FFF4E6",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      accentDark)
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.backgroundColor =
-                      accent)
-                  }
-                >
-                  Add to Cart
-                </button>
-
-                {orderLines.length > 0 && (
-                  <div className="mt-6 text-left">
-
-                    <p
-                      className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-                      style={{
-                        color: accent,
-                      }}
-                    >
-                      Your Order
-                    </p>
-
-                    <div className="flex flex-col gap-3">
-
-                      {orderLines.map(
-                        (line, index) => (
-                          <div
-                            key={`order-${line.id}-${index}`}
-                            className="rounded-xl px-4 py-4"
-                            style={{
-                              backgroundColor:
-                                "#efe3c4",
-                            }}
-                          >
-
-                            <div className="flex items-start justify-between gap-3">
-
-                              <div className="min-w-0">
-
-                                <p
-                                  className="text-sm font-semibold"
-                                  style={{
-                                    color:
-                                      "#000000",
-                                  }}
-                                >
-                                  {
-                                    line.colorName
-                                  }
-                                </p>
-
-                                {line.scentName && (
-                                  <p
-                                    className="mt-1 text-xs"
-                                    style={{
-                                      color:
-                                        "rgba(0,0,0,0.55)",
-                                    }}
-                                  >
-                                    {
-                                      line.scentName
-                                    }
-                                  </p>
-                                )}
-
-                              </div>
-
-                              <div className="flex flex-shrink-0 items-center gap-2">
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateNormalLineQuantity(
-                                      line.id,
-                                      line.quantity -
-                                        1
-                                    )
-                                  }
-                                  className="flex h-8 w-8 items-center justify-center rounded-full text-base font-bold transition-all hover:scale-110 active:scale-95"
-                                  style={{
-                                    backgroundColor:
-                                      "#FFFFFF",
-                                    color:
-                                      "#000000",
-                                  }}
-                                >
-                                  −
-                                </button>
-
-                                <span
-                                  className="w-5 text-center text-sm font-semibold"
-                                  style={{
-                                    color:
-                                      "#000000",
-                                  }}
-                                >
-                                  {
-                                    line.quantity
-                                  }
-                                </span>
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    updateNormalLineQuantity(
-                                      line.id,
-                                      line.quantity +
-                                        1
-                                    )
-                                  }
-                                  className="flex h-8 w-8 items-center justify-center rounded-full text-base font-bold transition-all hover:scale-110 active:scale-95"
-                                  style={{
-                                    backgroundColor:
-                                      "#FFFFFF",
-                                    color:
-                                      "#000000",
-                                  }}
-                                >
-                                  +
-                                </button>
-
-                                <span
-                                  className="ml-1 min-w-[75px] text-right text-sm font-semibold"
-                                  style={{
-                                    color:
-                                      accent,
-                                  }}
-                                >
-                                  {line.price *
-                                    line.quantity}{" "}
-                                  EGP
-                                </span>
-
-                              </div>
-                            </div>
-
-                            <div className="mt-2 flex justify-end">
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  removeLine(
-                                    line.id
-                                  )
-                                }
-                                className="text-xs underline"
-                                style={{
-                                  color:
-                                    "#000000",
-                                  opacity: 0.5,
-                                }}
-                              >
-                                remove
-                              </button>
-
-                            </div>
-
-                          </div>
-                        )
-                      )}
-                    </div>
-
-                    <div
-                      className="mt-3 flex items-center justify-between rounded-xl px-4 py-4"
+                      className="inline-block rounded-full px-4 py-2 text-xs font-semibold"
                       style={{
                         backgroundColor:
-                          "#FFFFFF",
-                        border: `1px solid ${accent}`,
+                          "#EFE3C4",
+                        color:
+                          accent,
                       }}
                     >
-                      <span
-                        className="text-sm font-semibold"
+                      Unscented
+                    </span>
+                  )}
+                </div>
+              )}
+
+            {!customizeOnly &&
+              isTwoColorProduct && (
+                <div className="mt-5">
+
+                  <p
+                    className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+                    style={{
+                      color:
+                        accent,
+                    }}
+                  >
+                    Choose Your Colors
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3">
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          !selectedNoorWhite
+                        ) {
+                          addNoorWhiteToCart();
+                        }
+                      }}
+                      className="rounded-2xl border px-4 py-4 text-sm font-semibold transition-all hover:-translate-y-0.5"
+                      style={{
+                        backgroundColor:
+                          selectedNoorWhite
+                            ? "#FFFFFF"
+                            : "transparent",
+                        color:
+                          "#000000",
+                        borderColor:
+                          selectedNoorWhite
+                            ? "#000000"
+                            : "#D8D8D8",
+                      }}
+                    >
+                      White
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          !selectedNoorGray
+                        ) {
+                          addNoorGrayToCart();
+                        }
+                      }}
+                      className="rounded-2xl border px-4 py-4 text-sm font-semibold transition-all hover:-translate-y-0.5"
+                      style={{
+                        backgroundColor:
+                          selectedNoorGray
+                            ? "#808080"
+                            : "transparent",
+                        color:
+                          selectedNoorGray
+                            ? "#FFFFFF"
+                            : "#000000",
+                        borderColor:
+                          selectedNoorGray
+                            ? "#606060"
+                            : "#D8D8D8",
+                      }}
+                    >
+                      Gray
+                    </button>
+                  </div>
+
+                  <div className="mt-3 flex flex-col gap-2">
+
+                    {selectedNoorWhite && (
+                      <div
+                        className="rounded-2xl p-3"
+                        style={{
+                          backgroundColor:
+                            "#EFE3C4",
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-4 w-4 rounded-full border border-black/20"
+                              style={{
+                                backgroundColor:
+                                  "#FFFFFF",
+                              }}
+                            />
+
+                            <span className="text-sm font-semibold">
+                              White
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateNoorQuantity(
+                                  "White",
+                                  noorWhiteQuantity -
+                                    1
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                            >
+                              −
+                            </button>
+
+                            <span className="w-5 text-center text-sm font-semibold">
+                              {
+                                noorWhiteQuantity
+                              }
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateNoorQuantity(
+                                  "White",
+                                  noorWhiteQuantity +
+                                    1
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                            >
+                              +
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeNoorColor(
+                                  "White"
+                                )
+                              }
+                              className="ml-2 text-xs underline opacity-50 hover:opacity-100"
+                            >
+                              remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedNoorGray && (
+                      <div
+                        className="rounded-2xl p-3"
+                        style={{
+                          backgroundColor:
+                            "#EFE3C4",
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-4 w-4 rounded-full border border-black/20"
+                              style={{
+                                backgroundColor:
+                                  "#808080",
+                              }}
+                            />
+
+                            <span className="text-sm font-semibold">
+                              Gray
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateNoorQuantity(
+                                  "Gray",
+                                  noorGrayQuantity -
+                                    1
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                            >
+                              −
+                            </button>
+
+                            <span className="w-5 text-center text-sm font-semibold">
+                              {
+                                noorGrayQuantity
+                              }
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateNoorQuantity(
+                                  "Gray",
+                                  noorGrayQuantity +
+                                    1
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                            >
+                              +
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeNoorColor(
+                                  "Gray"
+                                )
+                              }
+                              className="ml-2 text-xs underline opacity-50 hover:opacity-100"
+                            >
+                              remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {!customizeOnly &&
+              isQuackAndKiss && (
+                <div className="mt-5">
+
+                  <p
+                    className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+                    style={{
+                      color:
+                        accent,
+                    }}
+                  >
+                    Choose Your Ducks
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3">
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          !selectedBride
+                        ) {
+                          addBrideToCart();
+                        }
+                      }}
+                      className="rounded-2xl border px-4 py-4 text-sm font-semibold transition-all hover:-translate-y-0.5"
+                      style={{
+                        backgroundColor:
+                          selectedBride
+                            ? "#D8A1AF"
+                            : "transparent",
+                        color:
+                          selectedBride
+                            ? "#FFF4E6"
+                            : "#000000",
+                        borderColor:
+                          selectedBride
+                            ? "#D8A1AF"
+                            : "#D8D8D8",
+                      }}
+                    >
+                      Bride Duck
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (
+                          !selectedGroom
+                        ) {
+                          addGroomToCart();
+                        }
+                      }}
+                      className="rounded-2xl border px-4 py-4 text-sm font-semibold transition-all hover:-translate-y-0.5"
+                      style={{
+                        backgroundColor:
+                          selectedGroom
+                            ? "#6E86C7"
+                            : "transparent",
+                        color:
+                          selectedGroom
+                            ? "#FFF4E6"
+                            : "#000000",
+                        borderColor:
+                          selectedGroom
+                            ? "#6E86C7"
+                            : "#D8D8D8",
+                      }}
+                    >
+                      Groom Duck
+                    </button>
+                  </div>
+
+                  <div className="mt-3 flex flex-col gap-2">
+
+                    {selectedBride && (
+                      <div
+                        className="rounded-2xl p-3"
+                        style={{
+                          backgroundColor:
+                            "#EFE3C4",
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-4 w-4 rounded-full"
+                              style={{
+                                backgroundColor:
+                                  "#D8A1AF",
+                              }}
+                            />
+
+                            <span className="text-sm font-semibold">
+                              Bride Duck
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateDuckQuantity(
+                                  "Bride",
+                                  brideQuantity -
+                                    1
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                            >
+                              −
+                            </button>
+
+                            <span className="w-5 text-center text-sm font-semibold">
+                              {
+                                brideQuantity
+                              }
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateDuckQuantity(
+                                  "Bride",
+                                  brideQuantity +
+                                    1
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                            >
+                              +
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeDuck(
+                                  "Bride"
+                                )
+                              }
+                              className="ml-2 text-xs underline opacity-50 hover:opacity-100"
+                            >
+                              remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedGroom && (
+                      <div
+                        className="rounded-2xl p-3"
+                        style={{
+                          backgroundColor:
+                            "#EFE3C4",
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-4 w-4 rounded-full"
+                              style={{
+                                backgroundColor:
+                                  "#6E86C7",
+                              }}
+                            />
+
+                            <span className="text-sm font-semibold">
+                              Groom Duck
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateDuckQuantity(
+                                  "Groom",
+                                  groomQuantity -
+                                    1
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                            >
+                              −
+                            </button>
+
+                            <span className="w-5 text-center text-sm font-semibold">
+                              {
+                                groomQuantity
+                              }
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateDuckQuantity(
+                                  "Groom",
+                                  groomQuantity +
+                                    1
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                            >
+                              +
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                removeDuck(
+                                  "Groom"
+                                )
+                              }
+                              className="ml-2 text-xs underline opacity-50 hover:opacity-100"
+                            >
+                              remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            {!customizeOnly &&
+              !isGiveaway &&
+              !isQuackAndKiss &&
+              !isTwoColorProduct && (
+                <>
+                  <button
+                    type="button"
+                    onClick={
+                      addRegularProductToCart
+                    }
+                    className="mt-6 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+                    style={{
+                      backgroundColor:
+                        accent,
+                      color:
+                        "#FFF4E6",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        accentDark;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor =
+                        accent;
+                    }}
+                  >
+                    Add to Cart
+                  </button>
+
+                  {orderLines.length >
+                    0 && (
+                    <div className="mt-5">
+
+                      <p
+                        className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
                         style={{
                           color:
-                            "#000000",
+                            accent,
                         }}
                       >
-                        {totalQuantity} item
-                        {totalQuantity !== 1
-                          ? "s"
-                          : ""}{" "}
-                        total
-                      </span>
+                        Your Order
+                      </p>
 
-                      <span
-                        className="text-lg font-bold"
-                        style={{
-                          color: accent,
-                        }}
-                      >
-                        {totalOrderPrice} EGP
-                      </span>
+                      <div className="flex flex-col gap-2">
+
+                        {orderLines.map(
+                          (
+                            line,
+                            index
+                          ) => (
+                            <div
+                              key={`order-${line.id}-${index}`}
+                              className="rounded-2xl p-3"
+                              style={{
+                                backgroundColor:
+                                  "#EFE3C4",
+                              }}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold">
+                                    {
+                                      line.colorName
+                                    }
+                                  </p>
+
+                                  {line.scentName && (
+                                    <p className="mt-1 text-xs opacity-55">
+                                      {
+                                        line.scentName
+                                      }
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-shrink-0 items-center gap-2">
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateNormalLineQuantity(
+                                        line.id,
+                                        line.quantity -
+                                          1
+                                      )
+                                    }
+                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                                  >
+                                    −
+                                  </button>
+
+                                  <span className="w-5 text-center text-sm font-semibold">
+                                    {
+                                      line.quantity
+                                    }
+                                  </span>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      updateNormalLineQuantity(
+                                        line.id,
+                                        line.quantity +
+                                          1
+                                      )
+                                    }
+                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                                  >
+                                    +
+                                  </button>
+
+                                  <span
+                                    className="ml-2 min-w-[70px] text-right text-sm font-bold"
+                                    style={{
+                                      color:
+                                        accent,
+                                    }}
+                                  >
+                                    {line.price *
+                                      line.quantity}{" "}
+                                    EGP
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="mt-1 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeLine(
+                                      line.id
+                                    )
+                                  }
+                                  className="text-xs underline opacity-50 hover:opacity-100"
+                                >
+                                  remove
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
+                  )}
+                </>
+              )}
 
-                  </div>
-                )}
-              </>
+            {(isTwoColorProduct ||
+              isQuackAndKiss) &&
+              orderLines.length >
+                0 && (
+                <div
+                  className="mt-4 flex items-center justify-between rounded-2xl px-5 py-4"
+                  style={{
+                    backgroundColor:
+                      "transparent",
+                    border: `1px solid ${accent}`,
+                  }}
+                >
+                  <span className="text-sm font-semibold">
+                    {
+                      totalQuantity
+                    }{" "}
+                    item
+                    {totalQuantity !==
+                    1
+                      ? "s"
+                      : ""}{" "}
+                    total
+                  </span>
+
+                  <span
+                    className="text-lg font-bold"
+                    style={{
+                      color:
+                        accent,
+                    }}
+                  >
+                    {
+                      totalOrderPrice
+                    }{" "}
+                    EGP
+                  </span>
+                </div>
+              )}
+
+            {customizeRoute && (
+              <button
+                type="button"
+                onClick={() =>
+                  router.push(
+                    customizeRoute
+                  )
+                }
+                className="mt-3 w-full rounded-full border px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] transition-all duration-200 hover:-translate-y-0.5"
+                style={{
+                  backgroundColor:
+                    "transparent",
+                  color: accent,
+                  borderColor:
+                    accent,
+                }}
+              >
+                Customize Your{" "}
+                {productName}
+              </button>
             )}
 
-          {/* =====================================================
-              CUSTOMIZE
-             ===================================================== */}
-
-          {customizeRoute && (
-            <button
-              type="button"
-              onClick={() =>
-                router.push(
-                  customizeRoute
-                )
-              }
-              className="mt-3 w-full rounded-full px-8 py-3.5 text-base font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97]"
+            <div
+              className="mt-6 grid grid-cols-2 gap-5 border-t pt-5"
               style={{
-                backgroundColor:
-                  "transparent",
-                color: accent,
-                border: `1.5px solid ${accent}`,
+                borderColor:
+                  "#D8C9B0",
               }}
-            >
-              Customize Your{" "}
-              {product.name}
-            </button>
-          )}
-
+            />
+          </section>
         </div>
       </main>
     </div>

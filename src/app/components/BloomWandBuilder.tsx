@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import type { Product } from "@/lib/supabase/types";
 
 type OrderLine = {
@@ -20,11 +26,15 @@ type UploadedPhoto = {
 
 const ACCENT = "#6E86C7";
 const ACCENT_DARK = "#5A70B0";
+const CREAM = "#FFF4E6";
+const SAND = "#EFE3C4";
+const SAND_BORDER = "#D8C9B0";
 
 /*
- * These are the 3 Bloom Wand "With Photo" images.
- * We use these directly instead of relying on the
- * image_urls stored in Supabase.
+ * Bloom Wand "With Photo" gallery.
+ *
+ * These are intentionally hardcoded because the Supabase
+ * image_urls currently contains only one image.
  */
 const BLOOM_WAND_WITH_PHOTO_IMAGES = [
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/wand%20with%20pic%201.jpg",
@@ -37,7 +47,41 @@ export default function BloomWandBuilder({
 }: {
   product: Product;
 }) {
-  const colors = product.colors ?? [];
+  const router = useRouter();
+
+  /*
+   * ============================================================
+   * PRODUCT NAME
+   * ============================================================
+   */
+
+  const rawProduct = product as Product & {
+    name?: string | null;
+    product_name?: string | null;
+    title?: string | null;
+    display_name?: string | null;
+  };
+
+  const productName =
+    typeof rawProduct.name === "string" &&
+    rawProduct.name.trim()
+      ? rawProduct.name.trim()
+      : typeof rawProduct.product_name === "string" &&
+        rawProduct.product_name.trim()
+      ? rawProduct.product_name.trim()
+      : typeof rawProduct.title === "string" &&
+        rawProduct.title.trim()
+      ? rawProduct.title.trim()
+      : typeof rawProduct.display_name === "string" &&
+        rawProduct.display_name.trim()
+      ? rawProduct.display_name.trim()
+      : "Bloom Wand";
+
+  /*
+   * ============================================================
+   * STATE
+   * ============================================================
+   */
 
   const [selectedColorIndex, setSelectedColorIndex] =
     useState(0);
@@ -45,64 +89,93 @@ export default function BloomWandBuilder({
   const [selectedOptionIndex, setSelectedOptionIndex] =
     useState(0);
 
-  const [selectedPreviewImageIndex, setSelectedPreviewImageIndex] =
+  const [selectedImageIndex, setSelectedImageIndex] =
     useState(0);
 
   const [quantity, setQuantity] = useState(1);
 
-  const [orderLines, setOrderLines] = useState<OrderLine[]>(
-    []
-  );
+  const [orderLines, setOrderLines] =
+    useState<OrderLine[]>([]);
 
-  const [uploadedPhotos, setUploadedPhotos] = useState<
-    UploadedPhoto[]
-  >([]);
+  const [uploadedPhotos, setUploadedPhotos] =
+    useState<UploadedPhoto[]>([]);
 
   const [selectedPhotoId, setSelectedPhotoId] =
     useState<string | null>(null);
 
+  const imageScrollRef =
+    useRef<HTMLDivElement>(null);
+
+  const imageRefs =
+    useRef<(HTMLDivElement | null)[]>([]);
+
   const fileInputRef =
     useRef<HTMLInputElement>(null);
+
+  const colors = product.colors ?? [];
 
   const selectedColor =
     colors[selectedColorIndex];
 
   const selectedOption =
-    selectedColor?.options?.[selectedOptionIndex];
+    selectedColor?.options?.[
+      selectedOptionIndex
+    ];
 
   const isWithPhoto =
-    selectedOption?.name === "With Photo";
+    selectedOption?.name?.toLowerCase() ===
+    "with photo";
 
   /*
-   * IMPORTANT:
-   *
-   * For "With Photo", ALWAYS use the 3 URLs above.
-   * Do NOT use Supabase's image_urls field because
-   * it currently only contains one image.
+   * ============================================================
+   * GALLERY
+   * ============================================================
    */
-  const previewImages: string[] = isWithPhoto
+
+  const gallery = isWithPhoto
     ? BLOOM_WAND_WITH_PHOTO_IMAGES
     : selectedOption?.image_urls?.length
-      ? selectedOption.image_urls
-      : selectedOption?.image_url
-        ? [selectedOption.image_url]
-        : selectedColor?.image_url
-          ? [selectedColor.image_url]
-          : [];
+    ? selectedOption.image_urls
+    : selectedOption?.image_url
+    ? [selectedOption.image_url]
+    : selectedColor?.image_urls?.length
+    ? selectedColor.image_urls
+    : selectedColor?.image_url
+    ? [selectedColor.image_url]
+    : product.image_urls ?? [];
 
   const previewImage =
-    previewImages[selectedPreviewImageIndex] ??
-    previewImages[0] ??
-    selectedColor?.image_url ??
+    gallery[selectedImageIndex] ??
+    gallery[0] ??
     "";
 
   /*
-   * Bloom Wand base image used in the order list.
+   * ============================================================
+   * RESET GALLERY
+   * ============================================================
    */
-  const orderWandImage =
-    selectedColor?.image_url ??
-    selectedColor?.options?.[0]?.image_url ??
-    "";
+
+  useEffect(() => {
+    setSelectedImageIndex(0);
+
+    imageRefs.current = [];
+
+    requestAnimationFrame(() => {
+      imageScrollRef.current?.scrollTo({
+        left: 0,
+        behavior: "auto",
+      });
+    });
+  }, [
+    selectedColorIndex,
+    selectedOptionIndex,
+  ]);
+
+  /*
+   * ============================================================
+   * COLOR CHANGE
+   * ============================================================
+   */
 
   function handleColorChange(index: number) {
     const currentOptionName =
@@ -127,35 +200,225 @@ export default function BloomWandBuilder({
       setSelectedOptionIndex(0);
     }
 
-    /*
-     * Always start the gallery from image 1
-     * when changing color.
-     */
-    setSelectedPreviewImageIndex(0);
+    setSelectedImageIndex(0);
+    imageRefs.current = [];
   }
+
+  /*
+   * ============================================================
+   * OPTION CHANGE
+   * ============================================================
+   */
 
   function handleOptionChange(index: number) {
     setSelectedOptionIndex(index);
-
-    /*
-     * Always start from the first image when
-     * changing between options.
-     */
-    setSelectedPreviewImageIndex(0);
+    setSelectedImageIndex(0);
+    imageRefs.current = [];
   }
+
+  /*
+   * ============================================================
+   * GALLERY SCROLL
+   * ============================================================
+   */
+
+  function scrollToImage(index: number) {
+    if (!gallery.length) {
+      return;
+    }
+
+    const safeIndex = Math.max(
+      0,
+      Math.min(
+        index,
+        gallery.length - 1
+      )
+    );
+
+    const container =
+      imageScrollRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    const slide =
+      imageRefs.current[safeIndex];
+
+    if (!slide) {
+      return;
+    }
+
+    const containerWidth =
+      container.clientWidth;
+
+    const slideLeft =
+      slide.offsetLeft;
+
+    const slideWidth =
+      slide.clientWidth;
+
+    const targetLeft =
+      slideLeft -
+      (containerWidth - slideWidth) /
+        2;
+
+    container.scrollTo({
+      left: Math.max(
+        0,
+        targetLeft
+      ),
+      behavior: "smooth",
+    });
+
+    setSelectedImageIndex(
+      safeIndex
+    );
+  }
+
+  function handleGalleryScroll() {
+    const container =
+      imageScrollRef.current;
+
+    if (
+      !container ||
+      gallery.length <= 1
+    ) {
+      return;
+    }
+
+    const containerCenter =
+      container.scrollLeft +
+      container.clientWidth / 2;
+
+    let closestIndex = 0;
+    let closestDistance = Infinity;
+
+    imageRefs.current.forEach(
+      (slide, index) => {
+        if (!slide) return;
+
+        const slideCenter =
+          slide.offsetLeft +
+          slide.clientWidth / 2;
+
+        const distance =
+          Math.abs(
+            slideCenter -
+              containerCenter
+          );
+
+        if (
+          distance <
+          closestDistance
+        ) {
+          closestDistance = distance;
+          closestIndex = index;
+        }
+      }
+    );
+
+    setSelectedImageIndex(
+      closestIndex
+    );
+  }
+
+  function nextImage() {
+    if (gallery.length <= 1) {
+      return;
+    }
+
+    const next =
+      selectedImageIndex >=
+      gallery.length - 1
+        ? 0
+        : selectedImageIndex + 1;
+
+    scrollToImage(next);
+  }
+
+  function previousImage() {
+    if (gallery.length <= 1) {
+      return;
+    }
+
+    const previous =
+      selectedImageIndex <= 0
+        ? gallery.length - 1
+        : selectedImageIndex - 1;
+
+    scrollToImage(previous);
+  }
+
+  /*
+   * ============================================================
+   * GALLERY LISTENER
+   * ============================================================
+   */
+
+  useEffect(() => {
+    const container =
+      imageScrollRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    let ticking = false;
+
+    const onScroll = () => {
+      if (ticking) {
+        return;
+      }
+
+      ticking = true;
+
+      requestAnimationFrame(() => {
+        handleGalleryScroll();
+        ticking = false;
+      });
+    };
+
+    container.addEventListener(
+      "scroll",
+      onScroll,
+      {
+        passive: true,
+      }
+    );
+
+    return () => {
+      container.removeEventListener(
+        "scroll",
+        onScroll
+      );
+    };
+  }, [gallery.length]);
+
+  /*
+   * ============================================================
+   * PHOTO UPLOAD
+   * ============================================================
+   */
 
   function handlePhotosChange(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
     const files = e.target.files;
 
-    if (!files) return;
+    if (!files) {
+      return;
+    }
 
     const newPhotos: UploadedPhoto[] =
-      Array.from(files).map((file) => ({
-        id: `${Date.now()}-${Math.random()}`,
-        url: URL.createObjectURL(file),
-      }));
+      Array.from(files).map(
+        (file) => ({
+          id: `${Date.now()}-${Math.random()}`,
+          url: URL.createObjectURL(
+            file
+          ),
+        })
+      );
 
     setUploadedPhotos((prev) => [
       ...prev,
@@ -171,11 +434,14 @@ export default function BloomWandBuilder({
       );
     }
 
-    /*
-     * Allows selecting the same file again.
-     */
     e.target.value = "";
   }
+
+  /*
+   * ============================================================
+   * ADD TO ORDER
+   * ============================================================
+   */
 
   function addLine() {
     if (
@@ -187,12 +453,11 @@ export default function BloomWandBuilder({
 
     const chosenPhoto =
       uploadedPhotos.find(
-        (p) => p.id === selectedPhotoId
+        (photo) =>
+          photo.id ===
+          selectedPhotoId
       );
 
-    /*
-     * With Photo requires an uploaded photo.
-     */
     if (
       isWithPhoto &&
       !chosenPhoto
@@ -204,50 +469,80 @@ export default function BloomWandBuilder({
       ...prev,
       {
         id: `${Date.now()}-${Math.random()}`,
-        colorName: selectedColor.name,
-        optionName: selectedOption.name,
+        colorName:
+          selectedColor.name,
+        optionName:
+          selectedOption.name,
         price:
-          selectedOption.price ?? 0,
+          Number(
+            selectedOption.price ??
+              0
+          ),
         quantity,
-
-        /*
-         * For With Photo:
-         * use the actual Bloom Wand base image.
-         *
-         * For other options:
-         * use the selected option image.
-         */
-        image: isWithPhoto
-          ? orderWandImage
-          : previewImage,
-
-        /*
-         * Store the customer's uploaded photo
-         * separately.
-         */
-        photoUrl: isWithPhoto
-          ? chosenPhoto?.url
-          : undefined,
+        image:
+          selectedColor.image_url ??
+          selectedOption.image_url ??
+          previewImage,
+        photoUrl:
+          isWithPhoto
+            ? chosenPhoto?.url
+            : undefined,
       },
     ]);
 
     setQuantity(1);
   }
 
-  function removeLine(id: string) {
+  /*
+   * ============================================================
+   * ORDER QUANTITY
+   * ============================================================
+   */
+
+  function updateLineQuantity(
+    lineId: string,
+    newQuantity: number
+  ) {
+    if (newQuantity <= 0) {
+      removeLine(lineId);
+      return;
+    }
+
     setOrderLines((prev) =>
-      prev.filter(
-        (line) => line.id !== id
+      prev.map((line) =>
+        line.id === lineId
+          ? {
+              ...line,
+              quantity:
+                newQuantity,
+            }
+          : line
       )
     );
   }
+
+  function removeLine(id: string) {
+    setOrderLines((prev) =>
+      prev.filter(
+        (line) =>
+          line.id !== id
+      )
+    );
+  }
+
+  /*
+   * ============================================================
+   * APPLY PHOTO TO ALL
+   * ============================================================
+   */
 
   function applyPhotoToAll(
     photoUrl: string
   ) {
     setOrderLines((prev) =>
       prev.map((line) =>
-        line.optionName === "With Photo"
+        line.optionName ===
+        "With Photo"
           ? {
               ...line,
               photoUrl,
@@ -257,6 +552,12 @@ export default function BloomWandBuilder({
     );
   }
 
+  /*
+   * ============================================================
+   * TOTALS
+   * ============================================================
+   */
+
   const totalQuantity =
     orderLines.reduce(
       (sum, line) =>
@@ -264,7 +565,7 @@ export default function BloomWandBuilder({
       0
     );
 
-  const totalPrice =
+  const totalOrderPrice =
     orderLines.reduce(
       (sum, line) =>
         sum +
@@ -273,447 +574,733 @@ export default function BloomWandBuilder({
       0
     );
 
+  /*
+   * ============================================================
+   * ADD ORDER TO CART
+   * ============================================================
+   */
+
   function handleAddToCart() {
-    console.log(
-      "Bloom Wand order:",
-      orderLines
-    );
+    if (!orderLines.length) {
+      return;
+    }
+
+    try {
+      const existingCart =
+        JSON.parse(
+          localStorage.getItem(
+            "cart"
+          ) || "[]"
+        );
+
+      const newItems =
+        orderLines.map(
+          (line) => ({
+            id: line.id,
+            productId:
+              product.id,
+            productName,
+            price: line.price,
+            quantity:
+              line.quantity,
+            color:
+              line.colorName,
+            option:
+              line.optionName,
+            scent: null,
+            image:
+              line.image,
+            photoUrl:
+              line.photoUrl,
+          })
+        );
+
+      const updatedCart = [
+        ...existingCart,
+        ...newItems,
+      ];
+
+      localStorage.setItem(
+        "cart",
+        JSON.stringify(
+          updatedCart
+        )
+      );
+
+      window.dispatchEvent(
+        new Event("cartUpdated")
+      );
+
+      router.push("/cart");
+    } catch (error) {
+      console.error(
+        "Failed to add Bloom Wand to cart:",
+        error
+      );
+    }
   }
+
+  /*
+   * ============================================================
+   * RENDER
+   * ============================================================
+   */
 
   return (
     <div
-      className="flex flex-1 flex-col items-center font-sans"
+      className="relative min-h-screen w-full overflow-visible font-sans"
       style={{
-        backgroundColor: "#efe3c4",
+        backgroundColor: SAND,
+        color: "#000000",
       }}
     >
-      <main className="w-full max-w-3xl px-6 py-16 md:px-16">
+      {/* BACK */}
 
-        {/* HEADER */}
+      <button
+        type="button"
+        onClick={() =>
+          router.back()
+        }
+        aria-label="Go back"
+        className="group fixed left-6 top-24 z-40 flex items-center gap-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-60 md:left-10 md:top-28"
+      >
+        <ArrowLeft
+          size={20}
+          strokeWidth={1.8}
+          className="transition-transform duration-200 group-hover:-translate-x-1"
+        />
+      </button>
 
-        <p
-          className="text-xs font-semibold uppercase tracking-[0.2em]"
-          style={{
-            color: ACCENT,
-          }}
-        >
-          build your own
-        </p>
+      <main className="relative mx-auto w-full max-w-7xl overflow-visible px-5 pb-16 pt-2 md:px-10 md:pt-8">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12">
 
-        <h1
-          className="mt-2 text-3xl font-bold uppercase tracking-wide md:text-4xl"
-          style={{
-            color: "#000000",
-          }}
-        >
-          {product.name}
-        </h1>
+          {/* ================================================= */}
+          {/* LEFT — GALLERY                                   */}
+          {/* ================================================= */}
 
-        {product.description && (
-          <p
-            className="mt-3 text-sm leading-relaxed"
-            style={{
-              color: "#000000",
-              opacity: 0.75,
-            }}
-          >
-            {product.description}
-          </p>
-        )}
+          <section className="min-w-0">
+            <div className="relative">
 
-        {/* BUILDER CARD */}
+              {/* SOFT GLOW */}
 
-        <div
-          className="mt-6 flex flex-col gap-6 rounded-3xl p-6 md:flex-row md:p-8"
-          style={{
-            backgroundColor: "#FFFFFF",
-            boxShadow:
-              "0 12px 30px rgba(110,134,199,0.1)",
-          }}
-        >
+              <div
+                className="pointer-events-none absolute left-[8%] top-[8%] h-[75%] w-[75%] rounded-full opacity-20 blur-3xl"
+                style={{
+                  backgroundColor:
+                    ACCENT,
+                }}
+              />
 
-          {/* LEFT: PREVIEW + GALLERY */}
+              {/* GALLERY */}
 
-          <div className="flex w-full flex-shrink-0 flex-col items-center md:w-48">
-
-            {/* MAIN PREVIEW */}
-
-            <div
-              className="flex aspect-square w-full items-center justify-center rounded-2xl p-4"
-              style={{
-                backgroundColor: "#efe3c4",
-              }}
-            >
-              {previewImage && (
-                <img
-                  src={previewImage}
-                  alt={product.name}
-                  className="h-full w-full object-contain"
-                />
-              )}
-            </div>
-
-            {/* IMAGE GALLERY */}
-
-            {isWithPhoto &&
-              previewImages.length > 1 && (
-                <div className="mt-3 flex w-full justify-center gap-2">
-
-                  {previewImages.map(
-                    (url, index) => (
-                      <button
-                        key={`${url}-${index}`}
-                        type="button"
-                        onClick={() =>
-                          setSelectedPreviewImageIndex(
+              <div
+                ref={imageScrollRef}
+                className="relative flex h-[min(62vw,600px)] w-full snap-x snap-mandatory overflow-x-auto overflow-y-hidden scroll-smooth"
+                style={{
+                  scrollbarWidth:
+                    "none",
+                  WebkitOverflowScrolling:
+                    "touch",
+                  touchAction:
+                    "pan-x pan-y",
+                  overscrollBehaviorX:
+                    "contain",
+                  overscrollBehaviorY:
+                    "auto",
+                  scrollSnapType:
+                    "x mandatory",
+                }}
+              >
+                {gallery.length > 0 ? (
+                  gallery.map(
+                    (
+                      url,
+                      index
+                    ) => (
+                      <div
+                        key={`${product.id}-${url}-${index}`}
+                        ref={(
+                          element
+                        ) => {
+                          imageRefs.current[
                             index
-                          )
-                        }
-                        className="h-14 w-14 overflow-hidden rounded-lg border-2 transition-all duration-150 hover:scale-105 active:scale-95"
+                          ] =
+                            element;
+                        }}
+                        className="flex h-full w-full flex-shrink-0 snap-center snap-always items-center justify-center px-4 py-2 md:px-8"
                         style={{
-                          backgroundColor:
-                            "#FFFFFF",
-                          borderColor:
-                            index ===
-                            selectedPreviewImageIndex
-                              ? ACCENT
-                              : "transparent",
+                          scrollSnapAlign:
+                            "center",
                         }}
                       >
                         <img
                           src={url}
-                          alt={`${product.name} photo ${
+                          alt={`${productName} image ${
                             index + 1
                           }`}
-                          className="h-full w-full object-contain"
+                          className="h-full w-full select-none object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.10)]"
+                          draggable={
+                            false
+                          }
                         />
-                      </button>
+                      </div>
                     )
-                  )}
+                  )
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-sm opacity-40">
+                    No image available
+                  </div>
+                )}
 
+                {gallery.length >
+                  1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={
+                        previousImage
+                      }
+                      aria-label="Previous image"
+                      className="absolute left-1 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-[#EFE3C4]/90 backdrop-blur transition-all hover:-translate-x-1 md:flex"
+                      style={{
+                        borderColor:
+                          SAND_BORDER,
+                      }}
+                    >
+                      <ChevronLeft
+                        size={19}
+                      />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={
+                        nextImage
+                      }
+                      aria-label="Next image"
+                      className="absolute right-1 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-[#EFE3C4]/90 backdrop-blur transition-all hover:translate-x-1 md:flex"
+                      style={{
+                        borderColor:
+                          SAND_BORDER,
+                      }}
+                    >
+                      <ChevronRight
+                        size={19}
+                      />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* COLOR LABEL */}
+
+            {selectedColor && (
+              <div className="mt-1 flex justify-center">
+                <span
+                  className="rounded-full px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.15em]"
+                  style={{
+                    backgroundColor:
+                      `${ACCENT}1A`,
+                    color: ACCENT,
+                  }}
+                >
+                  {selectedColor.name}
+                </span>
+              </div>
+            )}
+
+            {/* PRODUCT TITLE */}
+
+            <div className="mt-3 flex flex-col items-center text-center">
+
+              <p
+                className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em]"
+                style={{
+                  color: ACCENT,
+                }}
+              >
+                Handpoured With Love
+              </p>
+
+              <h1
+                className="max-w-xl px-3 text-3xl font-bold uppercase leading-[1.1] tracking-wide md:text-5xl"
+                style={{
+                  fontFamily:
+                    "Georgia, serif",
+                  color:
+                    "#000000",
+                }}
+              >
+                {productName}
+              </h1>
+
+              <div
+                className="mt-1 h-[2px] w-10 rounded-full"
+                style={{
+                  backgroundColor:
+                    ACCENT,
+                }}
+              />
+
+              <div className="mt-2 flex items-center justify-center gap-4">
+
+                <div className="flex items-baseline gap-1.5">
+                  <span
+                    className="text-2xl font-bold md:text-3xl"
+                    style={{
+                      color:
+                        ACCENT,
+                    }}
+                  >
+                    {selectedOption?.price ??
+                      product.price}
+                  </span>
+
+                  <span className="text-[9px] font-bold uppercase tracking-wider">
+                    EGP
+                  </span>
                 </div>
-              )}
 
-          </div>
+                {product.size_ml && (
+                  <>
+                    <span
+                      className="h-5 w-px"
+                      style={{
+                        backgroundColor:
+                          "#C8B99D",
+                      }}
+                    />
 
-          {/* RIGHT: SELECTORS */}
+                    <div className="flex items-baseline gap-1.5">
+                      <span
+                        className="text-[9px] font-bold uppercase tracking-[0.18em]"
+                        style={{
+                          color:
+                            ACCENT,
+                        }}
+                      >
+                        Size
+                      </span>
 
-          <div className="flex-1">
+                      <span className="text-sm font-semibold">
+                        {
+                          product.size_ml
+                        }{" "}
+                        ml
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* GALLERY DOTS */}
+
+            {gallery.length > 1 && (
+              <div className="mt-2 flex justify-center gap-2">
+                {gallery.map(
+                  (
+                    _,
+                    index
+                  ) => (
+                    <button
+                      key={`dot-${product.id}-${index}`}
+                      type="button"
+                      aria-label={`Go to image ${
+                        index + 1
+                      }`}
+                      onClick={() =>
+                        scrollToImage(
+                          index
+                        )
+                      }
+                      className="h-1.5 rounded-full transition-all duration-300"
+                      style={{
+                        width:
+                          selectedImageIndex ===
+                          index
+                            ? "28px"
+                            : "6px",
+                        backgroundColor:
+                          selectedImageIndex ===
+                          index
+                            ? ACCENT
+                            : SAND_BORDER,
+                      }}
+                    />
+                  )
+                )}
+              </div>
+            )}
 
             {/* COLOR */}
 
-            <p
-              className="mb-2 text-xs font-semibold uppercase tracking-[0.15em]"
-              style={{
-                color: ACCENT,
-              }}
-            >
-              Color
-            </p>
+            {colors.length > 0 && (
+              <div className="mt-5">
 
-            <div className="mb-6 flex flex-wrap gap-4">
+                <p
+                  className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em]"
+                  style={{
+                    color:
+                      ACCENT,
+                  }}
+                >
+                  Color
+                </p>
 
-              {colors.map(
-                (color, index) => {
+                <div className="flex flex-wrap gap-3">
+                  {colors.map(
+                    (
+                      color,
+                      index
+                    ) => {
+                      const swatchImg =
+                        color
+                          .options?.[0]
+                          ?.image_url ??
+                        color.image_url;
 
-                  const swatchImg =
-                    color.options?.[0]
-                      ?.image_url ??
-                    color.image_url;
+                      const selected =
+                        index ===
+                        selectedColorIndex;
 
-                  const isSelected =
-                    index ===
-                    selectedColorIndex;
-
-                  return (
-                    <div
-                      key={color.name}
-                      className="flex flex-col items-center gap-2"
-                    >
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleColorChange(
-                            index
-                          )
-                        }
-                        title={color.name}
-                        className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-full border-2 transition-all duration-150 hover:scale-110 active:scale-95"
-                        style={{
-                          borderColor:
-                            isSelected
-                              ? ACCENT
-                              : "transparent",
-                          backgroundColor:
-                            color.hex ??
-                            "#ccc",
-                        }}
-                      >
-                        {swatchImg && (
-                          <img
-                            src={swatchImg}
-                            alt={color.name}
-                            className="h-full w-full object-cover"
-                          />
-                        )}
-                      </button>
-
-                      <span
-                        className="text-center text-xs font-medium"
-                        style={{
-                          color:
-                            "#000000",
-                        }}
-                      >
-                        {color.name}
-                      </span>
-
-                    </div>
-                  );
-                }
-              )}
-
-            </div>
-
-            {/* OPTION */}
-
-            <p
-              className="mb-2 text-xs font-semibold uppercase tracking-[0.15em]"
-              style={{
-                color: ACCENT,
-              }}
-            >
-              Option
-            </p>
-
-            <div className="mb-6 flex flex-wrap gap-2">
-
-              {selectedColor?.options?.map(
-                (option, index) => {
-
-                  const isSelected =
-                    index ===
-                    selectedOptionIndex;
-
-                  return (
-                    <div
-                      key={option.name}
-                      className="flex flex-col items-start gap-2"
-                    >
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleOptionChange(
-                            index
-                          )
-                        }
-                        className="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-all duration-150 hover:scale-[1.03] active:scale-[0.97]"
-                        style={{
-                          backgroundColor:
-                            isSelected
-                              ? ACCENT
-                              : "#FFFFFF",
-                          color:
-                            isSelected
-                              ? "#FFF4E6"
-                              : ACCENT,
-                          border:
-                            `1px solid ${ACCENT}`,
-                        }}
-                      >
-                        {option.name} ·{" "}
-                        {option.price} EGP
-                      </button>
-
-                      {/* UPLOAD PHOTO */}
-
-                      {isSelected &&
-                        option.name ===
-                          "With Photo" && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                fileInputRef.current?.click()
+                      return (
+                        <button
+                          key={`${color.name}-${index}`}
+                          type="button"
+                          title={
+                            color.name
+                          }
+                          aria-label={`Select ${color.name}`}
+                          onClick={() =>
+                            handleColorChange(
+                              index
+                            )
+                          }
+                          className="relative h-12 w-12 overflow-hidden rounded-full border-2 transition-all duration-200 hover:scale-110 active:scale-95"
+                          style={{
+                            borderColor:
+                              selected
+                                ? ACCENT
+                                : CREAM,
+                            backgroundColor:
+                              color.hex ??
+                              "#CCCCCC",
+                            boxShadow:
+                              selected
+                                ? `0 0 0 3px ${ACCENT}30`
+                                : "0 2px 8px rgba(0,0,0,0.12)",
+                          }}
+                        >
+                          {swatchImg && (
+                            <img
+                              src={
+                                swatchImg
                               }
-                              className="rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition-all duration-150 hover:scale-[1.03] active:scale-[0.97]"
-                              style={{
-                                backgroundColor:
-                                  "#efe3c4",
-                                color:
-                                  "#000000",
-                                border:
-                                  "1px solid #efe3c4",
-                              }}
-                            >
-                              Upload a photo
-                            </button>
-
-                            <input
-                              ref={
-                                fileInputRef
+                              alt={
+                                color.name
                               }
-                              type="file"
-                              accept="image/jpeg,image/png"
-                              multiple
-                              className="hidden"
-                              onChange={
-                                handlePhotosChange
-                              }
+                              className="h-full w-full object-cover"
                             />
-                          </>
-                        )}
+                          )}
+                        </button>
+                      );
+                    }
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
 
-                    </div>
-                  );
+          {/* ================================================= */}
+          {/* RIGHT — CUSTOMIZATION                             */}
+          {/* ================================================= */}
+
+          <section className="flex flex-col lg:pt-6">
+
+            {/* DESCRIPTION */}
+
+            {product.description && (
+              <p
+                className="mt-1 max-w-lg text-sm leading-7"
+                style={{
+                  color:
+                    "rgba(0,0,0,0.62)",
+                }}
+              >
+                {
+                  product.description
                 }
-              )}
+              </p>
+            )}
 
-            </div>
+            {/* STYLE */}
 
-            {/* UPLOADED PHOTOS */}
-
-            {isWithPhoto &&
-              uploadedPhotos.length >
-                0 && (
-                <div className="mb-6">
+            {selectedColor?.options &&
+              selectedColor.options
+                .length > 0 && (
+                <div className="mt-5">
 
                   <p
-                    className="mb-2 text-xs font-semibold uppercase tracking-[0.15em]"
+                    className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
                     style={{
-                      color: ACCENT,
+                      color:
+                        ACCENT,
                     }}
                   >
-                    Your photos
+                    Style
                   </p>
 
-                  <div className="flex flex-wrap gap-3">
-
-                    {uploadedPhotos.map(
-                      (photo) => {
-
+                  <div className="flex flex-wrap gap-2">
+                    {selectedColor.options.map(
+                      (
+                        option,
+                        index
+                      ) => {
                         const isSelected =
-                          photo.id ===
-                          selectedPhotoId;
+                          index ===
+                          selectedOptionIndex;
 
                         return (
-                          <div
-                            key={photo.id}
-                            className="flex flex-col items-center gap-1"
+                          <button
+                            key={`${option.name}-${index}`}
+                            type="button"
+                            onClick={() =>
+                              handleOptionChange(
+                                index
+                              )
+                            }
+                            className="rounded-full border px-5 py-2.5 text-xs font-semibold uppercase tracking-wide transition-all duration-200 hover:-translate-y-0.5"
+                            style={{
+                              backgroundColor:
+                                isSelected
+                                  ? ACCENT
+                                  : "transparent",
+                              color:
+                                isSelected
+                                  ? CREAM
+                                  : "#000000",
+                              borderColor:
+                                ACCENT,
+                            }}
                           >
+                            {
+                              option.name
+                            }
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setSelectedPhotoId(
-                                  photo.id
-                                )
-                              }
-                              className="h-16 w-16 overflow-hidden rounded-lg border-2 transition-all duration-150 hover:scale-105 active:scale-95"
-                              style={{
-                                borderColor:
-                                  isSelected
-                                    ? ACCENT
-                                    : "transparent",
-                              }}
-                            >
-                              <img
-                                src={
-                                  photo.url
-                                }
-                                alt=""
-                                className="h-full w-full object-cover"
-                              />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                applyPhotoToAll(
-                                  photo.url
-                                )
-                              }
-                              className="text-[10px] font-medium underline transition-opacity hover:opacity-70"
-                              style={{
-                                color:
-                                  ACCENT,
-                              }}
-                            >
-                              apply to all
-                            </button>
-
-                          </div>
+                            {option.price !==
+                              undefined && (
+                              <>
+                                {" "}
+                                ·{" "}
+                                {
+                                  option.price
+                                }{" "}
+                                EGP
+                              </>
+                            )}
+                          </button>
                         );
                       }
                     )}
-
                   </div>
-
                 </div>
               )}
 
+            {/* WITH PHOTO */}
+
+            {isWithPhoto && (
+              <div className="mt-5">
+
+                <div className="mb-2 flex items-center justify-between">
+                  <p
+                    className="text-[10px] font-bold uppercase tracking-[0.2em]"
+                    style={{
+                      color:
+                        ACCENT,
+                    }}
+                  >
+                    Your Photo
+                  </p>
+
+                  {uploadedPhotos.length >
+                    0 && (
+                    <span className="text-[10px] font-medium opacity-50">
+                      {
+                        uploadedPhotos.length
+                      }{" "}
+                      uploaded
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    fileInputRef.current?.click()
+                  }
+                  className="w-full rounded-2xl border px-5 py-4 text-left text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5"
+                  style={{
+                    backgroundColor:
+                      "transparent",
+                    borderColor:
+                      ACCENT,
+                    color:
+                      "#000000",
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span>
+                      Upload a photo
+                    </span>
+
+                    <span
+                      className="text-xs"
+                      style={{
+                        color:
+                          ACCENT,
+                      }}
+                    >
+                      JPG / PNG
+                    </span>
+                  </div>
+                </button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  multiple
+                  className="hidden"
+                  onChange={
+                    handlePhotosChange
+                  }
+                />
+
+                {/* UPLOADED PHOTOS */}
+
+                {uploadedPhotos.length >
+                  0 && (
+                  <div className="mt-3 rounded-2xl p-3">
+                    <div className="flex flex-wrap gap-3">
+                      {uploadedPhotos.map(
+                        (
+                          photo
+                        ) => {
+                          const selected =
+                            photo.id ===
+                            selectedPhotoId;
+
+                          return (
+                            <div
+                              key={
+                                photo.id
+                              }
+                              className="flex flex-col items-center gap-1"
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSelectedPhotoId(
+                                    photo.id
+                                  )
+                                }
+                                className="h-16 w-16 overflow-hidden rounded-xl border-2 transition-all duration-200 hover:scale-105 active:scale-95"
+                                style={{
+                                  borderColor:
+                                    selected
+                                      ? ACCENT
+                                      : "transparent",
+                                  boxShadow:
+                                    selected
+                                      ? `0 0 0 2px ${ACCENT}25`
+                                      : "none",
+                                }}
+                              >
+                                <img
+                                  src={
+                                    photo.url
+                                  }
+                                  alt="Uploaded photo"
+                                  className="h-full w-full object-cover"
+                                />
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  applyPhotoToAll(
+                                    photo.url
+                                  )
+                                }
+                                className="text-[10px] font-medium underline transition-opacity hover:opacity-70"
+                                style={{
+                                  color:
+                                    ACCENT,
+                                }}
+                              >
+                                apply to all
+                              </button>
+                            </div>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* QUANTITY */}
 
-            <p
-              className="mb-2 text-xs font-semibold uppercase tracking-[0.15em]"
-              style={{
-                color: ACCENT,
-              }}
-            >
-              Quantity
-            </p>
+            <div className="mt-5">
 
-            <div className="mb-6 flex items-center gap-3">
-
-              <button
-                type="button"
-                onClick={() =>
-                  setQuantity(
-                    (q) =>
-                      Math.max(
-                        1,
-                        q - 1
-                      )
-                  )
-                }
-                className="h-9 w-9 rounded-full text-lg font-bold transition-all duration-150 hover:scale-110 active:scale-95"
+              <p
+                className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
                 style={{
-                  backgroundColor:
-                    "#efe3c4",
-                  color: "#000000",
+                  color:
+                    ACCENT,
                 }}
               >
-                −
-              </button>
+                Quantity
+              </p>
 
-              <span
-                className="w-8 text-center text-base font-semibold"
-                style={{
-                  color: "#000000",
-                }}
-              >
-                {quantity}
-              </span>
+              <div className="flex items-center gap-2">
 
-              <button
-                type="button"
-                onClick={() =>
-                  setQuantity(
-                    (q) => q + 1
-                  )
-                }
-                className="h-9 w-9 rounded-full text-lg font-bold transition-all duration-150 hover:scale-110 active:scale-95"
-                style={{
-                  backgroundColor:
-                    "#efe3c4",
-                  color: "#000000",
-                }}
-              >
-                +
-              </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setQuantity(
+                      (current) =>
+                        Math.max(
+                          1,
+                          current - 1
+                        )
+                    )
+                  }
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all hover:scale-105 active:scale-95"
+                >
+                  −
+                </button>
 
+                <span className="w-5 text-center text-sm font-semibold">
+                  {quantity}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setQuantity(
+                      (current) =>
+                        current + 1
+                    )
+                  }
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all hover:scale-105 active:scale-95"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             {/* ADD TO ORDER */}
@@ -722,183 +1309,254 @@ export default function BloomWandBuilder({
               type="button"
               onClick={addLine}
               disabled={
-                isWithPhoto &&
-                uploadedPhotos.length === 0
+                !selectedOption ||
+                (isWithPhoto &&
+                  uploadedPhotos.length ===
+                    0)
               }
-              className="rounded-full px-6 py-2.5 text-sm font-semibold shadow-md transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] disabled:opacity-40 disabled:hover:scale-100"
+              className="mt-6 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
               style={{
                 backgroundColor:
                   ACCENT,
-                color: "#FFF4E6",
+                color: CREAM,
+              }}
+              onMouseEnter={(e) => {
+                if (
+                  !e.currentTarget.disabled
+                ) {
+                  e.currentTarget.style.backgroundColor =
+                    ACCENT_DARK;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor =
+                  ACCENT;
               }}
             >
-              + Add to order
+              + Add to Order
             </button>
 
-          </div>
+            {/* ================================================= */}
+            {/* YOUR ORDER                                       */}
+            {/* ================================================= */}
 
-        </div>
+            {orderLines.length > 0 && (
+              <div className="mt-5">
 
-        {/* RUNNING ORDER */}
+                <p
+                  className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+                  style={{
+                    color:
+                      ACCENT,
+                  }}
+                >
+                  Your Order
+                </p>
 
-        {orderLines.length > 0 && (
-          <div className="mt-8">
+                <div className="flex flex-col gap-2">
 
-            <p
-              className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-              style={{
-                color: ACCENT,
-              }}
-            >
-              Your order
-            </p>
+                  {orderLines.map(
+                    (
+                      line,
+                      index
+                    ) => (
+                      <div
+                        key={`${line.id}-${index}`}
+                        className="rounded-2xl p-3"
+                        style={{
+                          backgroundColor:
+                            SAND,
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
 
-            <div className="flex flex-col gap-2">
+                          {/* LEFT */}
 
-              {orderLines.map(
-                (line) => (
-                  <div
-                    key={line.id}
-                    className="flex items-center justify-between rounded-xl px-4 py-3"
+                          <div className="flex min-w-0 items-center gap-3">
+
+                            {line.image && (
+                              <img
+                                src={
+                                  line.image
+                                }
+                                alt=""
+                                className="h-12 w-12 flex-shrink-0 rounded-xl object-contain"
+                                style={{
+                                  backgroundColor:
+                                    "#F7EEDC",
+                                }}
+                              />
+                            )}
+
+                            {line.photoUrl && (
+                              <img
+                                src={
+                                  line.photoUrl
+                                }
+                                alt="Selected photo"
+                                className="h-12 w-12 flex-shrink-0 rounded-xl object-cover"
+                              />
+                            )}
+
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold">
+                                {
+                                  line.colorName
+                                }
+                              </p>
+
+                              <p className="mt-1 text-xs opacity-55">
+                                {
+                                  line.optionName
+                                }
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* RIGHT */}
+
+                          <div className="flex flex-shrink-0 items-center gap-2">
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateLineQuantity(
+                                  line.id,
+                                  line.quantity -
+                                    1
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                            >
+                              −
+                            </button>
+
+                            <span className="w-5 text-center text-sm font-semibold">
+                              {
+                                line.quantity
+                              }
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateLineQuantity(
+                                  line.id,
+                                  line.quantity +
+                                    1
+                                )
+                              }
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                            >
+                              +
+                            </button>
+
+                            <span
+                              className="ml-2 min-w-[70px] text-right text-sm font-bold"
+                              style={{
+                                color:
+                                  ACCENT,
+                              }}
+                            >
+                              {line.price *
+                                line.quantity}{" "}
+                              EGP
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* REMOVE */}
+
+                        <div className="mt-1 text-right">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removeLine(
+                                line.id
+                              )
+                            }
+                            className="text-xs underline opacity-50 hover:opacity-100"
+                          >
+                            remove
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+
+                {/* TOTAL */}
+
+                <div
+                  className="mt-4 flex items-center justify-between rounded-2xl px-5 py-4"
+                  style={{
+                    backgroundColor:
+                      "transparent",
+                    border: `1px solid ${ACCENT}`,
+                  }}
+                >
+                  <span className="text-sm font-semibold">
+                    {totalQuantity}{" "}
+                    wand
+                    {totalQuantity !==
+                    1
+                      ? "s"
+                      : ""}{" "}
+                    total
+                  </span>
+
+                  <span
+                    className="text-lg font-bold"
                     style={{
-                      backgroundColor:
-                        "#FFFFFF",
+                      color:
+                        ACCENT,
                     }}
                   >
+                    {
+                      totalOrderPrice
+                    }{" "}
+                    EGP
+                  </span>
+                </div>
 
-                    <div className="flex items-center gap-3">
+                {/* ADD TO CART */}
 
-                      {/* WAND */}
+                <button
+                  type="button"
+                  onClick={
+                    handleAddToCart
+                  }
+                  className="mt-4 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+                  style={{
+                    backgroundColor:
+                      ACCENT,
+                    color: CREAM,
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      ACCENT_DARK;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor =
+                      ACCENT;
+                  }}
+                >
+                  Add Order to Cart
+                </button>
+              </div>
+            )}
 
-                      {line.image && (
-                        <img
-                          src={line.image}
-                          alt=""
-                          className="h-10 w-10 rounded-lg object-contain"
-                          style={{
-                            backgroundColor:
-                              "#efe3c4",
-                          }}
-                        />
-                      )}
-
-                      {/* CUSTOMER PHOTO */}
-
-                      {line.photoUrl && (
-                        <img
-                          src={line.photoUrl}
-                          alt=""
-                          className="h-10 w-10 rounded-lg object-cover"
-                        />
-                      )}
-
-                      <span
-                        className="text-sm"
-                        style={{
-                          color:
-                            "#000000",
-                        }}
-                      >
-                        {line.quantity}×{" "}
-                        {line.colorName} —{" "}
-                        {line.optionName}
-                      </span>
-
-                    </div>
-
-                    <div className="flex items-center gap-4">
-
-                      <span
-                        className="text-sm font-semibold"
-                        style={{
-                          color:
-                            ACCENT,
-                        }}
-                      >
-                        {line.price *
-                          line.quantity}{" "}
-                        EGP
-                      </span>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          removeLine(
-                            line.id
-                          )
-                        }
-                        className="text-xs font-medium underline transition-opacity hover:opacity-70"
-                        style={{
-                          color:
-                            "#000000",
-                          opacity: 0.5,
-                        }}
-                      >
-                        remove
-                      </button>
-
-                    </div>
-
-                  </div>
-                )
-              )}
-
-            </div>
-
-            {/* TOTAL */}
+            {/* BOTTOM DIVIDER */}
 
             <div
-              className="mt-4 flex items-center justify-between rounded-xl px-4 py-4"
+              className="mt-6 grid grid-cols-2 gap-5 border-t pt-5"
               style={{
-                backgroundColor:
-                  "#efe3c4",
+                borderColor:
+                  SAND_BORDER,
               }}
-            >
-              <span
-                className="text-sm font-semibold"
-                style={{
-                  color:
-                    "#000000",
-                }}
-              >
-                {totalQuantity} wand
-                {totalQuantity !== 1
-                  ? "s"
-                  : ""}{" "}
-                total
-              </span>
-
-              <span
-                className="text-lg font-bold"
-                style={{
-                  color:
-                    ACCENT,
-                }}
-              >
-                {totalPrice} EGP
-              </span>
-            </div>
-
-            {/* CART */}
-
-            <button
-              type="button"
-              onClick={
-                handleAddToCart
-              }
-              className="mt-4 w-full rounded-full px-8 py-3.5 text-base font-semibold shadow-md transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
-              style={{
-                backgroundColor:
-                  ACCENT,
-                color: "#FFF4E6",
-              }}
-            >
-              Add order to Cart
-            </button>
-
-          </div>
-        )}
-
+            />
+          </section>
+        </div>
       </main>
     </div>
   );
