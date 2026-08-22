@@ -39,10 +39,12 @@ export default function CandleLabelWrap({
   candleImg,
   photoUrl,
   message,
+  curved = true,
 }: {
   candleImg: string;
   photoUrl: string | null;
   message: string;
+  curved?: boolean;
 }) {
   const [labelDataUrl, setLabelDataUrl] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -158,6 +160,37 @@ export default function CandleLabelWrap({
     templateImg.src = LABEL_TEMPLATE_IMG;
   }, [photoUrl, message]);
 
+  // Flat mode: candle stays visible, but the label sits on it as a plain
+  // undistorted rectangle — same position/size as the curved version,
+  // just without the strip-wrap effect. Used while editing, so the
+  // photo/text are clear and easy to check, not bent by the curve math.
+  if (!curved) {
+    return (
+      <div className="relative w-full max-w-md mx-auto">
+        <canvas ref={canvasRef} className="hidden" />
+
+        <img src={candleImg} alt="Your candle" className="w-full h-auto" />
+
+        {labelDataUrl && (
+          <img
+            src={labelDataUrl}
+            alt="Your label design"
+            className="absolute rounded-sm shadow-md"
+            style={{
+              left: `${LABEL_LEFT_PCT}%`,
+              top: `${LABEL_TOP_PCT}%`,
+              width: `${LABEL_WIDTH_PCT}%`,
+              aspectRatio: `${LABEL_ASPECT}`,
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // Curved mode: the label wrapped realistically around the actual candle
+  // photo. Used only in the final Preview, matching what's really printed
+  // and physically wrapped around the jar.
   return (
     <div className="relative w-full max-w-md mx-auto">
       {/* hidden compositing canvas — not shown directly */}

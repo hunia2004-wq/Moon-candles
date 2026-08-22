@@ -6,9 +6,9 @@ import Link from "next/link";
 // the home page's outer div, etc.) — the footer now blends into the page
 // instead of being its own colored block.
 const PAGE_BG = "#efe3c4";
-const LINE_GREEN = "#8FAA82"; // the stripe green used elsewhere on the site
-const ICON_COLOR = "#47684b"; // deep green, matches other text/buttons
-const ICON_HOVER = "#33492f"; // darker shade of the same green — not the accent
+const LINE_GREEN = "#000000"; // the stripe green used elsewhere on the site
+const ICON_COLOR = "#000000"; // deep green, matches other text/buttons
+const ICON_HOVER = "#000000"; // darker shade of the same green — not the accent
 
 const LOGO_IMG =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/moon%20logo/logo.png";

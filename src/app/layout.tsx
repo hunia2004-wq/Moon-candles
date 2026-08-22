@@ -5,6 +5,9 @@ import Header from "./components/Header";
 import FloatingMoon from "./components/FloatingMoon";
 import { ActiveCandleProvider } from "./components/ActiveCandleContext";
 import Footer from "./components/Footer";
+import AddToCartToast from "./components/AddToCartToast";
+
+
 
 
 
@@ -32,6 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <ActiveCandleProvider>
           <Header />
+          <AddToCartToast />
           <FloatingMoon />
           <div className="flex-1 flex flex-col">{children}</div>
         </ActiveCandleProvider>

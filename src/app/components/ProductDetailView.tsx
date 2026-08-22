@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import type { Product } from "@/lib/supabase/types";
 
 type OrderLine = {
@@ -34,7 +35,13 @@ const QUACK_AND_KISS_NAMES = ["Quack and Kiss"];
 
 const TWO_COLOR_PRODUCTS = ["Noor Al Qamar", "Noor El Kamar"];
 
-export default function ProductDetailView({ product }: { product: Product }) {
+export default function ProductDetailView({
+  product,
+  isMenuOpen = false,
+}: {
+  product: Product;
+  isMenuOpen?: boolean;
+}) {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -676,16 +683,20 @@ export default function ProductDetailView({ product }: { product: Product }) {
       className="flex flex-1 flex-col items-center font-sans"
       style={{ backgroundColor: "#efe3c4" }}
     >
-      {/* BACK */}
-      <div className="w-full max-w-6xl px-6 pt-8 md:px-16">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:opacity-70"
-          style={{ color: accent }}
-        >
-          <span aria-hidden>←</span> Back
-        </button>
-      </div>
+  {!isMenuOpen && (
+  <button
+    onClick={() => router.back()}
+    aria-label="Go back"
+    className="group fixed left-5 top-24 z-40 flex items-center justify-center md:left-10 md:top-28"
+    style={{ color: "#000000" }}
+  >
+    <ArrowLeft
+      size={26}
+      strokeWidth={1.7}
+      className="transition-transform duration-200 group-hover:-translate-x-1"
+    />
+  </button>
+)}
 
       <main className="grid w-full max-w-6xl grid-cols-1 items-start gap-8 px-6 py-16 md:grid-cols-[180px_1fr_1fr] md:gap-10 md:px-16">
         {/* COLOR OPTIONS */}
@@ -727,12 +738,7 @@ export default function ProductDetailView({ product }: { product: Product }) {
 
         {/* PRODUCT IMAGE */}
         <div className="order-1 flex w-full flex-col items-center gap-3 md:order-2">
-          <p
-            className="text-xs font-semibold uppercase tracking-[0.2em]"
-            style={{ color: accent }}
-          >
-            Handpoured With Love
-          </p>
+         
 
           <h1
             className="text-center text-2xl font-bold uppercase leading-tight tracking-wide md:text-4xl"

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import CandleLabelWrap from "../components/CandleLabelWrap";
+import CandleSpin3D from "../components/CandleSpin3D.tsx";
 
 const SIZES = [
   {
@@ -80,7 +81,7 @@ export default function CustomizeCandlePage() {
     <div style={{ backgroundColor: "#FFF4E6" }} className="w-full min-h-screen">
                  {/* ---------------- TOP: live preview, curved/wrapped ---------------- */}
       <div ref={previewRef} className="relative flex items-center justify-center px-6 pt-2 pb-4">
-        <CandleLabelWrap candleImg={selectedSize.img} photoUrl={photoUrl} message={message} />
+       <CandleLabelWrap candleImg={selectedSize.img} photoUrl={photoUrl} message={message} curved={false} />
       </div>
          
       {/* ---------------- BELOW: form ---------------- */}
@@ -222,6 +223,7 @@ export default function CustomizeCandlePage() {
       photoUrl={photoUrl}
       message={message}
     />
+    <CandleSpin3D photoUrl={photoUrl} message={message} />
 
 <button
   onClick={() => {
