@@ -3,25 +3,35 @@
 import { useEffect, useRef, useState } from "react";
 
 /* ------------------------------------------------------------------ */
+/* Your actual label template — used as the BASE layer every time.     */
+/* The uploaded photo and typed message are drawn on top of its own    */
+/* zones, not reconstructed separately. Whatever's in this image       */
+/* outside those two zones (including the watermark) stays visible.    */
+/* ------------------------------------------------------------------ */
+const LABEL_TEMPLATE_IMG =
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/cust%20placeholder/candle%20placeholder.jpg";
+
+/* ------------------------------------------------------------------ */
 /* TUNABLE CONSTANTS — where the label sits on the candle photo, and   */
 /* the label's own internal layout (photo zone left, text zone right,  */
 /* matching the real reference photo). Nudge these once you see it     */
 /* live against your actual candle image.                              */
 /* ------------------------------------------------------------------ */
 
-const LABEL_LEFT_PCT = 28;   // label's left edge, as % of candle image width
-const LABEL_TOP_PCT = 38;    // label's top edge, as % of candle image height
-const LABEL_WIDTH_PCT = 46;  // label's width, as % of candle image width
-const LABEL_ASPECT = 2.3;    // label width / height (wide rectangle wrap)
+const LABEL_LEFT_PCT = 9;    // label's left edge, as % of candle image width
+const LABEL_TOP_PCT = 45;    // label's top edge, as % of candle image height
+const LABEL_WIDTH_PCT = 82;  // label's width, as % of candle image width
+const LABEL_ASPECT = 3.08;   // matches the real candle placeholder.jpg proportions
 
-// Within the label itself (0-100% of the label's own box):
+// Within the label itself (0-100% of the label's own box) — derived
+// directly from the real template's own pixel layout.
 const PHOTO_ZONE = { left: 4, top: 8, width: 42, height: 84 };
 const TEXT_ZONE = { left: 50, top: 10, width: 46, height: 80 };
 
 const LABEL_CANVAS_W = 900; // internal render resolution for the composite
 const LABEL_CANVAS_H = Math.round(LABEL_CANVAS_W / LABEL_ASPECT);
 
-const STRIP_COUNT = 20; // more strips = smoother curve, fewer = more "faceted"
+const STRIP_COUNT = 64; // more strips = smoother curve; too few = visible jagged steps
 
 /* ------------------------------------------------------------------ */
 
@@ -91,50 +101,61 @@ export default function CandleLabelWrap({
       setLabelDataUrl(url);
     }
 
-    // background (paper color)
-    ctx.fillStyle = "#FBF8F1";
-    ctx.fillRect(0, 0, LABEL_CANVAS_W, LABEL_CANVAS_H);
+    function drawPhotoAndFinish() {
+      if (photoUrl) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          const zx = (PHOTO_ZONE.left / 100) * LABEL_CANVAS_W;
+          const zy = (PHOTO_ZONE.top / 100) * LABEL_CANVAS_H;
+          const zw = (PHOTO_ZONE.width / 100) * LABEL_CANVAS_W;
+          const zh = (PHOTO_ZONE.height / 100) * LABEL_CANVAS_H;
 
-    if (photoUrl) {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        const zx = (PHOTO_ZONE.left / 100) * LABEL_CANVAS_W;
-        const zy = (PHOTO_ZONE.top / 100) * LABEL_CANVAS_H;
-        const zw = (PHOTO_ZONE.width / 100) * LABEL_CANVAS_W;
-        const zh = (PHOTO_ZONE.height / 100) * LABEL_CANVAS_H;
-
-        // cover-fit crop into the photo zone
-        const srcRatio = img.width / img.height;
-        const dstRatio = zw / zh;
-        let sx = 0, sy = 0, sw = img.width, sh = img.height;
-        if (srcRatio > dstRatio) {
-          sw = img.height * dstRatio;
-          sx = (img.width - sw) / 2;
-        } else {
-          sh = img.width / dstRatio;
-          sy = (img.height - sh) / 2;
-        }
-        ctx.drawImage(img, sx, sy, sw, sh, zx, zy, zw, zh);
+          // cover-fit crop into the photo zone
+          const srcRatio = img.width / img.height;
+          const dstRatio = zw / zh;
+          let sx = 0, sy = 0, sw = img.width, sh = img.height;
+          if (srcRatio > dstRatio) {
+            sw = img.height * dstRatio;
+            sx = (img.width - sw) / 2;
+          } else {
+            sh = img.width / dstRatio;
+            sy = (img.height - sh) / 2;
+          }
+          ctx!.drawImage(img, sx, sy, sw, sh, zx, zy, zw, zh);
+          drawTextZone();
+          finish();
+        };
+        img.onerror = () => {
+          drawTextZone();
+          finish();
+        };
+        img.src = photoUrl;
+      } else {
+        // no photo yet — leave the template's own placeholder art showing
+        // through in the photo zone, just draw the text on top of it.
         drawTextZone();
         finish();
-      };
-      img.onerror = () => {
-        drawTextZone();
-        finish();
-      };
-      img.src = photoUrl;
-    } else {
-      // no photo yet — draw a placeholder box so the layout is still visible
-      const zx = (PHOTO_ZONE.left / 100) * LABEL_CANVAS_W;
-      const zy = (PHOTO_ZONE.top / 100) * LABEL_CANVAS_H;
-      const zw = (PHOTO_ZONE.width / 100) * LABEL_CANVAS_W;
-      const zh = (PHOTO_ZONE.height / 100) * LABEL_CANVAS_H;
-      ctx.fillStyle = "#E5DCC8";
-      ctx.fillRect(zx, zy, zw, zh);
-      drawTextZone();
-      finish();
+      }
     }
+
+    // Load the REAL template image first and draw it as the base layer —
+    // this is what makes the label look like your actual product design
+    // (including anything outside the two zones) rather than a plain
+    // generic rectangle.
+    const templateImg = new Image();
+    templateImg.crossOrigin = "anonymous";
+    templateImg.onload = () => {
+      ctx.drawImage(templateImg, 0, 0, LABEL_CANVAS_W, LABEL_CANVAS_H);
+      drawPhotoAndFinish();
+    };
+    templateImg.onerror = () => {
+      // fallback if the template fails to load, so it never renders blank
+      ctx.fillStyle = "#FBF8F1";
+      ctx.fillRect(0, 0, LABEL_CANVAS_W, LABEL_CANVAS_H);
+      drawPhotoAndFinish();
+    };
+    templateImg.src = LABEL_TEMPLATE_IMG;
   }, [photoUrl, message]);
 
   return (
@@ -163,8 +184,9 @@ export default function CandleLabelWrap({
               "wrapped around a jar" without any real 3D warping. */}
           {Array.from({ length: STRIP_COUNT }).map((_, i) => {
             const t = (i + 0.5) / STRIP_COUNT; // 0..1 across the label
-            // cosine falloff: 1.0 at center, dips toward the edges
-            const curve = 0.86 + 0.14 * Math.sin(t * Math.PI);
+            // cosine falloff: 1.0 at center, dips toward the edges —
+            // amplitude increased again for a more pronounced wrap.
+            const curve = 0.6 + 0.4 * Math.sin(t * Math.PI);
             return (
               <div
                 key={i}

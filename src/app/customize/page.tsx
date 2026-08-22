@@ -32,13 +32,8 @@ export default function CustomizeCandlePage() {
   const [scents, setScents] = useState<string[]>([]);
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [photoScale, setPhotoScale] = useState(1);
-  const [photoPos, setPhotoPos] = useState<Point>({ x: 50, y: 42 });
-  const [textPos, setTextPos] = useState<Point>({ x: 50, y: 62 });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const dragTarget = useRef<"photo" | "text" | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
   const selectedSize = SIZES.find((s) => s.id === size)!;
@@ -72,128 +67,22 @@ export default function CustomizeCandlePage() {
       return;
     }
     setPhotoUrl(URL.createObjectURL(file));
-    setPhotoScale(1);
+    
   }
 
   function scrollToPreview() {
     previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  // --- Drag handling, shared for both the photo and the text ---
-  const handlePointerDown = useCallback((target: "photo" | "text") => (e: React.PointerEvent) => {
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    dragTarget.current = target;
-  }, []);
 
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragTarget.current || !stageRef.current) return;
-    const rect = stageRef.current.getBoundingClientRect();
-    const xPct = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
-    const yPct = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100));
-
-    if (dragTarget.current === "photo") setPhotoPos({ x: xPct, y: yPct });
-    if (dragTarget.current === "text") setTextPos({ x: xPct, y: yPct });
-  }, []);
-
-  const handlePointerUp = useCallback(() => {
-    dragTarget.current = null;
-  }, []);
 
   return (
     <div style={{ backgroundColor: "#FFF4E6" }} className="w-full min-h-screen">
-      {/* ---------------- TOP: live, draggable preview ---------------- */}
-<div
-  ref={previewRef}
-  className="relative flex items-center justify-center px-6 pt-2 pb-0"
->
-        <div
-  ref={stageRef}
-  className="relative w-full max-w-[180px] md:max-w-[300px] touch-none"
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-        >
-          <img src={selectedSize.img} alt="Your customized candle" className="w-full h-auto pointer-events-none" />
-
-          {/* Photo — draggable, croppable via zoom slider, no background box
-              once a real photo is added (so it reads as printed, not pasted) */}
-          {photoUrl ? (
-            <div
-              onPointerDown={handlePointerDown("photo")}
-              className="absolute rounded-md overflow-hidden cursor-grab active:cursor-grabbing"
-              style={{
-                left: `${photoPos.x}%`,
-                top: `${photoPos.y}%`,
-                width: "34%",
-                aspectRatio: "1 / 1",
-                transform: "translate(-50%, -50%)",
-                boxShadow: "0 2px 8px rgba(53,36,28,0.25)",
-              }}
-            >
-              <img
-                src={photoUrl}
-                alt="Your photo"
-                className="w-full h-full object-cover pointer-events-none"
-                style={{ transform: `scale(${photoScale})` }}
-              />
-            </div>
-          ) : (
-            <div
-              className="absolute flex items-center justify-center rounded-md"
-              style={{
-                left: `${photoPos.x}%`,
-                top: `${photoPos.y}%`,
-                width: "34%",
-                aspectRatio: "1 / 1",
-                transform: "translate(-50%, -50%)",
-                border: "1.5px dashed rgba(0,0,0,0.3)",
-              }}
-            >
-              <span className="text-[9px] text-center px-1" style={{ color: "rgba(0,0,0,0.4)" }}>
-                photo goes here
-              </span>
-            </div>
-          )}
-
-          {/* Message — draggable text, no box, sits directly on the label
-              area like real printed text */}
-          <p
-            onPointerDown={handlePointerDown("text")}
-            className="absolute text-center px-1 cursor-grab active:cursor-grabbing select-none"
-            style={{
-              left: `${textPos.x}%`,
-              top: `${textPos.y}%`,
-              transform: "translate(-50%, -50%)",
-              width: "40%",
-              fontSize: "11px",
-              fontWeight: 600,
-              color: message ? "#DE4B33" : "rgba(0,0,0,0.35)",
-              textShadow: "0 1px 2px rgba(255,255,255,0.6)",
-            }}
-          >
-            {message || "your message"}
-          </p>
-        </div>
+                 {/* ---------------- TOP: live preview, curved/wrapped ---------------- */}
+      <div ref={previewRef} className="relative flex items-center justify-center px-6 pt-2 pb-4">
+        <CandleLabelWrap candleImg={selectedSize.img} photoUrl={photoUrl} message={message} />
       </div>
-
-      {/* Zoom control for the photo, only shown once a photo exists */}
-      {photoUrl && (
-        <div className="flex items-center justify-center gap-3 px-6 pb-4">
-          <span className="text-[11px]" style={{ color: "rgba(0,0,0,0.5)" }}>Zoom</span>
-          <input
-            type="range"
-            min={1}
-            max={2.5}
-            step={0.05}
-            value={photoScale}
-            onChange={(e) => setPhotoScale(Number(e.target.value))}
-            className="w-40"
-          />
-        </div>
-      )}
-      <p className="text-center text-[11px] mb-1" style={{ color: "rgba(0,0,0,0.4)" }}>
-  Drag your photo and message to place them exactly where you like
-</p>
-
+         
       {/* ---------------- BELOW: form ---------------- */}
       <div className="px-6 md:px-12 py-4 md:py-16 flex flex-col max-w-2xl mx-auto">
         <p className="uppercase tracking-[0.25em] text-xs md:text-sm mb-3" style={{ color: "#DE4B33" }}>
@@ -337,14 +226,11 @@ export default function CustomizeCandlePage() {
 <button
   onClick={() => {
     // TODO: wire this up to your actual checkout/cart flow once ready
-    console.log("Add custom candle to cart", {
+      console.log("Add custom candle to cart", {
       size,
       scent,
       message,
       photoUrl,
-      photoPos,
-      textPos,
-      photoScale,
     });
   }}
   className="mt-6 inline-flex items-center justify-center gap-2 px-10 py-3 rounded-full text-sm md:text-base font-medium transition-colors bg-[#DE4B33] hover:bg-[#B23A26] active:bg-[#B23A26]"
