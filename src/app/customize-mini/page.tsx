@@ -155,7 +155,7 @@ export default function CustomizeMiniPage() {
           style={{ border: "1.5px solid #DE4B33", backgroundColor: "#EFE3C4" }}
         >
           <p className="text-xs mb-3" style={{ color: "rgba(0,0,0,0.7)" }}>
-           Because mini candles have limited space, please use initials only not full photos or detailed images. Check the design reference above 2for examples.
+           Because mini candles have limited space, please use initials only not full photos or detailed images. Check the design reference above for examples.
           </p>
 
           <button

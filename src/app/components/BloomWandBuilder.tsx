@@ -21,6 +21,17 @@ type UploadedPhoto = {
 const ACCENT = "#6E86C7";
 const ACCENT_DARK = "#5A70B0";
 
+/*
+ * These are the 3 Bloom Wand "With Photo" images.
+ * We use these directly instead of relying on the
+ * image_urls stored in Supabase.
+ */
+const BLOOM_WAND_WITH_PHOTO_IMAGES = [
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/wand%20with%20pic%201.jpg",
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/wand%20with%20pic%202.jpg",
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/wand%20with%20pic%203.jpg",
+];
+
 export default function BloomWandBuilder({
   product,
 }: {
@@ -32,6 +43,9 @@ export default function BloomWandBuilder({
     useState(0);
 
   const [selectedOptionIndex, setSelectedOptionIndex] =
+    useState(0);
+
+  const [selectedPreviewImageIndex, setSelectedPreviewImageIndex] =
     useState(0);
 
   const [quantity, setQuantity] = useState(1);
@@ -60,26 +74,75 @@ export default function BloomWandBuilder({
     selectedOption?.name === "With Photo";
 
   /*
-   * Preview image for the builder.
-   * This can still show the selected option's image.
+   * IMPORTANT:
+   *
+   * For "With Photo", ALWAYS use the 3 URLs above.
+   * Do NOT use Supabase's image_urls field because
+   * it currently only contains one image.
    */
+  const previewImages: string[] = isWithPhoto
+    ? BLOOM_WAND_WITH_PHOTO_IMAGES
+    : selectedOption?.image_urls?.length
+      ? selectedOption.image_urls
+      : selectedOption?.image_url
+        ? [selectedOption.image_url]
+        : selectedColor?.image_url
+          ? [selectedColor.image_url]
+          : [];
+
   const previewImage =
-    selectedOption?.image_urls?.[0] ??
-    selectedOption?.image_url ??
-    selectedColor?.image_url;
+    previewImages[selectedPreviewImageIndex] ??
+    previewImages[0] ??
+    selectedColor?.image_url ??
+    "";
 
   /*
-   * IMPORTANT:
-   * For the order row we want the actual Bloom Wand
-   * image, NOT the "With Photo" option image.
-   *
-   * So when adding a With Photo item, use the color's
-   * base image instead of the With Photo image.
+   * Bloom Wand base image used in the order list.
    */
   const orderWandImage =
     selectedColor?.image_url ??
     selectedColor?.options?.[0]?.image_url ??
     "";
+
+  function handleColorChange(index: number) {
+    const currentOptionName =
+      selectedColor?.options?.[
+        selectedOptionIndex
+      ]?.name;
+
+    setSelectedColorIndex(index);
+
+    const newOptionIndex =
+      colors[index]?.options?.findIndex(
+        (option) =>
+          option.name === currentOptionName
+      );
+
+    if (
+      newOptionIndex !== undefined &&
+      newOptionIndex >= 0
+    ) {
+      setSelectedOptionIndex(newOptionIndex);
+    } else {
+      setSelectedOptionIndex(0);
+    }
+
+    /*
+     * Always start the gallery from image 1
+     * when changing color.
+     */
+    setSelectedPreviewImageIndex(0);
+  }
+
+  function handleOptionChange(index: number) {
+    setSelectedOptionIndex(index);
+
+    /*
+     * Always start from the first image when
+     * changing between options.
+     */
+    setSelectedPreviewImageIndex(0);
+  }
 
   function handlePhotosChange(
     e: React.ChangeEvent<HTMLInputElement>
@@ -108,7 +171,9 @@ export default function BloomWandBuilder({
       );
     }
 
-    // Allow selecting the same file again
+    /*
+     * Allows selecting the same file again.
+     */
     e.target.value = "";
   }
 
@@ -125,6 +190,16 @@ export default function BloomWandBuilder({
         (p) => p.id === selectedPhotoId
       );
 
+    /*
+     * With Photo requires an uploaded photo.
+     */
+    if (
+      isWithPhoto &&
+      !chosenPhoto
+    ) {
+      return;
+    }
+
     setOrderLines((prev) => [
       ...prev,
       {
@@ -137,20 +212,18 @@ export default function BloomWandBuilder({
 
         /*
          * For With Photo:
-         * use the Bloom Wand's color image.
+         * use the actual Bloom Wand base image.
          *
-         * For normal options:
-         * keep using the selected option image.
+         * For other options:
+         * use the selected option image.
          */
         image: isWithPhoto
           ? orderWandImage
-          : previewImage ?? "",
+          : previewImage,
 
         /*
-         * The uploaded photo is kept separately,
-         * so the order row displays:
-         *
-         * [wand] [uploaded photo]
+         * Store the customer's uploaded photo
+         * separately.
          */
         photoUrl: isWithPhoto
           ? chosenPhoto?.url
@@ -216,6 +289,8 @@ export default function BloomWandBuilder({
     >
       <main className="w-full max-w-3xl px-6 py-16 md:px-16">
 
+        {/* HEADER */}
+
         <p
           className="text-xs font-semibold uppercase tracking-[0.2em]"
           style={{
@@ -246,7 +321,7 @@ export default function BloomWandBuilder({
           </p>
         )}
 
-        {/* --- Builder card --- */}
+        {/* BUILDER CARD */}
 
         <div
           className="mt-6 flex flex-col gap-6 rounded-3xl p-6 md:flex-row md:p-8"
@@ -257,9 +332,12 @@ export default function BloomWandBuilder({
           }}
         >
 
-          {/* Live preview */}
+          {/* LEFT: PREVIEW + GALLERY */}
 
-          <div className="flex w-full flex-shrink-0 items-center justify-center md:w-48">
+          <div className="flex w-full flex-shrink-0 flex-col items-center md:w-48">
+
+            {/* MAIN PREVIEW */}
+
             <div
               className="flex aspect-square w-full items-center justify-center rounded-2xl p-4"
               style={{
@@ -269,14 +347,56 @@ export default function BloomWandBuilder({
               {previewImage && (
                 <img
                   src={previewImage}
-                  alt=""
+                  alt={product.name}
                   className="h-full w-full object-contain"
                 />
               )}
             </div>
+
+            {/* IMAGE GALLERY */}
+
+            {isWithPhoto &&
+              previewImages.length > 1 && (
+                <div className="mt-3 flex w-full justify-center gap-2">
+
+                  {previewImages.map(
+                    (url, index) => (
+                      <button
+                        key={`${url}-${index}`}
+                        type="button"
+                        onClick={() =>
+                          setSelectedPreviewImageIndex(
+                            index
+                          )
+                        }
+                        className="h-14 w-14 overflow-hidden rounded-lg border-2 transition-all duration-150 hover:scale-105 active:scale-95"
+                        style={{
+                          backgroundColor:
+                            "#FFFFFF",
+                          borderColor:
+                            index ===
+                            selectedPreviewImageIndex
+                              ? ACCENT
+                              : "transparent",
+                        }}
+                      >
+                        <img
+                          src={url}
+                          alt={`${product.name} photo ${
+                            index + 1
+                          }`}
+                          className="h-full w-full object-contain"
+                        />
+                      </button>
+                    )
+                  )}
+
+                </div>
+              )}
+
           </div>
 
-          {/* Selectors */}
+          {/* RIGHT: SELECTORS */}
 
           <div className="flex-1">
 
@@ -290,86 +410,71 @@ export default function BloomWandBuilder({
             >
               Color
             </p>
-<div className="mb-6 flex flex-wrap gap-4">
-  {colors.map(
-    (color, index) => {
-      const swatchImg =
-        color.options?.[0]
-          ?.image_url ??
-        color.image_url;
 
-      const isSelected =
-        index ===
-        selectedColorIndex;
+            <div className="mb-6 flex flex-wrap gap-4">
 
-      return (
-        <div
-          key={color.name}
-          className="flex flex-col items-center gap-2"
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedColorIndex(index);
+              {colors.map(
+                (color, index) => {
 
-              const currentOptionName =
-                selectedColor
-                  ?.options?.[
-                    selectedOptionIndex
-                  ]?.name;
+                  const swatchImg =
+                    color.options?.[0]
+                      ?.image_url ??
+                    color.image_url;
 
-              const newOptionIndex =
-                colors[index]?.options?.findIndex(
-                  (option) =>
-                    option.name ===
-                    currentOptionName
-                );
+                  const isSelected =
+                    index ===
+                    selectedColorIndex;
 
-              if (
-                newOptionIndex !==
-                  undefined &&
-                newOptionIndex >= 0
-              ) {
-                setSelectedOptionIndex(
-                  newOptionIndex
-                );
-              } else {
-                setSelectedOptionIndex(0);
-              }
-            }}
-            title={color.name}
-            className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-full border-2 transition-all duration-150 hover:scale-110 active:scale-95"
-            style={{
-              borderColor:
-                isSelected
-                  ? ACCENT
-                  : "transparent",
-              backgroundColor:
-                color.hex ?? "#ccc",
-            }}
-          >
-            {swatchImg && (
-              <img
-                src={swatchImg}
-                alt={color.name}
-                className="h-full w-full object-cover"
-              />
-            )}
-          </button>
+                  return (
+                    <div
+                      key={color.name}
+                      className="flex flex-col items-center gap-2"
+                    >
 
-          <span
-            className="text-xs font-medium text-center"
-            style={{
-              color: "#000000",
-            }}
-          >
-            {color.name}
-          </span>
-        </div>
-      );
-    }
-  )}
-</div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleColorChange(
+                            index
+                          )
+                        }
+                        title={color.name}
+                        className="h-11 w-11 flex-shrink-0 overflow-hidden rounded-full border-2 transition-all duration-150 hover:scale-110 active:scale-95"
+                        style={{
+                          borderColor:
+                            isSelected
+                              ? ACCENT
+                              : "transparent",
+                          backgroundColor:
+                            color.hex ??
+                            "#ccc",
+                        }}
+                      >
+                        {swatchImg && (
+                          <img
+                            src={swatchImg}
+                            alt={color.name}
+                            className="h-full w-full object-cover"
+                          />
+                        )}
+                      </button>
+
+                      <span
+                        className="text-center text-xs font-medium"
+                        style={{
+                          color:
+                            "#000000",
+                        }}
+                      >
+                        {color.name}
+                      </span>
+
+                    </div>
+                  );
+                }
+              )}
+
+            </div>
 
             {/* OPTION */}
 
@@ -383,8 +488,10 @@ export default function BloomWandBuilder({
             </p>
 
             <div className="mb-6 flex flex-wrap gap-2">
+
               {selectedColor?.options?.map(
                 (option, index) => {
+
                   const isSelected =
                     index ===
                     selectedOptionIndex;
@@ -394,10 +501,11 @@ export default function BloomWandBuilder({
                       key={option.name}
                       className="flex flex-col items-start gap-2"
                     >
+
                       <button
                         type="button"
                         onClick={() =>
-                          setSelectedOptionIndex(
+                          handleOptionChange(
                             index
                           )
                         }
@@ -411,14 +519,15 @@ export default function BloomWandBuilder({
                             isSelected
                               ? "#FFF4E6"
                               : ACCENT,
-                          border: `1px solid ${ACCENT}`,
+                          border:
+                            `1px solid ${ACCENT}`,
                         }}
                       >
                         {option.name} ·{" "}
                         {option.price} EGP
                       </button>
 
-                      {/* Upload button ONLY under With Photo */}
+                      {/* UPLOAD PHOTO */}
 
                       {isSelected &&
                         option.name ===
@@ -456,18 +565,21 @@ export default function BloomWandBuilder({
                             />
                           </>
                         )}
+
                     </div>
                   );
                 }
               )}
+
             </div>
 
-            {/* Uploaded photos */}
+            {/* UPLOADED PHOTOS */}
 
             {isWithPhoto &&
               uploadedPhotos.length >
                 0 && (
                 <div className="mb-6">
+
                   <p
                     className="mb-2 text-xs font-semibold uppercase tracking-[0.15em]"
                     style={{
@@ -478,8 +590,10 @@ export default function BloomWandBuilder({
                   </p>
 
                   <div className="flex flex-wrap gap-3">
+
                     {uploadedPhotos.map(
                       (photo) => {
+
                         const isSelected =
                           photo.id ===
                           selectedPhotoId;
@@ -489,6 +603,7 @@ export default function BloomWandBuilder({
                             key={photo.id}
                             className="flex flex-col items-center gap-1"
                           >
+
                             <button
                               type="button"
                               onClick={() =>
@@ -528,15 +643,18 @@ export default function BloomWandBuilder({
                             >
                               apply to all
                             </button>
+
                           </div>
                         );
                       }
                     )}
+
                   </div>
+
                 </div>
               )}
 
-            {/* Quantity */}
+            {/* QUANTITY */}
 
             <p
               className="mb-2 text-xs font-semibold uppercase tracking-[0.15em]"
@@ -598,7 +716,7 @@ export default function BloomWandBuilder({
 
             </div>
 
-            {/* Add to order */}
+            {/* ADD TO ORDER */}
 
             <button
               type="button"
@@ -618,9 +736,10 @@ export default function BloomWandBuilder({
             </button>
 
           </div>
+
         </div>
 
-        {/* --- Running order list --- */}
+        {/* RUNNING ORDER */}
 
         {orderLines.length > 0 && (
           <div className="mt-8">
@@ -649,7 +768,7 @@ export default function BloomWandBuilder({
 
                     <div className="flex items-center gap-3">
 
-                      {/* Bloom Wand image */}
+                      {/* WAND */}
 
                       {line.image && (
                         <img
@@ -663,7 +782,7 @@ export default function BloomWandBuilder({
                         />
                       )}
 
-                      {/* Uploaded photo */}
+                      {/* CUSTOMER PHOTO */}
 
                       {line.photoUrl && (
                         <img
@@ -726,6 +845,8 @@ export default function BloomWandBuilder({
 
             </div>
 
+            {/* TOTAL */}
+
             <div
               className="mt-4 flex items-center justify-between rounded-xl px-4 py-4"
               style={{
@@ -757,6 +878,8 @@ export default function BloomWandBuilder({
                 {totalPrice} EGP
               </span>
             </div>
+
+            {/* CART */}
 
             <button
               type="button"
