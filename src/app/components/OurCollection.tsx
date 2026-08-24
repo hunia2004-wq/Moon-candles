@@ -61,7 +61,7 @@ export default function OurCollection() {
         <h2
           className="text-5xl font-normal tracking-tight md:text-[76px]"
           style={{
-            color: "black",
+            color: "white",
             fontFamily: "Georgia, serif",
             lineHeight: "0.95",
           }}

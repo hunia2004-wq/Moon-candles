@@ -150,6 +150,14 @@ export default function HamburgerMenu() {
               >
                 Customize Your candle
               </Link>
+               <Link
+                href="/giveaways"
+                onClick={closeAll}
+                className="border-t py-3"
+                style={{ borderColor: "#FFD6B8", color: "#000000" }}
+              >
+                Customize Your giveaways
+              </Link>
                     </nav>
           </div>
 

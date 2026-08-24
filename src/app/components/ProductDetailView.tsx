@@ -18,6 +18,12 @@ type OrderLine = {
   image: string;
 };
 
+type GalleryItem = {
+  url: string;
+  colorName: string | null;
+  colorIndex: number;
+};
+
 const GIVEAWAY_NAMES = [
   "Mini Candles",
   "Quack and Kiss",
@@ -45,10 +51,30 @@ const TWO_COLOR_PRODUCTS = [
   "Noor Al Qamar",
   "Noor El Kamar",
 ];
+
+/*
+ * ============================================================
+ * PRODUCTS WHOSE COLORS SHOULD BE SWIPED IN THE GALLERY
+ * ============================================================
+ *
+ * These products have one/more images per color, and the
+ * horizontal gallery should move through the COLORS themselves.
+ */
+const COLOR_SCROLL_PRODUCTS = [
+  "Marble",
+  "Dimple",
+  "Iced Latte",
+];
+
 const QUACK_IMAGES = {
-  combo: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/bride%20and%20groom%20duck.png",
-  bride: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/bride%20duck.png",
-  groom: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/groom%20duck.png",
+  combo:
+    "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/bride%20and%20groom%20duck.png",
+
+  bride:
+    "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/bride%20duck.png",
+
+  groom:
+    "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/groom%20duck.png",
 };
 
 export default function ProductDetailView({
@@ -65,12 +91,6 @@ export default function ProductDetailView({
    * ============================================================
    * PRODUCT NAME
    * ============================================================
-   *
-   * IMPORTANT:
-   * Keep the original product object as the source of truth.
-   *
-   * Some Supabase rows may expose the name as `name`, while older
-   * data/types may use another property.
    */
 
   const rawProduct = product as Product & {
@@ -98,6 +118,12 @@ export default function ProductDetailView({
   const normalizedProductName =
     productName.trim().toLowerCase();
 
+  /*
+   * ============================================================
+   * SPECIAL PRODUCT TYPES
+   * ============================================================
+   */
+
   const preselectedColor =
     searchParams.get("color");
 
@@ -117,6 +143,19 @@ export default function ProductDetailView({
 
   const isTwoColorProduct =
     TWO_COLOR_PRODUCTS.some(
+      (name) =>
+        name.toLowerCase() ===
+        normalizedProductName
+    );
+
+  /*
+   * THIS IS THE IMPORTANT PART
+   *
+   * Marble, Dimple and Iced Latte are treated as a single
+   * horizontally scrollable color gallery.
+   */
+  const isColorScrollProduct =
+    COLOR_SCROLL_PRODUCTS.some(
       (name) =>
         name.toLowerCase() ===
         normalizedProductName
@@ -171,7 +210,7 @@ export default function ProductDetailView({
     selectedColorIndex,
     setSelectedColorIndex,
   ] = useState(
-    getInitialColorIndex
+    getInitialColorIndex()
   );
 
   const [
@@ -365,13 +404,23 @@ export default function ProductDetailView({
       );
 
       setSelectedOptionIndex(0);
-      setSelectedImageIndex(0);
+
+      /*
+       * IMPORTANT:
+       *
+       * Do NOT reset the image for Marble/Dimple/Iced Latte.
+       * Their gallery itself controls the color.
+       */
+      if (!isColorScrollProduct) {
+        setSelectedImageIndex(0);
+      }
     }
   }, [
     searchParams,
     product.id,
     product.colors,
     selectedColorIndex,
+    isColorScrollProduct,
   ]);
 
   /*
@@ -380,114 +429,205 @@ export default function ProductDetailView({
    * ============================================================
    */
 
-  const galleryItems = (() => {
-    const items: {
-      url: string;
-      colorName: string | null;
-    }[] = [];
+  const galleryItems: GalleryItem[] =
+    (() => {
+      const items: GalleryItem[] = [];
 
-    const addImage = (
-      url?: string | null,
-      colorName?: string | null
-    ) => {
-      if (!url) return;
+      const addImage = (
+        url?: string | null,
+        colorName?: string | null,
+        colorIndex: number = -1
+      ) => {
+        if (!url) return;
 
-      if (
-        !items.some(
-          (item) =>
-            item.url === url
-        )
-      ) {
-        items.push({
-          url,
-          colorName:
-            colorName ?? null,
+        if (
+          !items.some(
+            (item) =>
+              item.url === url
+          )
+        ) {
+          items.push({
+            url,
+            colorName:
+              colorName ?? null,
+            colorIndex,
+          });
+        }
+      };
+
+      const addImages = (
+        urls?: string[],
+        colorName?: string | null,
+        colorIndex: number = -1
+      ) => {
+        if (!urls) return;
+
+        urls.forEach((url) => {
+          addImage(
+            url,
+            colorName,
+            colorIndex
+          );
         });
-      }
-    };
+      };
 
-    const addImages = (
-      urls?: string[],
-      colorName?: string | null
-    ) => {
-      if (!urls) return;
+      /*
+       * ========================================================
+       * MARBLE / DIMPLE / ICED LATTE
+       * ========================================================
+       *
+       * SPECIAL BEHAVIOR:
+       *
+       * Every color is added to the SAME gallery.
+       *
+       * Example:
+       *
+       * image 0 -> White
+       * image 1 -> Pink
+       * image 2 -> Blue
+       * image 3 -> Green
+       *
+       * Swiping therefore moves through colors.
+       */
+      if (isColorScrollProduct) {
+        product.colors?.forEach(
+          (color, colorIndex) => {
+            /*
+             * Prefer the color's own image_urls.
+             */
+            addImages(
+              color.image_urls,
+              color.name,
+              colorIndex
+            );
 
-      urls.forEach((url) => {
-        addImage(
-          url,
-          colorName
-        );
-      });
-    };
+            /*
+             * Also support a single image_url.
+             */
+            addImage(
+              color.image_url,
+              color.name,
+              colorIndex
+            );
 
-    if (selectedColor) {
-      if (
-        hasOptions &&
-        selectedOption
-      ) {
-        addImages(
-          selectedOption.image_urls,
-          selectedColor.name
-        );
+            /*
+             * If the color has options, include their
+             * images too.
+             */
+            color.options?.forEach(
+              (option) => {
+                addImages(
+                  option.image_urls,
+                  color.name,
+                  colorIndex
+                );
 
-        addImage(
-          selectedOption.image_url,
-          selectedColor.name
-        );
-      }
-
-      addImages(
-        selectedColor.image_urls,
-        selectedColor.name
-      );
-
-      addImage(
-        selectedColor.image_url,
-        selectedColor.name
-      );
-
-      selectedColor.options?.forEach(
-        (
-          option,
-          optionIndex
-        ) => {
-          if (
-            hasOptions &&
-            optionIndex ===
-              selectedOptionIndex
-          ) {
-            return;
+                addImage(
+                  option.image_url,
+                  color.name,
+                  colorIndex
+                );
+              }
+            );
           }
+        );
 
+        /*
+         * Fallback if colors don't contain images.
+         */
+        if (items.length === 0) {
           addImages(
-            option.image_urls,
-            selectedColor.name
+            product.image_urls,
+            null,
+            -1
+          );
+        }
+
+        return items;
+      }
+
+      /*
+       * ========================================================
+       * NORMAL PRODUCTS
+       * ========================================================
+       */
+
+      if (selectedColor) {
+        if (
+          hasOptions &&
+          selectedOption
+        ) {
+          addImages(
+            selectedOption.image_urls,
+            selectedColor.name,
+            selectedColorIndex
           );
 
           addImage(
-            option.image_url,
-            selectedColor.name
+            selectedOption.image_url,
+            selectedColor.name,
+            selectedColorIndex
           );
         }
-      );
 
-      if (items.length === 0) {
+        addImages(
+          selectedColor.image_urls,
+          selectedColor.name,
+          selectedColorIndex
+        );
+
+        addImage(
+          selectedColor.image_url,
+          selectedColor.name,
+          selectedColorIndex
+        );
+
+        selectedColor.options?.forEach(
+          (
+            option,
+            optionIndex
+          ) => {
+            if (
+              hasOptions &&
+              optionIndex ===
+                selectedOptionIndex
+            ) {
+              return;
+            }
+
+            addImages(
+              option.image_urls,
+              selectedColor.name,
+              selectedColorIndex
+            );
+
+            addImage(
+              option.image_url,
+              selectedColor.name,
+              selectedColorIndex
+            );
+          }
+        );
+
+        if (items.length === 0) {
+          addImages(
+            product.image_urls,
+            selectedColor.name,
+            selectedColorIndex
+          );
+        }
+      }
+
+      if (!selectedColor) {
         addImages(
           product.image_urls,
-          selectedColor.name
+          null,
+          -1
         );
       }
-    }
 
-    if (!selectedColor) {
-      addImages(
-        product.image_urls,
-        null
-      );
-    }
-
-    return items;
-  })();
+      return items;
+    })();
 
   const gallery =
     galleryItems.map(
@@ -509,7 +649,7 @@ export default function ProductDetailView({
 
   /*
    * ============================================================
-   * GALLERY SCROLLING
+   * SCROLL TO IMAGE
    * ============================================================
    */
 
@@ -571,7 +711,40 @@ export default function ProductDetailView({
     setSelectedImageIndex(
       safeIndex
     );
+
+    /*
+     * ========================================================
+     * IMPORTANT:
+     * Update selected color when the gallery moves.
+     * ========================================================
+     */
+    if (
+      isColorScrollProduct
+    ) {
+      const galleryColorIndex =
+        galleryItems[
+          safeIndex
+        ]?.colorIndex;
+
+      if (
+        galleryColorIndex >= 0 &&
+        galleryColorIndex !==
+          selectedColorIndex
+      ) {
+        setSelectedColorIndex(
+          galleryColorIndex
+        );
+
+        setSelectedOptionIndex(0);
+      }
+    }
   }
+
+  /*
+   * ============================================================
+   * HANDLE GALLERY SCROLL
+   * ============================================================
+   */
 
   function handleGalleryScroll() {
     const container =
@@ -590,6 +763,7 @@ export default function ProductDetailView({
         2;
 
     let closestIndex = 0;
+
     let closestDistance =
       Infinity;
 
@@ -624,10 +798,51 @@ export default function ProductDetailView({
       }
     );
 
-    setSelectedImageIndex(
-      closestIndex
-    );
+    if (
+      closestIndex !==
+      selectedImageIndex
+    ) {
+      setSelectedImageIndex(
+        closestIndex
+      );
+    }
+
+    /*
+     * ========================================================
+     * THIS IS THE KEY FIX.
+     *
+     * When the user physically swipes to another image,
+     * determine which color that image belongs to.
+     * ========================================================
+     */
+    if (
+      isColorScrollProduct
+    ) {
+      const item =
+        galleryItems[
+          closestIndex
+        ];
+
+      if (
+        item &&
+        item.colorIndex >= 0 &&
+        item.colorIndex !==
+          selectedColorIndex
+      ) {
+        setSelectedColorIndex(
+          item.colorIndex
+        );
+
+        setSelectedOptionIndex(0);
+      }
+    }
   }
+
+  /*
+   * ============================================================
+   * NEXT / PREVIOUS
+   * ============================================================
+   */
 
   function nextImage() {
     if (gallery.length <= 1) {
@@ -852,21 +1067,40 @@ export default function ProductDetailView({
    * ============================================================
    * RESET GALLERY WHEN COLOR CHANGES
    * ============================================================
+   *
+   * NORMAL PRODUCTS:
+   *   Reset to their first image.
+   *
+   * MARBLE / DIMPLE / ICED LATTE:
+   *   DO NOT RESET.
+   *
+   * Their gallery is the color selector.
    */
-
   useEffect(() => {
     setSelectedOptionIndex(0);
-    setSelectedImageIndex(0);
 
-    imageRefs.current = [];
+    /*
+     * This is intentionally disabled for the three
+     * color-scroll products.
+     */
+    if (
+      !isColorScrollProduct
+    ) {
+      setSelectedImageIndex(0);
 
-    requestAnimationFrame(() => {
-      imageScrollRef.current?.scrollTo({
-        left: 0,
-        behavior: "auto",
+      imageRefs.current = [];
+
+      requestAnimationFrame(() => {
+        imageScrollRef.current?.scrollTo({
+          left: 0,
+          behavior: "auto",
+        });
       });
-    });
-  }, [selectedColorIndex]);
+    }
+  }, [
+    selectedColorIndex,
+    isColorScrollProduct,
+  ]);
 
   /*
    * ============================================================
@@ -875,6 +1109,13 @@ export default function ProductDetailView({
    */
 
   useEffect(() => {
+    /*
+     * Do not interfere with the color gallery.
+     */
+    if (isColorScrollProduct) {
+      return;
+    }
+
     setSelectedImageIndex(0);
 
     imageRefs.current = [];
@@ -885,7 +1126,10 @@ export default function ProductDetailView({
         behavior: "auto",
       });
     });
-  }, [selectedOptionIndex]);
+  }, [
+    selectedOptionIndex,
+    isColorScrollProduct,
+  ]);
 
   /*
    * ============================================================
@@ -930,7 +1174,12 @@ export default function ProductDetailView({
         onScroll
       );
     };
-  }, [gallery.length]);
+  }, [
+    gallery.length,
+    isColorScrollProduct,
+    selectedColorIndex,
+    selectedImageIndex,
+  ]);
 
   /*
    * ============================================================
@@ -1329,7 +1578,8 @@ export default function ProductDetailView({
         brideQuantity,
       scent: null,
       color: "Bride",
-             image: QUACK_IMAGES.bride,
+      image:
+        QUACK_IMAGES.bride,
     };
 
     const updatedCart = [
@@ -1399,15 +1649,15 @@ export default function ProductDetailView({
         ...prev,
         {
           id,
-          colorName:
-            "Bride",
+          colorName: "Bride",
           scentName: null,
           price: Number(
             displayPrice
           ),
           quantity:
             brideQuantity,
-               image: QUACK_IMAGES.bride,
+          image:
+            QUACK_IMAGES.bride,
         },
       ];
     });
@@ -1443,8 +1693,8 @@ export default function ProductDetailView({
         groomQuantity,
       scent: null,
       color: "Groom",
-      
-      image: QUACK_IMAGES.groom,
+      image:
+        QUACK_IMAGES.groom,
     };
 
     const updatedCart = [
@@ -1514,23 +1764,25 @@ export default function ProductDetailView({
         ...prev,
         {
           id,
-          colorName:
-            "Groom",
+          colorName: "Groom",
           scentName: null,
           price: Number(
             displayPrice
           ),
           quantity:
             groomQuantity,
-               image: QUACK_IMAGES.groom,
+          image:
+            QUACK_IMAGES.groom,
         },
       ];
     });
   }
+
   function addQuackAndKissToCart() {
     if (selectedBride) {
       addBrideToCart();
     }
+
     if (selectedGroom) {
       addGroomToCart();
     }
@@ -1539,8 +1791,6 @@ export default function ProductDetailView({
   function removeDuck(
     type: "Bride" | "Groom"
   ) {
-    
-  
     const id = `${product.id}-${type.toLowerCase()}`;
 
     const existingCart =
@@ -1954,7 +2204,9 @@ export default function ProductDetailView({
       <main className="relative mx-auto w-full max-w-7xl overflow-visible px-5 pb-16 pt-2 md:px-10 md:pt-8">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:gap-12">
 
+          {/* ================================================== */}
           {/* LEFT */}
+          {/* ================================================== */}
 
           <section className="min-w-0">
             <div className="relative">
@@ -1966,6 +2218,10 @@ export default function ProductDetailView({
                     accent,
                 }}
               />
+
+              {/* ==================================================
+                  IMAGE GALLERY
+                  ================================================== */}
 
               <div
                 ref={imageScrollRef}
@@ -2009,7 +2265,11 @@ export default function ProductDetailView({
                       >
                         <img
                           src={url}
-                          alt={`${productName} image ${
+                          alt={`${productName} ${
+                            galleryColorNames[
+                              index
+                            ] ?? ""
+                          } image ${
                             index + 1
                           }`}
                           className="h-full w-full select-none object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.10)]"
@@ -2066,6 +2326,10 @@ export default function ProductDetailView({
               </div>
             </div>
 
+            {/* ==================================================
+                ACTIVE COLOR
+                ================================================== */}
+
             {hasColors &&
               activeGalleryColor && (
                 <div className="mt-1 flex justify-center">
@@ -2084,6 +2348,10 @@ export default function ProductDetailView({
                   </span>
                 </div>
               )}
+
+            {/* ==================================================
+                PRODUCT TITLE
+                ================================================== */}
 
             <div className="mt-3 flex flex-col items-center text-center">
 
@@ -2169,6 +2437,10 @@ export default function ProductDetailView({
               </div>
             </div>
 
+            {/* ==================================================
+                GALLERY DOTS
+                ================================================== */}
+
             {gallery.length > 1 && (
               <div className="mt-2 flex justify-center gap-2">
                 {gallery.map(
@@ -2179,8 +2451,11 @@ export default function ProductDetailView({
                     <button
                       key={`dot-${product.id}-${index}`}
                       type="button"
-                      aria-label={`Go to image ${
-                        index + 1
+                      aria-label={`Go to ${
+                        galleryColorNames[
+                          index
+                        ] ??
+                        "image"
                       }`}
                       onClick={() =>
                         scrollToImage(
@@ -2205,6 +2480,10 @@ export default function ProductDetailView({
                 )}
               </div>
             )}
+
+            {/* ==================================================
+                COLOR SWATCHES
+                ================================================== */}
 
             {hasColors &&
               !isTwoColorProduct && (
@@ -2255,12 +2534,43 @@ export default function ProductDetailView({
                                 0
                               );
 
-                              setSelectedImageIndex(
-                                0
-                              );
+                              /*
+                               * For Marble/Dimple/Iced Latte,
+                               * clicking a swatch should scroll
+                               * directly to that color's image.
+                               */
+                              if (
+                                isColorScrollProduct
+                              ) {
+                                const targetIndex =
+                                  galleryItems.findIndex(
+                                    (
+                                      item
+                                    ) =>
+                                      item.colorIndex ===
+                                      index
+                                  );
 
-                              imageRefs.current =
-                                [];
+                                if (
+                                  targetIndex >=
+                                  0
+                                ) {
+                                  requestAnimationFrame(
+                                    () => {
+                                      scrollToImage(
+                                        targetIndex
+                                      );
+                                    }
+                                  );
+                                }
+                              } else {
+                                setSelectedImageIndex(
+                                  0
+                                );
+
+                                imageRefs.current =
+                                  [];
+                              }
                             }}
                             className="relative h-12 w-12 overflow-hidden rounded-full border-2 transition-all duration-200 hover:scale-110 active:scale-95"
                             style={{
@@ -2295,6 +2605,10 @@ export default function ProductDetailView({
                   </div>
                 </div>
               )}
+
+            {/* ==================================================
+                OPTIONS
+                ================================================== */}
 
             {hasOptions &&
               !isTwoColorProduct && (
@@ -2362,7 +2676,9 @@ export default function ProductDetailView({
               )}
           </section>
 
+          {/* ================================================== */}
           {/* RIGHT */}
+          {/* ================================================== */}
 
           <section className="flex flex-col lg:pt-6">
 
@@ -2379,6 +2695,10 @@ export default function ProductDetailView({
                 }
               </p>
             )}
+
+            {/* ==================================================
+                SCENT
+                ================================================== */}
 
             {!customizeOnly &&
               !isGiveaway &&
@@ -2461,6 +2781,10 @@ export default function ProductDetailView({
                   )}
                 </div>
               )}
+
+            {/* ==================================================
+                NOOR COLORS
+                ================================================== */}
 
             {!customizeOnly &&
               isTwoColorProduct && (
@@ -2686,6 +3010,10 @@ export default function ProductDetailView({
                 </div>
               )}
 
+            {/* ==================================================
+                QUACK & KISS
+                ================================================== */}
+
             {!customizeOnly &&
               isQuackAndKiss && (
                 <div className="mt-5">
@@ -2702,14 +3030,19 @@ export default function ProductDetailView({
 
                   <div className="grid grid-cols-2 gap-3">
 
-                                       <button
+                    <button
                       type="button"
                       onClick={() => {
                         if (
                           !selectedBride
                         ) {
-                          setSelectedBride(true);
-                          setBrideQuantity(1);
+                          setSelectedBride(
+                            true
+                          );
+
+                          setBrideQuantity(
+                            1
+                          );
                         }
                       }}
                       className="rounded-2xl border px-4 py-4 text-sm font-semibold transition-all hover:-translate-y-0.5"
@@ -2731,14 +3064,19 @@ export default function ProductDetailView({
                       Bride Duck
                     </button>
 
-                                       <button
+                    <button
                       type="button"
                       onClick={() => {
                         if (
                           !selectedGroom
                         ) {
-                          setSelectedGroom(true);
-                          setGroomQuantity(1);
+                          setSelectedGroom(
+                            true
+                          );
+
+                          setGroomQuantity(
+                            1
+                          );
                         }
                       }}
                       className="rounded-2xl border px-4 py-4 text-sm font-semibold transition-all hover:-translate-y-0.5"
@@ -2821,7 +3159,7 @@ export default function ProductDetailView({
                               +
                             </button>
 
-                                               <button
+                            <button
                               type="button"
                               onClick={() =>
                                 removeDuck(
@@ -2895,7 +3233,7 @@ export default function ProductDetailView({
                               +
                             </button>
 
-                                                         <button
+                            <button
                               type="button"
                               onClick={() =>
                                 removeDuck(
@@ -2913,6 +3251,10 @@ export default function ProductDetailView({
                   </div>
                 </div>
               )}
+
+            {/* ==================================================
+                REGULAR ADD TO CART
+                ================================================== */}
 
             {!customizeOnly &&
               !isGiveaway &&
@@ -3062,23 +3404,41 @@ export default function ProductDetailView({
                 </>
               )}
 
-                       {isQuackAndKiss &&
-              (selectedBride || selectedGroom) && (
+            {/* ==================================================
+                QUACK ADD TO CART
+                ================================================== */}
+
+            {isQuackAndKiss &&
+              (selectedBride ||
+                selectedGroom) && (
                 <button
                   type="button"
-                  onClick={addQuackAndKissToCart}
+                  onClick={
+                    addQuackAndKissToCart
+                  }
                   className="mt-3 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
-                  style={{ backgroundColor: accent, color: "#FFF4E6" }}
+                  style={{
+                    backgroundColor:
+                      accent,
+                    color:
+                      "#FFF4E6",
+                  }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = accentDark;
+                    e.currentTarget.style.backgroundColor =
+                      accentDark;
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = accent;
+                    e.currentTarget.style.backgroundColor =
+                      accent;
                   }}
                 >
                   Add to Cart
                 </button>
               )}
+
+            {/* ==================================================
+                TOTAL
+                ================================================== */}
 
             {(isTwoColorProduct ||
               isQuackAndKiss) &&
@@ -3118,6 +3478,10 @@ export default function ProductDetailView({
                   </span>
                 </div>
               )}
+
+            {/* ==================================================
+                CUSTOMIZE
+                ================================================== */}
 
             {customizeRoute && (
               <button
