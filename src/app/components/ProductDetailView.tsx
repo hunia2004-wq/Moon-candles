@@ -45,6 +45,11 @@ const TWO_COLOR_PRODUCTS = [
   "Noor Al Qamar",
   "Noor El Kamar",
 ];
+const QUACK_IMAGES = {
+  combo: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/bride%20and%20groom%20duck.png",
+  bride: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/bride%20duck.png",
+  groom: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/groom%20duck.png",
+};
 
 export default function ProductDetailView({
   product,
@@ -1324,8 +1329,7 @@ export default function ProductDetailView({
         brideQuantity,
       scent: null,
       color: "Bride",
-      image:
-        gallery[0] ?? "",
+             image: QUACK_IMAGES.bride,
     };
 
     const updatedCart = [
@@ -1403,8 +1407,7 @@ export default function ProductDetailView({
           ),
           quantity:
             brideQuantity,
-          image:
-            gallery[0] ?? "",
+               image: QUACK_IMAGES.bride,
         },
       ];
     });
@@ -1440,8 +1443,8 @@ export default function ProductDetailView({
         groomQuantity,
       scent: null,
       color: "Groom",
-      image:
-        gallery[0] ?? "",
+      
+      image: QUACK_IMAGES.groom,
     };
 
     const updatedCart = [
@@ -1519,16 +1522,25 @@ export default function ProductDetailView({
           ),
           quantity:
             groomQuantity,
-          image:
-            gallery[0] ?? "",
+               image: QUACK_IMAGES.groom,
         },
       ];
     });
+  }
+  function addQuackAndKissToCart() {
+    if (selectedBride) {
+      addBrideToCart();
+    }
+    if (selectedGroom) {
+      addGroomToCart();
+    }
   }
 
   function removeDuck(
     type: "Bride" | "Groom"
   ) {
+    
+  
     const id = `${product.id}-${type.toLowerCase()}`;
 
     const existingCart =
@@ -2690,13 +2702,14 @@ export default function ProductDetailView({
 
                   <div className="grid grid-cols-2 gap-3">
 
-                    <button
+                                       <button
                       type="button"
                       onClick={() => {
                         if (
                           !selectedBride
                         ) {
-                          addBrideToCart();
+                          setSelectedBride(true);
+                          setBrideQuantity(1);
                         }
                       }}
                       className="rounded-2xl border px-4 py-4 text-sm font-semibold transition-all hover:-translate-y-0.5"
@@ -2718,13 +2731,14 @@ export default function ProductDetailView({
                       Bride Duck
                     </button>
 
-                    <button
+                                       <button
                       type="button"
                       onClick={() => {
                         if (
                           !selectedGroom
                         ) {
-                          addGroomToCart();
+                          setSelectedGroom(true);
+                          setGroomQuantity(1);
                         }
                       }}
                       className="rounded-2xl border px-4 py-4 text-sm font-semibold transition-all hover:-translate-y-0.5"
@@ -2807,7 +2821,7 @@ export default function ProductDetailView({
                               +
                             </button>
 
-                            <button
+                                               <button
                               type="button"
                               onClick={() =>
                                 removeDuck(
@@ -2881,7 +2895,7 @@ export default function ProductDetailView({
                               +
                             </button>
 
-                            <button
+                                                         <button
                               type="button"
                               onClick={() =>
                                 removeDuck(
@@ -3046,6 +3060,24 @@ export default function ProductDetailView({
                     </div>
                   )}
                 </>
+              )}
+
+                       {isQuackAndKiss &&
+              (selectedBride || selectedGroom) && (
+                <button
+                  type="button"
+                  onClick={addQuackAndKissToCart}
+                  className="mt-3 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+                  style={{ backgroundColor: accent, color: "#FFF4E6" }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = accentDark;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = accent;
+                  }}
+                >
+                  Add to Cart
+                </button>
               )}
 
             {(isTwoColorProduct ||
