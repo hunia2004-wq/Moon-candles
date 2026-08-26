@@ -42,7 +42,7 @@ const SIZES = [
     id: "small",
     label: "12 CM",
     cm: 12,
-    price: 90,
+    price: 100,
     img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/custom%20tambourines/small%20tambourine%20custom.png",
     drumPos: { x: 50, y: 42 },
     drumDiameterPct: 66,
@@ -730,7 +730,7 @@ export default function CustomizeTambourinePage() {
           <span className="block text-3xl md:text-5xl font-bold" style={{ color: ACCENT }}>your tambourine</span>
         </h1>
         <p className="text-sm md:text-base mb-10" style={{ color: "rgba(0,0,0,0.62)" }}>
-          Design a tambourine that&apos;s uniquely yours.
+          Design a tambourine that's uniquely yours.
         </p>
 
         <StepLabel n={1} title="Choose your size" />

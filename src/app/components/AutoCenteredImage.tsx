@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
  *
  * Falls back to rendering the original image normally (object-contain)
  * while cropping is in progress, or if the image has no transparency
- * to trim (e.g. a plain JPG with a white background).
+ * to trim (e.g. a  JPG with a white background).
  */
 export default function AutoCenteredImage({
   src,

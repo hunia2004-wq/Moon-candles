@@ -1,9 +1,13 @@
-// Shared cart helpers. The cart lives in localStorage under the "cart" key
-// as an array of CartItem — this is the exact shape ProductDetailView.tsx
-// already writes (id, productId, productName, price, quantity, scent,
-// color, image), so this file doesn't change your existing data, it just
-// gives every page one place to read/write it instead of each page
-// re-implementing JSON.parse/localStorage.setItem/dispatchEvent separately.
+// Shared cart helpers.
+// The cart lives in localStorage under the "cart" key.
+
+export type TambourineCustomization = {
+  type: "customized-tambourine";
+  size: "small" | "large";
+  sizeCm: 12 | 20;
+  ribbonColor: string;
+  layers: unknown[];
+};
 
 export type CartItem = {
   id: string;
@@ -14,14 +18,22 @@ export type CartItem = {
   scent: string | null;
   color: string | null;
   image: string;
+
+  // Optional customization information.
+  // Existing products do not need to have this.
+  customization?: TambourineCustomization;
 };
 
 export function getCart(): CartItem[] {
   if (typeof window === "undefined") return [];
+
   try {
     const raw = localStorage.getItem("cart");
+
     if (!raw) return [];
+
     const parsed = JSON.parse(raw);
+
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -30,19 +42,43 @@ export function getCart(): CartItem[] {
 
 function setCart(items: CartItem[]) {
   localStorage.setItem("cart", JSON.stringify(items));
-  // Same event your product pages already dispatch — anything listening
-  // for "cartUpdated" (e.g. a cart icon badge in the header) keeps working
-  // unchanged.
+
   window.dispatchEvent(new Event("cartUpdated"));
+}
+
+export function addToCart(item: CartItem) {
+  const cart = getCart();
+
+  const existingIndex = cart.findIndex((cartItem) => cartItem.id === item.id);
+
+  if (existingIndex !== -1) {
+    const updatedCart = [...cart];
+
+    updatedCart[existingIndex] = {
+      ...updatedCart[existingIndex],
+      quantity: updatedCart[existingIndex].quantity + item.quantity,
+    };
+
+    setCart(updatedCart);
+    return;
+  }
+
+  setCart([...cart, item]);
 }
 
 export function updateCartItemQuantity(id: string, quantity: number) {
   const cart = getCart();
+
   if (quantity <= 0) {
     setCart(cart.filter((item) => item.id !== id));
     return;
   }
-  setCart(cart.map((item) => (item.id === id ? { ...item, quantity } : item)));
+
+  setCart(
+    cart.map((item) =>
+      item.id === id ? { ...item, quantity } : item
+    )
+  );
 }
 
 export function removeCartItem(id: string) {
@@ -54,9 +90,15 @@ export function clearCart() {
 }
 
 export function cartTotal(items: CartItem[]): number {
-  return items.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
+  return items.reduce(
+    (sum, item) => sum + Number(item.price) * item.quantity,
+    0
+  );
 }
 
 export function cartCount(items: CartItem[]): number {
-  return items.reduce((sum, item) => sum + item.quantity, 0);
+  return items.reduce(
+    (sum, item) => sum + item.quantity,
+    0
+  );
 }

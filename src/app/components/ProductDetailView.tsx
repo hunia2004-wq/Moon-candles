@@ -282,6 +282,7 @@ export default function ProductDetailView({
     useRef<(HTMLDivElement | null)[]>(
       []
     );
+      const scrollSyncing = useRef(false);
 
   const hasColors =
     (product.colors?.length ?? 0) > 0;
@@ -304,6 +305,13 @@ export default function ProductDetailView({
     selectedOption?.price ??
     selectedColor?.price ??
     product.price;
+      // Some products (like Tambourine) encode size right in the color name,
+  // e.g. "Large (20cm)" — pull that out instead of relying on
+  // product.size_ml, which is one fixed value on the product row and
+  // doesn't change per-variant. Falls back to product.size_ml for
+  // products that don't have a size in their variant name (Iced Latte, etc.).
+  const sizeFromColorName = selectedColor?.name?.match(/\(([^)]+)\)/)?.[1];
+  const displaySize = sizeFromColorName ?? (product.size_ml ? `${product.size_ml} ml` : null);
 
   /*
    * ============================================================
@@ -552,80 +560,41 @@ export default function ProductDetailView({
        * ========================================================
        */
 
-      if (selectedColor) {
-        if (
-          hasOptions &&
-          selectedOption
-        ) {
-          addImages(
-            selectedOption.image_urls,
-            selectedColor.name,
-            selectedColorIndex
-          );
+          if (hasColors && !hasOptions) {
+      // Simple color-only products (no nested options): the gallery
+      // spans ALL colors, not just the selected one — this is what
+      // lets swiping the main photo cycle through colors directly.
+      product.colors.forEach((color) => {
+        addImages(color.image_urls, color.name);
+        addImage(color.image_url, color.name);
+      });
 
-          addImage(
-            selectedOption.image_url,
-            selectedColor.name,
-            selectedColorIndex
-          );
-        }
-
-        addImages(
-          selectedColor.image_urls,
-          selectedColor.name,
-          selectedColorIndex
-        );
-
-        addImage(
-          selectedColor.image_url,
-          selectedColor.name,
-          selectedColorIndex
-        );
-
-        selectedColor.options?.forEach(
-          (
-            option,
-            optionIndex
-          ) => {
-            if (
-              hasOptions &&
-              optionIndex ===
-                selectedOptionIndex
-            ) {
-              return;
-            }
-
-            addImages(
-              option.image_urls,
-              selectedColor.name,
-              selectedColorIndex
-            );
-
-            addImage(
-              option.image_url,
-              selectedColor.name,
-              selectedColorIndex
-            );
-          }
-        );
-
-        if (items.length === 0) {
-          addImages(
-            product.image_urls,
-            selectedColor.name,
-            selectedColorIndex
-          );
-        }
+      if (items.length === 0) {
+        addImages(product.image_urls, selectedColor?.name ?? null);
+      }
+    } else if (selectedColor) {
+      // Products with nested options (e.g. Bloom Wand): unchanged —
+      // gallery stays scoped to the selected color/option's own photos.
+      if (hasOptions && selectedOption) {
+        addImages(selectedOption.image_urls, selectedColor.name);
+        addImage(selectedOption.image_url, selectedColor.name);
       }
 
-      if (!selectedColor) {
-        addImages(
-          product.image_urls,
-          null,
-          -1
-        );
-      }
+      addImages(selectedColor.image_urls, selectedColor.name);
+      addImage(selectedColor.image_url, selectedColor.name);
 
+      selectedColor.options?.forEach((option, optionIndex) => {
+        if (hasOptions && optionIndex === selectedOptionIndex) return;
+        addImages(option.image_urls, selectedColor.name);
+        addImage(option.image_url, selectedColor.name);
+      });
+
+      if (items.length === 0) {
+        addImages(product.image_urls, selectedColor.name);
+      }
+    } else {
+      addImages(product.image_urls, null);
+    }
       return items;
     })();
 
@@ -798,42 +767,25 @@ export default function ProductDetailView({
       }
     );
 
-    if (
+        if (
       closestIndex !==
       selectedImageIndex
     ) {
-      setSelectedImageIndex(
-        closestIndex
-      );
-    }
+      setSelectedImageIndex(closestIndex);
 
-    /*
-     * ========================================================
-     * THIS IS THE KEY FIX.
-     *
-     * When the user physically swipes to another image,
-     * determine which color that image belongs to.
-     * ========================================================
-     */
-    if (
-      isColorScrollProduct
-    ) {
-      const item =
-        galleryItems[
-          closestIndex
-        ];
-
-      if (
-        item &&
-        item.colorIndex >= 0 &&
-        item.colorIndex !==
-          selectedColorIndex
-      ) {
-        setSelectedColorIndex(
-          item.colorIndex
-        );
-
-        setSelectedOptionIndex(0);
+      // Keep the swatch/price in sync with whichever color's photo is
+      // currently centered, for products whose gallery spans colors.
+      if (isColorScrollProduct) {
+        const item = galleryItems[closestIndex];
+        if (
+          item &&
+          item.colorIndex >= 0 &&
+          item.colorIndex !== selectedColorIndex
+        ) {
+          scrollSyncing.current = true;
+          setSelectedColorIndex(item.colorIndex);
+          setSelectedOptionIndex(0);
+        }
       }
     }
   }
@@ -1076,31 +1028,26 @@ export default function ProductDetailView({
    *
    * Their gallery is the color selector.
    */
-  useEffect(() => {
-    setSelectedOptionIndex(0);
-
-    /*
-     * This is intentionally disabled for the three
-     * color-scroll products.
-     */
-    if (
-      !isColorScrollProduct
-    ) {
-      setSelectedImageIndex(0);
-
-      imageRefs.current = [];
-
-      requestAnimationFrame(() => {
-        imageScrollRef.current?.scrollTo({
-          left: 0,
-          behavior: "auto",
-        });
-      });
+    useEffect(() => {
+    if (scrollSyncing.current) {
+      // This color change came FROM scrolling — don't fight it by
+      // resetting the scroll position back to the start.
+      scrollSyncing.current = false;
+      return;
     }
-  }, [
-    selectedColorIndex,
-    isColorScrollProduct,
-  ]);
+
+    setSelectedOptionIndex(0);
+    setSelectedImageIndex(0);
+
+    imageRefs.current = [];
+
+    requestAnimationFrame(() => {
+      imageScrollRef.current?.scrollTo({
+        left: 0,
+        behavior: "auto",
+      });
+    });
+  }, [selectedColorIndex]);
 
   /*
    * ============================================================
@@ -2330,8 +2277,8 @@ export default function ProductDetailView({
                 ACTIVE COLOR
                 ================================================== */}
 
-            {hasColors &&
-              activeGalleryColor && (
+                        {hasColors &&
+              selectedColor?.name && (
                 <div className="mt-1 flex justify-center">
                   <span
                     className="rounded-full px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.15em]"
@@ -2343,7 +2290,7 @@ export default function ProductDetailView({
                     }}
                   >
                     {
-                      activeGalleryColor
+                      selectedColor.name
                     }
                   </span>
                 </div>
@@ -2404,7 +2351,7 @@ export default function ProductDetailView({
                   </span>
                 </div>
 
-                {product.size_ml && (
+                                {displaySize && (
                   <>
                     <span
                       className="h-5 w-px"
@@ -2426,10 +2373,7 @@ export default function ProductDetailView({
                       </span>
 
                       <span className="text-sm font-semibold">
-                        {
-                          product.size_ml
-                        }{" "}
-                        ml
+                        {displaySize}
                       </span>
                     </div>
                   </>
@@ -2635,7 +2579,7 @@ export default function ProductDetailView({
                           selectedOptionIndex;
 
                         return (
-                          <button
+                                                    <button
                             key={`${option.name}-${index}`}
                             type="button"
                             onClick={() => {
