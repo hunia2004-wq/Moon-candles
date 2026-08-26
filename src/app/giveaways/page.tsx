@@ -7,12 +7,10 @@ const STRIPE_COUNT = 21;
 const GIVEAWAY_NAMES = [
   "Mini Candles",
   "Quack and Kiss",
-  "Tambourine",
+  "Plain tambourine",
   "Fan",
   "Bloom Wand",
-  "fan"
 ];
-
 export default async function Giveaways() {
   const supabase = await createClient();
   const { data: products, error } = await supabase
