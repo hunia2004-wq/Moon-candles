@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import {
   Great_Vibes,
   Dancing_Script,
@@ -19,6 +19,7 @@ import {
   Permanent_Marker,
 } from "next/font/google";
 
+import { useLayerGestures } from "../../components/useLayerGestures";
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: ["400"] });
 const dancingScript = Dancing_Script({ subsets: ["latin"], weight: ["700"] });
 const sacramento = Sacramento({ subsets: ["latin"], weight: ["400"] });
@@ -385,16 +386,29 @@ export default function CustomizeFanPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  // FIXED: quantity and cart state are now inside the component
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
 
   const stageRef = useRef<HTMLDivElement>(null);
-  const dragId = useRef<string | null>(null);
   const nextZ = useRef(1);
   const patternFileInputRef = useRef<HTMLInputElement>(null);
 
   const layers = layersBySide[activeSide];
+
+  /* -------------------------------------------------------------- */
+  /* LAYER GESTURES                                                 */
+  /* -------------------------------------------------------------- */
+
+  const gestures = useLayerGestures(layers, setLayers);
+
+  /* -------------------------------------------------------------- */
+  /* CHECK WHETHER CURRENT SIDE ALREADY HAS A BACKGROUND             */
+  /* -------------------------------------------------------------- */
+
+  const hasBackground = layers.some(
+    (l) => l.type === "fill" || l.type === "pattern"
+  );
+
   const otherSide: SideId =
     activeSide === "front" ? "back" : "front";
 
@@ -648,10 +662,8 @@ export default function CustomizeFanPage() {
 
     setAddedToCart(true);
 
-    // Reset quantity
     setQuantity(1);
 
-    // Reset designer
     setLayersBySide({
       front: defaultLayersForSide(),
       back: defaultLayersForSide(),
@@ -664,65 +676,6 @@ export default function CustomizeFanPage() {
       setAddedToCart(false);
     }, 2000);
   }
-
-  /* ---------------------------------------------------------------- */
-  /* Dragging                                                         */
-  /* ---------------------------------------------------------------- */
-
-  const handlePointerDown = useCallback(
-    (id: string) =>
-      (e: React.PointerEvent) => {
-        (e.target as HTMLElement).setPointerCapture(
-          e.pointerId
-        );
-
-        dragId.current = id;
-        setSelectedId(id);
-      },
-    []
-  );
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!dragId.current || !stageRef.current) {
-        return;
-      }
-
-      const rect =
-        stageRef.current.getBoundingClientRect();
-
-      const xPct = Math.min(
-        100,
-        Math.max(
-          0,
-          ((e.clientX - rect.left) /
-            rect.width) *
-            100
-        )
-      );
-
-      const yPct = Math.min(
-        100,
-        Math.max(
-          0,
-          ((e.clientY - rect.top) /
-            rect.height) *
-            100
-        )
-      );
-
-      updateLayer(dragId.current, {
-        x: xPct,
-        y: yPct,
-      });
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeSide]
-  );
-
-  const handlePointerUp = useCallback(() => {
-    dragId.current = null;
-  }, []);
 
   const selectedLayer =
     layers.find((l) => l.id === selectedId) ??
@@ -837,7 +790,7 @@ export default function CustomizeFanPage() {
       position: "absolute",
       left: `${layer.x}%`,
       top: `${layer.y}%`,
-      transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${layer.scale})`,
+      transform: `translate(-50%, -50%) scale(${layer.scale})`,
       cursor: interactive ? "grab" : "default",
       outline: isSelected
         ? `1.5px dashed ${ACCENT}`
@@ -877,7 +830,25 @@ export default function CustomizeFanPage() {
           key={layer.id}
           onPointerDown={
             interactive
-              ? handlePointerDown(layer.id)
+              ? gestures.onPointerDown(
+                  layer.id,
+                  stageRef.current
+                )
+              : undefined
+          }
+          onPointerMove={
+            interactive
+              ? gestures.onPointerMove(stageRef.current)
+              : undefined
+          }
+          onPointerUp={
+            interactive
+              ? gestures.onPointerUp
+              : undefined
+          }
+          onWheel={
+            interactive
+              ? gestures.onWheelZoom(layer.id)
               : undefined
           }
           style={{
@@ -907,7 +878,25 @@ export default function CustomizeFanPage() {
           key={layer.id}
           onPointerDown={
             interactive
-              ? handlePointerDown(layer.id)
+              ? gestures.onPointerDown(
+                  layer.id,
+                  stageRef.current
+                )
+              : undefined
+          }
+          onPointerMove={
+            interactive
+              ? gestures.onPointerMove(stageRef.current)
+              : undefined
+          }
+          onPointerUp={
+            interactive
+              ? gestures.onPointerUp
+              : undefined
+          }
+          onWheel={
+            interactive
+              ? gestures.onWheelZoom(layer.id)
               : undefined
           }
           style={{
@@ -957,7 +946,25 @@ export default function CustomizeFanPage() {
         key={layer.id}
         onPointerDown={
           interactive
-            ? handlePointerDown(layer.id)
+            ? gestures.onPointerDown(
+                layer.id,
+                stageRef.current
+              )
+            : undefined
+        }
+        onPointerMove={
+          interactive
+            ? gestures.onPointerMove(stageRef.current)
+            : undefined
+        }
+        onPointerUp={
+          interactive
+            ? gestures.onPointerUp
+            : undefined
+        }
+        onWheel={
+          interactive
+            ? gestures.onWheelZoom(layer.id)
             : undefined
         }
         className={fontDef.className}
@@ -1001,6 +1008,7 @@ export default function CustomizeFanPage() {
       {/* ============================================================ */}
 
       <div className="flex flex-col items-center px-6 py-8">
+
         {/* Front / Back */}
         <div className="flex gap-2 mb-4">
           {(["front", "back"] as SideId[]).map(
@@ -1036,8 +1044,6 @@ export default function CustomizeFanPage() {
         <div
           ref={stageRef}
           className="relative w-full max-w-[300px] md:max-w-[380px] touch-none select-none"
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
           onClick={(e) => {
             if (e.target === stageRef.current) {
               setSelectedId(null);
@@ -1063,14 +1069,23 @@ export default function CustomizeFanPage() {
         {/* SELECTED LAYER CONTROLS                                   */}
         {/* ========================================================== */}
 
-        {selectedLayer && (
-          <div
-            className="mt-4 flex w-full max-w-[320px] flex-col gap-3 rounded-xl px-4 py-3"
-            style={{
-              backgroundColor: "#EFE3C4",
-            }}
-          >
-            {/* TEXT */}
+       {selectedLayer && (
+  <div
+    className="mt-4 flex w-full max-w-[320px] flex-col gap-3 rounded-xl px-4 py-3"
+    style={{
+      backgroundColor: "#EFE3C4",
+    }}
+  >
+    {/* UNDO */}
+    <button
+      onClick={gestures.undo}
+      className="text-left text-xs font-medium underline"
+      style={{ color: ACCENT }}
+    >
+      ↺ Undo
+    </button>
+
+    {/* TEXT */}
             {selectedLayer.type === "text" && (
               <>
                 <input
@@ -1152,40 +1167,6 @@ export default function CustomizeFanPage() {
                     selectedLayer.id,
                     {
                       scale: Number(
-                        e.target.value
-                      ),
-                    }
-                  )
-                }
-                className="flex-1"
-              />
-            </div>
-
-            {/* ROTATE */}
-            <div className="flex items-center gap-2">
-              <span
-                className="w-14 text-[11px]"
-                style={{
-                  color:
-                    "rgba(0,0,0,0.55)",
-                }}
-              >
-                Rotate
-              </span>
-
-              <input
-                type="range"
-                min={-180}
-                max={180}
-                step={1}
-                value={
-                  selectedLayer.rotation
-                }
-                onChange={(e) =>
-                  updateLayer(
-                    selectedLayer.id,
-                    {
-                      rotation: Number(
                         e.target.value
                       ),
                     }
@@ -1567,92 +1548,111 @@ export default function CustomizeFanPage() {
       {/* ============================================================ */}
 
       <div className="px-6 md:px-12 py-8 max-w-2xl mx-auto">
-        {/* COLOR */}
-        <p
-          className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-          style={{ color: ACCENT }}
-        >
-          Color your fan
-        </p>
 
-        <div className="flex gap-3 mb-8">
-          <button
-            onClick={addFill}
-            className="flex-1 flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
-            style={{
-              border: `1.5px solid ${ACCENT}`,
-              backgroundColor: "#EFE3C4",
-            }}
-          >
-            <span
-              className="h-6 w-6 flex-shrink-0 rounded-full"
-              style={{
-                background:
-                  "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
-              }}
-            />
+        {/* ========================================================== */}
+        {/* BACKGROUND OPTIONS                                         */}
+        {/* ========================================================== */}
 
-            <span
-              className="text-xs md:text-sm"
+        {!hasBackground && (
+          <>
+            {/* COLOR */}
+            <p
+              className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
+              style={{ color: ACCENT }}
+            >
+              Color your fan
+            </p>
+
+            <div className="flex gap-3 mb-8">
+              <button
+                onClick={addFill}
+                className="flex-1 flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
+                style={{
+                  border: `1.5px solid ${ACCENT}`,
+                  backgroundColor: "#EFE3C4",
+                }}
+              >
+                <span
+                  className="h-6 w-6 flex-shrink-0 rounded-full"
+                  style={{
+                    background:
+                      "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
+                  }}
+                />
+
+                <span
+                  className="text-xs md:text-sm"
+                  style={{
+                    color: "rgba(0,0,0,0.62)",
+                  }}
+                >
+                  Add a solid color or blend
+                  <br />
+
+                  <span className="text-[11px]">
+                    Pick one color, or add more to
+                    blend them.
+                  </span>
+                </span>
+              </button>
+            </div>
+
+            {/* PATTERN */}
+            <p
+              className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
+              style={{ color: ACCENT }}
+            >
+              Use your own pattern
+            </p>
+
+            <button
+              onClick={() =>
+                patternFileInputRef.current?.click()
+              }
+              className="w-full flex items-center gap-3 rounded-xl px-4 py-4 mb-8 text-left transition-colors"
               style={{
-                color: "rgba(0,0,0,0.62)",
+                border: `1.5px dashed ${ACCENT}`,
+                backgroundColor: "#EFE3C4",
               }}
             >
-              Add a solid color or blend
-              <br />
+              <UploadIcon />
 
-              <span className="text-[11px]">
-                Pick one color, or add more to
-                blend them.
+              <span
+                className="text-xs md:text-sm"
+                style={{
+                  color: "rgba(0,0,0,0.62)",
+                }}
+              >
+                Upload your own photo or pattern
+                <br />
+
+                <span className="text-[11px]">
+                  It'll be shaped to fit the fan
+                  automatically — drag, resize, and
+                  tint it once it's added.
+                </span>
               </span>
-            </span>
-          </button>
-        </div>
+            </button>
 
-        {/* PATTERN */}
-        <p
-          className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-          style={{ color: ACCENT }}
-        >
-          Use your own pattern
-        </p>
+            <input
+              ref={patternFileInputRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              className="hidden"
+              onChange={handlePatternUpload}
+            />
+          </>
+        )}
 
-        <button
-          onClick={() =>
-            patternFileInputRef.current?.click()
-          }
-          className="w-full flex items-center gap-3 rounded-xl px-4 py-4 mb-8 text-left transition-colors"
-          style={{
-            border: `1.5px dashed ${ACCENT}`,
-            backgroundColor: "#EFE3C4",
-          }}
-        >
-          <UploadIcon />
-
-          <span
-            className="text-xs md:text-sm"
-            style={{
-              color: "rgba(0,0,0,0.62)",
-            }}
+        {hasBackground && (
+          <p
+            className="mb-4 text-xs"
+            style={{ color: "rgba(0,0,0,0.5)" }}
           >
-            Upload your own photo or pattern
-            <br />
-
-            <span className="text-[11px]">
-              It'll be shaped to fit the fan
-              automatically — drag, resize, and
-              tint it once it's added.
-            </span>
-          </span>
-        </button>
-
-        <input
-          ref={patternFileInputRef}
-          type="file"
-          accept="image/jpeg,image/png"
-          className="hidden"
-          onChange={handlePatternUpload}
-        />
+            Background added — delete it from the stage above
+            to choose a different type.
+          </p>
+        )}
 
         {/* TEXT */}
         <p

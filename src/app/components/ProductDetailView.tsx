@@ -51,6 +51,11 @@ const TWO_COLOR_PRODUCTS = [
   "Noor Al Qamar",
   "Noor El Kamar",
 ];
+// Tambourine: is a giveaway AND sells plain, needs the normal Add to
+// Cart button (unlike Fan/Mini Candles, which are customize-only). It
+// also should NOT combine both sizes' photos into one shared gallery —
+// each size's gallery should show only that size's own photos.
+const PLAIN_SELLABLE_GIVEAWAY_NAMES = ["Tambourine"];
 
 /*
  * ============================================================
@@ -65,6 +70,28 @@ const COLOR_SCROLL_PRODUCTS = [
   "Dimple",
   "Iced Latte",
 ];
+const RIBBON_COLORS = [
+  {
+    id: "light-pink",
+    label: "Light Pink",
+    hex: "#F5C6D6",
+  },
+  {
+    id: "light-blue",
+    label: "Light Blue",
+    hex: "#B9D9EC",
+  },
+  {
+    id: "navy",
+    label: "Navy",
+    hex: "#22345C",
+  },
+  {
+    id: "white",
+    label: "White",
+    hex: "#FFFFFF",
+  },
+];
 
 const QUACK_IMAGES = {
   combo:
@@ -76,6 +103,7 @@ const QUACK_IMAGES = {
   groom:
     "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/groom%20duck.png",
 };
+
 
 export default function ProductDetailView({
   product,
@@ -178,6 +206,12 @@ export default function ProductDetailView({
         name.toLowerCase() ===
         normalizedProductName
     );
+      const isPlainSellableGiveaway =
+    PLAIN_SELLABLE_GIVEAWAY_NAMES.some(
+      (name) =>
+        name.toLowerCase() ===
+        normalizedProductName
+    );
 
   /*
    * ============================================================
@@ -229,6 +263,12 @@ export default function ProductDetailView({
   ] = useState<string | null>(
     product.scents?.[0] ?? null
   );
+  const [
+  selectedRibbon,
+  setSelectedRibbon,
+] = useState(
+  RIBBON_COLORS[0].id
+);
 
   const [
     selectedNoorWhite,
@@ -560,7 +600,7 @@ export default function ProductDetailView({
        * ========================================================
        */
 
-          if (hasColors && !hasOptions) {
+                    if (hasColors && !hasOptions && !isPlainSellableGiveaway) {
       // Simple color-only products (no nested options): the gallery
       // spans ALL colors, not just the selected one — this is what
       // lets swiping the main photo cycle through colors directly.
@@ -2507,14 +2547,20 @@ export default function ProductDetailView({
                                     }
                                   );
                                 }
-                              } else {
-                                setSelectedImageIndex(
-                                  0
-                                );
+           } else {
+  const targetIndex = galleryItems.findIndex(
+    (item) => item.colorName === color.name
+  );
 
-                                imageRefs.current =
-                                  [];
-                              }
+  if (targetIndex >= 0) {
+    requestAnimationFrame(() => {
+      scrollToImage(targetIndex);
+    });
+  } else {
+    setSelectedImageIndex(0);
+    imageRefs.current = [];
+  }
+}
                             }}
                             className="relative h-12 w-12 overflow-hidden rounded-full border-2 transition-all duration-200 hover:scale-110 active:scale-95"
                             style={{
@@ -2549,6 +2595,48 @@ export default function ProductDetailView({
                   </div>
                 </div>
               )}
+                            
+
+            {/* ==================================================
+                RIBBON COLOR
+                ================================================== */}
+
+            {productName === "Tambourine" && (
+              <div className="mt-5">
+                <p
+                  className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+                  style={{ color: accent }}
+                >
+                  Ribbon Color
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  {RIBBON_COLORS.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedRibbon(c.id)
+                      }
+                      title={c.label}
+                      aria-label={`Select ${c.label} ribbon`}
+                      className="h-8 w-8 rounded-full border-2 transition-transform hover:scale-110"
+                      style={{
+                        backgroundColor: c.hex,
+                        borderColor:
+                          selectedRibbon === c.id
+                            ? accent
+                            : "rgba(0,0,0,0.15)",
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ==================================================
+                OPTIONS
+                ================================================== */}
 
             {/* ==================================================
                 OPTIONS
@@ -2644,10 +2732,10 @@ export default function ProductDetailView({
                 SCENT
                 ================================================== */}
 
-            {!customizeOnly &&
-              !isGiveaway &&
-              !isTwoColorProduct &&
-              !isQuackAndKiss && (
+                     {!customizeOnly &&
+  !isGiveaway &&
+  !isQuackAndKiss &&
+  !isTwoColorProduct && (
                 <div className="mt-5">
 
                   <div className="mb-2 flex items-center justify-between">
@@ -3200,8 +3288,8 @@ export default function ProductDetailView({
                 REGULAR ADD TO CART
                 ================================================== */}
 
-            {!customizeOnly &&
-              !isGiveaway &&
+                        {!customizeOnly &&
+              (!isGiveaway || isPlainSellableGiveaway) &&
               !isQuackAndKiss &&
               !isTwoColorProduct && (
                 <>

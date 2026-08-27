@@ -1,6 +1,6 @@
 "use client";
+import { useState, useRef } from "react";
 
-import { useState, useRef, useCallback } from "react";
 import {
   Great_Vibes,
   Dancing_Script,
@@ -18,6 +18,7 @@ import {
   Space_Mono,
   Permanent_Marker,
 } from "next/font/google";
+import { useLayerGestures } from "../../components/useLayerGestures";
 
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: ["400"] });
 const dancingScript = Dancing_Script({ subsets: ["latin"], weight: ["700"] });
@@ -74,6 +75,7 @@ const RIBBON_COLORS = [
   { id: "light-purple", label: "Light Purple", hex: "#C9B6E4" },
   { id: "dark-purple", label: "Dark Purple", hex: "#4B2E6F" },
 ] as const;
+
 type RibbonColorId = (typeof RIBBON_COLORS)[number]["id"];
 
 const BG_SHAPES = [
@@ -215,6 +217,7 @@ function FontPicker({
   onChange: (fontId: FontId) => void;
 }) {
   const text = previewText.trim() || "Aa";
+
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -224,7 +227,10 @@ function FontPicker({
               className="inline-block h-1.5 w-1.5 rounded-full"
               style={{ backgroundColor: CATEGORY_COLORS[group.category] }}
             />
-            <span className="text-[8px] font-medium" style={{ color: "rgba(0,0,0,0.45)" }}>
+            <span
+              className="text-[8px] font-medium"
+              style={{ color: "rgba(0,0,0,0.45)" }}
+            >
               {group.category}
             </span>
           </span>
@@ -237,6 +243,7 @@ function FontPicker({
             const id = group.ids[row];
             const f = getFont(id);
             const isActive = value === f.id;
+
             return (
               <button
                 key={f.id}
@@ -244,7 +251,9 @@ function FontPicker({
                 className={`${f.className} flex items-center justify-center rounded-lg px-1 py-2 transition-all duration-150 hover:scale-[1.05] active:scale-[0.95]`}
                 style={{
                   backgroundColor: isActive ? ACCENT : "#FFFFFF",
-                  borderTop: `2.5px solid ${isActive ? ACCENT : CATEGORY_COLORS[group.category]}`,
+                  borderTop: `2.5px solid ${
+                    isActive ? ACCENT : CATEGORY_COLORS[group.category]
+                  }`,
                   borderLeft: "1px solid rgba(0,0,0,0.1)",
                   borderRight: "1px solid rgba(0,0,0,0.1)",
                   borderBottom: "1px solid rgba(0,0,0,0.1)",
@@ -275,24 +284,40 @@ function FontPicker({
 
 export default function CustomizeTambourinePage() {
   const [size, setSize] = useState<SizeId>("small");
-  const [ribbonColor, setRibbonColor] = useState<RibbonColorId>(RIBBON_COLORS[0].id);
-  // The fork — either the customer supplies one finished design, or they
-  // build it here from the site's own tools. Made explicit in the layout
-  // via two cards, rather than one upload button doing double duty.
-  const [designMode, setDesignMode] = useState<"upload" | "build" | null>(null);
+  const [ribbonColor, setRibbonColor] = useState<RibbonColorId>(
+    RIBBON_COLORS[0].id
+  );
+
+  const [designMode, setDesignMode] = useState<
+    "upload" | "build" | null
+  >(null);
+
   const [layers, setLayers] = useState<Layer[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
   const stageRef = useRef<HTMLDivElement>(null);
-  const dragId = useRef<string | null>(null);
-  const nextZ = useRef(1);
-  const patternFileInputRef = useRef<HTMLInputElement>(null);
+const nextZ = useRef(1);
+const patternFileInputRef = useRef<HTMLInputElement>(null);
+
+const gestures = useLayerGestures(layers, setLayers);
 
   const selectedSize = SIZES.find((s) => s.id === size)!;
 
+  /*
+   * A background means either:
+   * - a solid/blended color fill
+   * - an uploaded photo/pattern
+   *
+   * Only one background type is allowed at a time.
+   */
+  const hasBackground = layers.some(
+    (l) => l.type === "fill" || l.type === "pattern"
+  );
+
   function addMessage() {
     const id = makeId();
+
     setLayers((prev) => [
       ...prev,
       {
@@ -312,11 +337,18 @@ export default function CustomizeTambourinePage() {
         z: nextZ.current++,
       },
     ]);
+
     setSelectedId(id);
   }
 
   function addFill() {
+    /*
+     * Prevent adding a second background if one already exists.
+     */
+    if (hasBackground) return;
+
     const id = makeId();
+
     setLayers((prev) => [
       ...prev,
       {
@@ -330,18 +362,33 @@ export default function CustomizeTambourinePage() {
         z: 0,
       },
     ]);
+
     setSelectedId(id);
   }
 
-  function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  function handlePatternUpload(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
     const file = e.target.files?.[0];
+
     if (!file) return;
+
+    if (hasBackground) {
+      alert(
+        "Please delete the existing background before adding a new one."
+      );
+      e.target.value = "";
+      return;
+    }
+
     if (file.size > 8 * 1024 * 1024) {
       alert("Please choose an image under 8MB.");
       return;
     }
+
     const url = URL.createObjectURL(file);
     const id = makeId();
+
     setLayers((prev) => [
       ...prev,
       {
@@ -356,79 +403,133 @@ export default function CustomizeTambourinePage() {
         z: 0,
       },
     ]);
+
     setSelectedId(id);
     e.target.value = "";
   }
 
   function updateLayer(id: string, patch: Partial<Layer>) {
-    setLayers((prev) => prev.map((l) => (l.id === id ? ({ ...l, ...patch } as Layer) : l)));
+    setLayers((prev) =>
+      prev.map((l) =>
+        l.id === id ? ({ ...l, ...patch } as Layer) : l
+      )
+    );
   }
 
   function removeLayer(id: string) {
     setLayers((prev) => prev.filter((l) => l.id !== id));
-    if (selectedId === id) setSelectedId(null);
+
+    if (selectedId === id) {
+      setSelectedId(null);
+    }
   }
 
   function addFillColor(id: string) {
     setLayers((prev) =>
-      prev.map((l) => (l.id === id && l.type === "fill" ? { ...l, colors: [...l.colors, "#FFFFFF"] } : l))
+      prev.map((l) =>
+        l.id === id && l.type === "fill"
+          ? {
+              ...l,
+              colors: [...l.colors, "#FFFFFF"],
+            }
+          : l
+      )
     );
   }
-  function updateFillColor(id: string, index: number, color: string) {
+
+  function updateFillColor(
+    id: string,
+    index: number,
+    color: string
+  ) {
     setLayers((prev) =>
       prev.map((l) => {
         if (l.id !== id || l.type !== "fill") return l;
+
         const colors = [...l.colors];
         colors[index] = color;
-        return { ...l, colors };
+
+        return {
+          ...l,
+          colors,
+        };
       })
     );
   }
+
   function removeFillColor(id: string, index: number) {
     setLayers((prev) =>
       prev.map((l) => {
         if (l.id !== id || l.type !== "fill") return l;
+
         if (l.colors.length <= 1) return l;
-        return { ...l, colors: l.colors.filter((_, i) => i !== index) };
+
+        return {
+          ...l,
+          colors: l.colors.filter((_, i) => i !== index),
+        };
       })
     );
   }
 
-  const handlePointerDown = useCallback((id: string) => (e: React.PointerEvent) => {
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    dragId.current = id;
-    setSelectedId(id);
-  }, []);
+  
+  const selectedLayer =
+    layers.find((l) => l.id === selectedId) ?? null;
 
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!dragId.current || !stageRef.current) return;
-    const rect = stageRef.current.getBoundingClientRect();
-    const xPct = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
-    const yPct = Math.min(100, Math.max(0, ((e.clientY - rect.top) / rect.height) * 100));
-    updateLayer(dragId.current, { x: xPct, y: yPct });
-  }, []);
-
-  const handlePointerUp = useCallback(() => {
-    dragId.current = null;
-  }, []);
-
-  const selectedLayer = layers.find((l) => l.id === selectedId) ?? null;
-
-  function bgShapeStyle(shape: TextLayer["bgShape"], hasContent: boolean): React.CSSProperties {
+  function bgShapeStyle(
+    shape: TextLayer["bgShape"],
+    hasContent: boolean
+  ): React.CSSProperties {
     if (!hasContent) return {};
+
     switch (shape) {
       case "circle":
-        return { borderRadius: "50%", aspectRatio: "1 / 1", padding: "18px 14px", display: "inline-flex", alignItems: "center", justifyContent: "center" };
+        return {
+          borderRadius: "50%",
+          aspectRatio: "1 / 1",
+          padding: "18px 14px",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        };
+
       case "pill":
-        return { borderRadius: 999, padding: "6px 16px" };
+        return {
+          borderRadius: 999,
+          padding: "6px 16px",
+        };
+
       case "ribbon":
-        return { padding: "6px 22px", clipPath: "polygon(6% 0%, 94% 0%, 100% 50%, 94% 100%, 6% 100%, 0% 50%)" };
+        return {
+          padding: "6px 22px",
+          clipPath:
+            "polygon(6% 0%, 94% 0%, 100% 50%, 94% 100%, 6% 100%, 0% 50%)",
+        };
+
       case "diamond":
-        return { aspectRatio: "1 / 1", padding: "22px 20px", display: "inline-flex", alignItems: "center", justifyContent: "center", clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)" };
+        return {
+          aspectRatio: "1 / 1",
+          padding: "22px 20px",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          clipPath:
+            "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+        };
+
       case "hexagon":
-        return { padding: "14px 22px", clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)" };
+        return {
+          padding: "14px 22px",
+          clipPath:
+            "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)",
+        };
+
       case "arch":
-        return { padding: "10px 18px 6px", borderRadius: "999px 999px 6px 6px" };
+        return {
+          padding: "10px 18px 6px",
+          borderRadius: "999px 999px 6px 6px",
+        };
+
       case "heart":
         return {
           aspectRatio: "1 / 1",
@@ -439,20 +540,41 @@ export default function CustomizeTambourinePage() {
           clipPath:
             "polygon(50.0% 23.9%, 50.2% 22.2%, 51.5% 17.5%, 54.7% 11.3%, 60.2% 5.2%, 67.7% 1.0%, 76.5% 0.0%, 85.4% 2.7%, 93.0% 8.7%, 98.2% 17.3%, 100.0% 27.3%, 98.2% 37.7%, 93.0% 47.7%, 85.4% 57.2%, 76.5% 66.0%, 67.7% 74.4%, 60.2% 82.3%, 54.7% 89.3%, 51.5% 95.0%, 50.2% 98.7%, 50.0% 100.0%, 49.8% 98.7%, 48.5% 95.0%, 45.3% 89.3%, 39.8% 82.3%, 32.3% 74.4%, 23.5% 66.0%, 14.6% 57.2%, 7.0% 47.7%, 1.8% 37.7%, 0.0% 27.3%, 1.8% 17.3%, 7.0% 8.7%, 14.6% 2.7%, 23.5% 0.0%, 32.3% 1.0%, 39.8% 5.2%, 45.3% 11.3%, 48.5% 17.5%, 49.8% 22.2%)",
         };
+
       case "octagon":
-        return { padding: "12px 16px", clipPath: "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)" };
+        return {
+          padding: "12px 16px",
+          clipPath:
+            "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)",
+        };
+
       case "cloud":
-        return { padding: "16px 20px", borderRadius: "40% 60% 55% 45% / 55% 45% 55% 45%" };
+        return {
+          padding: "16px 20px",
+          borderRadius:
+            "40% 60% 55% 45% / 55% 45% 55% 45%",
+        };
+
       case "rectangle":
       default:
-        return { borderRadius: 8, padding: "4px 10px" };
+        return {
+          borderRadius: 8,
+          padding: "4px 10px",
+        };
     }
   }
 
-  function renderLayer(layer: Layer, interactive: boolean) {
-    const isSelected = interactive && layer.id === selectedId;
+  function renderLayer(
+    layer: Layer,
+    interactive: boolean
+  ) {
+    const isSelected =
+      interactive && layer.id === selectedId;
 
-    if (layer.type === "fill" || layer.type === "pattern") {
+    if (
+      layer.type === "fill" ||
+      layer.type === "pattern"
+    ) {
       const style: React.CSSProperties = {
         position: "absolute",
         left: `${layer.x}%`,
@@ -461,34 +583,99 @@ export default function CustomizeTambourinePage() {
         aspectRatio: "1 / 1",
         borderRadius: "50%",
         overflow: "hidden",
-        transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${layer.scale})`,
+        transform: `translate(-50%, -50%) scale(${layer.scale})`,
         cursor: interactive ? "grab" : "default",
-        outline: isSelected ? `1.5px dashed ${ACCENT}` : "none",
+        outline: isSelected
+          ? `1.5px dashed ${ACCENT}`
+          : "none",
         outlineOffset: "4px",
       };
 
       if (layer.type === "fill") {
         const background =
-          layer.colors.length === 1 ? layer.colors[0] : `linear-gradient(135deg, ${layer.colors.join(", ")})`;
+          layer.colors.length === 1
+            ? layer.colors[0]
+            : `linear-gradient(135deg, ${layer.colors.join(
+                ", "
+              )})`;
+
         return (
           <div
-            key={layer.id}
-            onPointerDown={interactive ? handlePointerDown(layer.id) : undefined}
-            style={{ ...style, background }}
-          />
+  key={layer.id}
+  onPointerDown={
+    interactive
+      ? gestures.onPointerDown(layer.id, stageRef.current)
+      : undefined
+  }
+  onPointerMove={
+    interactive
+      ? gestures.onPointerMove(stageRef.current)
+      : undefined
+  }
+  onPointerUp={
+    interactive
+      ? gestures.onPointerUp
+      : undefined
+  }
+  onWheel={
+    interactive
+      ? gestures.onWheelZoom(layer.id)
+      : undefined
+  }
+  style={{
+    ...style,
+    background,
+  }}
+/>
         );
       }
 
       return (
-        <div key={layer.id} onPointerDown={interactive ? handlePointerDown(layer.id) : undefined} style={style}>
+       <div
+  key={layer.id}
+  onPointerDown={
+    interactive
+      ? gestures.onPointerDown(layer.id, stageRef.current)
+      : undefined
+  }
+  onPointerMove={
+    interactive
+      ? gestures.onPointerMove(stageRef.current)
+      : undefined
+  }
+  onPointerUp={
+    interactive
+      ? gestures.onPointerUp
+      : undefined
+  }
+  onWheel={
+    interactive
+      ? gestures.onWheelZoom(layer.id)
+      : undefined
+  }
+  style={style}
+>
           <img
             src={layer.src}
             alt="Your uploaded pattern"
             draggable={false}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
           />
+
           {layer.tint && (
-            <div style={{ position: "absolute", inset: 0, backgroundColor: layer.tint, mixBlendMode: "color", opacity: 0.85 }} />
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                backgroundColor: layer.tint,
+                mixBlendMode: "color",
+                opacity: 0.85,
+              }}
+            />
           )}
         </div>
       );
@@ -498,9 +685,11 @@ export default function CustomizeTambourinePage() {
       position: "absolute",
       left: `${layer.x}%`,
       top: `${layer.y}%`,
-      transform: `translate(-50%, -50%) rotate(${layer.rotation}deg) scale(${layer.scale})`,
+      transform: `translate(-50%, -50%) scale(${layer.scale})`,
       cursor: interactive ? "grab" : "default",
-      outline: isSelected ? `1.5px dashed ${ACCENT}` : "none",
+      outline: isSelected
+        ? `1.5px dashed ${ACCENT}`
+        : "none",
       outlineOffset: "4px",
     };
 
@@ -508,20 +697,47 @@ export default function CustomizeTambourinePage() {
     const fontDef = getFont(layer.font);
 
     return (
-      <div
-        key={layer.id}
-        onPointerDown={interactive ? handlePointerDown(layer.id) : undefined}
-        className={fontDef.className}
+     <div
+  key={layer.id}
+  onPointerDown={
+    interactive
+      ? gestures.onPointerDown(layer.id, stageRef.current)
+      : undefined
+  }
+  onPointerMove={
+    interactive
+      ? gestures.onPointerMove(stageRef.current)
+      : undefined
+  }
+  onPointerUp={
+    interactive
+      ? gestures.onPointerUp
+      : undefined
+  }
+  onWheel={
+    interactive
+      ? gestures.onWheelZoom(layer.id)
+      : undefined
+  }
+  className={fontDef.className}
         style={{
           ...commonStyle,
           fontSize: layer.fontSize,
           fontWeight: 500,
           color: layer.color,
           whiteSpace: "nowrap",
-          backgroundColor: layer.bgColor ?? "transparent",
-          boxShadow: hasBg ? "0 1px 4px rgba(0,0,0,0.15)" : "none",
-          textShadow: hasBg ? "none" : "0 1px 2px rgba(255,255,255,0.6)",
-          ...bgShapeStyle(layer.bgShape, hasBg),
+          backgroundColor:
+            layer.bgColor ?? "transparent",
+          boxShadow: hasBg
+            ? "0 1px 4px rgba(0,0,0,0.15)"
+            : "none",
+          textShadow: hasBg
+            ? "none"
+            : "0 1px 2px rgba(255,255,255,0.6)",
+          ...bgShapeStyle(
+            layer.bgShape,
+            hasBg
+          ),
         }}
       >
         {layer.content}
@@ -530,19 +746,24 @@ export default function CustomizeTambourinePage() {
   }
 
   return (
-    <div style={{ backgroundColor: "#FFF4E6" }} className="w-full min-h-screen">
+    <div
+      style={{ backgroundColor: "#FFF4E6" }}
+      className="w-full min-h-screen"
+    >
       <div className="flex flex-col items-center px-6 py-8">
         <div className="relative flex w-full max-w-[220px] md:max-w-[320px] items-center justify-center">
           <div
-            ref={stageRef}
-            className="relative touch-none select-none"
-            style={{ width: `${(selectedSize.cm / MAX_CM) * 100}%` }}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onClick={(e) => {
-              if (e.target === stageRef.current) setSelectedId(null);
-            }}
-          >
+  ref={stageRef}
+  className="relative touch-none select-none"
+  style={{
+    width: `${(selectedSize.cm / MAX_CM) * 100}%`,
+  }}
+  onClick={(e) => {
+    if (e.target === stageRef.current) {
+      setSelectedId(null);
+    }
+  }}
+>
             <img
               src={selectedSize.img}
               alt="Your customized tambourine"
@@ -553,87 +774,169 @@ export default function CustomizeTambourinePage() {
             {layers
               .slice()
               .sort((a, b) => a.z - b.z)
-              .map((layer) => renderLayer(layer, true))}
+              .map((layer) =>
+                renderLayer(layer, true)
+              )}
           </div>
         </div>
 
         {selectedLayer && (
           <div
             className="mt-4 flex w-full max-w-[320px] flex-col gap-3 rounded-xl px-4 py-3"
-            style={{ backgroundColor: "#EFE3C4" }}
+            style={{
+              backgroundColor: "#EFE3C4",
+            }}
           >
             {selectedLayer.type === "text" && (
               <>
                 <input
                   value={selectedLayer.content}
-                  onChange={(e) => updateLayer(selectedLayer.id, { content: e.target.value })}
+                  onChange={(e) =>
+                    updateLayer(
+                      selectedLayer.id,
+                      {
+                        content: e.target.value,
+                      }
+                    )
+                  }
                   className="w-full rounded-lg px-3 py-2 text-sm"
-                  style={{ border: `1px solid ${ACCENT}`, backgroundColor: "#FFFFFF", color: "#000000" }}
+                  style={{
+                    border: `1px solid ${ACCENT}`,
+                    backgroundColor: "#FFFFFF",
+                    color: "#000000",
+                  }}
                   placeholder="Your message"
                 />
+
                 <div>
-                  <span className="mb-1.5 block text-[11px] font-medium" style={{ color: "rgba(0,0,0,0.55)" }}>
+                  <span
+                    className="mb-1.5 block text-[11px] font-medium"
+                    style={{
+                      color: "rgba(0,0,0,0.55)",
+                    }}
+                  >
                     Font
                   </span>
+
                   <FontPicker
                     value={selectedLayer.font}
                     previewText={selectedLayer.content}
-                    onChange={(f) => updateLayer(selectedLayer.id, { font: f })}
+                    onChange={(f) =>
+                      updateLayer(
+                        selectedLayer.id,
+                        { font: f }
+                      )
+                    }
                   />
                 </div>
               </>
             )}
 
-            <div className="flex items-center gap-2">
-              <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>
-                {selectedLayer.type === "text" ? "Size" : "Space used"}
-              </span>
-              <input
-                type="range"
-                min={0.2}
-                max={2.5}
-                step={0.05}
-                value={selectedLayer.scale}
-                onChange={(e) => updateLayer(selectedLayer.id, { scale: Number(e.target.value) })}
-                className="flex-1"
-              />
-            </div>
-
             {selectedLayer.type === "pattern" && (
               <div className="flex items-center gap-2">
-                <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Tint</span>
+                <span
+                  className="w-14 text-[11px]"
+                  style={{
+                    color: "rgba(0,0,0,0.55)",
+                  }}
+                >
+                  Tint
+                </span>
+
                 <div className="flex flex-1 items-center gap-2">
                   <button
-                    onClick={() => updateLayer(selectedLayer.id, { tint: null })}
+                    onClick={() =>
+                      updateLayer(
+                        selectedLayer.id,
+                        { tint: null }
+                      )
+                    }
                     className="h-6 w-6 flex-shrink-0 rounded-full border transition-transform hover:scale-110"
                     style={{
                       backgroundColor: "#FFFFFF",
-                      backgroundImage: "linear-gradient(45deg, transparent 45%, red 45%, red 55%, transparent 55%)",
-                      borderColor: selectedLayer.tint === null ? "#000000" : "rgba(0,0,0,0.3)",
-                      borderWidth: selectedLayer.tint === null ? 2 : 1,
+                      backgroundImage:
+                        "linear-gradient(45deg, transparent 45%, red 45%, red 55%, transparent 55%)",
+                      borderColor:
+                        selectedLayer.tint === null
+                          ? "#000000"
+                          : "rgba(0,0,0,0.3)",
+                      borderWidth:
+                        selectedLayer.tint === null
+                          ? 2
+                          : 1,
                     }}
                     title="No tint"
                   />
-                  <ColorWheelPicker value={selectedLayer.tint ?? ACCENT} onChange={(c) => updateLayer(selectedLayer.id, { tint: c })} />
-                  <span className="text-[10px]" style={{ color: "rgba(0,0,0,0.45)" }}>tap the wheel to pick any color</span>
+
+                  <ColorWheelPicker
+                    value={
+                      selectedLayer.tint ?? ACCENT
+                    }
+                    onChange={(c) =>
+                      updateLayer(
+                        selectedLayer.id,
+                        { tint: c }
+                      )
+                    }
+                  />
+
+                  <span
+                    className="text-[10px]"
+                    style={{
+                      color: "rgba(0,0,0,0.45)",
+                    }}
+                  >
+                    tap the wheel to pick any color
+                  </span>
                 </div>
               </div>
             )}
 
             {selectedLayer.type === "fill" && (
               <div className="flex flex-col gap-2">
-                <span className="text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>
-                  {selectedLayer.colors.length === 1 ? "Color" : "Colors (blended)"}
+                <span
+                  className="text-[11px]"
+                  style={{
+                    color: "rgba(0,0,0,0.55)",
+                  }}
+                >
+                  {selectedLayer.colors.length === 1
+                    ? "Color"
+                    : "Colors (blended)"}
                 </span>
+
                 <div className="flex flex-wrap items-center gap-2">
                   {selectedLayer.colors.map((c, i) => (
-                    <div key={i} className="relative">
-                      <ColorWheelPicker value={c} onChange={(newC) => updateFillColor(selectedLayer.id, i, newC)} />
-                      {selectedLayer.colors.length > 1 && (
+                    <div
+                      key={i}
+                      className="relative"
+                    >
+                      <ColorWheelPicker
+                        value={c}
+                        onChange={(newC) =>
+                          updateFillColor(
+                            selectedLayer.id,
+                            i,
+                            newC
+                          )
+                        }
+                      />
+
+                      {selectedLayer.colors.length >
+                        1 && (
                         <button
-                          onClick={() => removeFillColor(selectedLayer.id, i)}
+                          onClick={() =>
+                            removeFillColor(
+                              selectedLayer.id,
+                              i
+                            )
+                          }
                           className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
-                          style={{ backgroundColor: "#000000", color: "#FFFFFF" }}
+                          style={{
+                            backgroundColor:
+                              "#000000",
+                            color: "#FFFFFF",
+                          }}
                           title="Remove this color"
                         >
                           ×
@@ -641,17 +944,32 @@ export default function CustomizeTambourinePage() {
                       )}
                     </div>
                   ))}
+
                   <button
-                    onClick={() => addFillColor(selectedLayer.id)}
+                    onClick={() =>
+                      addFillColor(
+                        selectedLayer.id
+                      )
+                    }
                     className="flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold transition-transform hover:scale-110"
-                    style={{ borderColor: ACCENT, color: ACCENT }}
+                    style={{
+                      borderColor: ACCENT,
+                      color: ACCENT,
+                    }}
                     title="Add another color"
                   >
                     +
                   </button>
                 </div>
-                <span className="text-[10px]" style={{ color: "rgba(0,0,0,0.45)" }}>
-                  Add more than one color to blend them together.
+
+                <span
+                  className="text-[10px]"
+                  style={{
+                    color: "rgba(0,0,0,0.45)",
+                  }}
+                >
+                  Add more than one color to blend
+                  them together.
                 </span>
               </div>
             )}
@@ -659,40 +977,128 @@ export default function CustomizeTambourinePage() {
             {selectedLayer.type === "text" && (
               <>
                 <div className="flex items-center gap-2">
-                  <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Color</span>
-                  <ColorWheelPicker value={selectedLayer.color} onChange={(c) => updateLayer(selectedLayer.id, { color: c })} />
+                  <span
+                    className="w-14 text-[11px]"
+                    style={{
+                      color: "rgba(0,0,0,0.55)",
+                    }}
+                  >
+                    Color
+                  </span>
+
+                  <ColorWheelPicker
+                    value={selectedLayer.color}
+                    onChange={(c) =>
+                      updateLayer(
+                        selectedLayer.id,
+                        { color: c }
+                      )
+                    }
+                  />
                 </div>
+
                 <div className="flex items-center gap-2">
-                  <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Backing</span>
+                  <span
+                    className="w-14 text-[11px]"
+                    style={{
+                      color: "rgba(0,0,0,0.55)",
+                    }}
+                  >
+                    Backing
+                  </span>
+
                   <div className="flex flex-1 items-center gap-2">
                     <button
-                      onClick={() => updateLayer(selectedLayer.id, { bgColor: null })}
+                      onClick={() =>
+                        updateLayer(
+                          selectedLayer.id,
+                          { bgColor: null }
+                        )
+                      }
                       className="h-6 w-6 flex-shrink-0 rounded-full border transition-transform hover:scale-110"
                       style={{
                         backgroundColor: "#FFFFFF",
-                        backgroundImage: "linear-gradient(45deg, transparent 45%, red 45%, red 55%, transparent 55%)",
-                        borderColor: selectedLayer.bgColor === null ? "#000000" : "rgba(0,0,0,0.3)",
-                        borderWidth: selectedLayer.bgColor === null ? 2 : 1,
+                        backgroundImage:
+                          "linear-gradient(45deg, transparent 45%, red 45%, red 55%, transparent 55%)",
+                        borderColor:
+                          selectedLayer.bgColor === null
+                            ? "#000000"
+                            : "rgba(0,0,0,0.3)",
+                        borderWidth:
+                          selectedLayer.bgColor === null
+                            ? 2
+                            : 1,
                       }}
                       title="No backing"
                     />
-                    <ColorWheelPicker value={selectedLayer.bgColor ?? "#FFFFFF"} onChange={(c) => updateLayer(selectedLayer.id, { bgColor: c })} />
-                    <span className="text-[10px]" style={{ color: "rgba(0,0,0,0.45)" }}>any backing color</span>
+
+                    <ColorWheelPicker
+                      value={
+                        selectedLayer.bgColor ??
+                        "#FFFFFF"
+                      }
+                      onChange={(c) =>
+                        updateLayer(
+                          selectedLayer.id,
+                          { bgColor: c }
+                        )
+                      }
+                    />
+
+                    <span
+                      className="text-[10px]"
+                      style={{
+                        color:
+                          "rgba(0,0,0,0.45)",
+                      }}
+                    >
+                      any backing color
+                    </span>
                   </div>
                 </div>
+
                 {selectedLayer.bgColor && (
                   <div className="flex items-center gap-2">
-                    <span className="w-14 text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>Shape</span>
+                    <span
+                      className="w-14 text-[11px]"
+                      style={{
+                        color:
+                          "rgba(0,0,0,0.55)",
+                      }}
+                    >
+                      Shape
+                    </span>
+
                     <div className="flex flex-1 flex-wrap gap-1.5">
                       {BG_SHAPES.map((s) => (
                         <button
                           key={s.id}
-                          onClick={() => updateLayer(selectedLayer.id, { bgShape: s.id })}
+                          onClick={() =>
+                            updateLayer(
+                              selectedLayer.id,
+                              {
+                                bgShape: s.id,
+                              }
+                            )
+                          }
                           className="rounded-md px-2.5 py-1 text-[11px] transition-all"
                           style={{
-                            backgroundColor: selectedLayer.bgShape === s.id ? ACCENT : "#FFFFFF",
-                            color: selectedLayer.bgShape === s.id ? "#FFF4E6" : "rgba(0,0,0,0.6)",
-                            border: `1px solid ${selectedLayer.bgShape === s.id ? ACCENT : "rgba(0,0,0,0.15)"}`,
+                            backgroundColor:
+                              selectedLayer.bgShape ===
+                              s.id
+                                ? ACCENT
+                                : "#FFFFFF",
+                            color:
+                              selectedLayer.bgShape ===
+                              s.id
+                                ? "#FFF4E6"
+                                : "rgba(0,0,0,0.6)",
+                            border: `1px solid ${
+                              selectedLayer.bgShape ===
+                              s.id
+                                ? ACCENT
+                                : "rgba(0,0,0,0.15)"
+                            }`,
                           }}
                         >
                           {s.label}
@@ -704,11 +1110,24 @@ export default function CustomizeTambourinePage() {
               </>
             )}
 
-            <div className="flex justify-end pt-1">
+                        <div className="flex items-center justify-between pt-1">
               <button
-                onClick={() => removeLayer(selectedLayer.id)}
+                onClick={gestures.undo}
+                disabled={!gestures.canUndo()}
+                className="text-xs font-medium underline disabled:opacity-30"
+                style={{ color: ACCENT }}
+              >
+                ↺ Undo
+              </button>
+
+              <button
+                onClick={() =>
+                  removeLayer(selectedLayer.id)
+                }
                 className="text-[11px] font-medium underline"
-                style={{ color: "rgba(0,0,0,0.5)" }}
+                style={{
+                  color: "rgba(0,0,0,0.5)",
+                }}
               >
                 delete
               </button>
@@ -716,24 +1135,50 @@ export default function CustomizeTambourinePage() {
           </div>
         )}
 
-        <p className="text-center text-[11px] mt-3 max-w-xs" style={{ color: "rgba(0,0,0,0.45)" }}>
-          Tap an item below to add it, then drag it into place on the drum.
+        <p
+          className="text-center text-[11px] mt-3 max-w-xs"
+          style={{
+            color: "rgba(0,0,0,0.45)",
+          }}
+        >
+          Tap an item below to add it, then drag it
+          into place on the drum.
         </p>
       </div>
 
       <div className="px-6 md:px-12 py-4 md:py-8 max-w-2xl mx-auto">
-        <p className="uppercase tracking-[0.25em] text-xs md:text-sm mb-3" style={{ color: ACCENT }}>
+        <p
+          className="uppercase tracking-[0.25em] text-xs md:text-sm mb-3"
+          style={{ color: ACCENT }}
+        >
           made by you, for you
         </p>
+
         <h1 className="font-serif leading-[1.05] mb-4">
-          <span className="block text-3xl md:text-5xl font-bold" style={{ color: "#000000" }}>Customize</span>
-          <span className="block text-3xl md:text-5xl font-bold" style={{ color: ACCENT }}>your tambourine</span>
+          <span
+            className="block text-3xl md:text-5xl font-bold"
+            style={{ color: "#000000" }}
+          >
+            Customize
+          </span>
+
+          <span
+            className="block text-3xl md:text-5xl font-bold"
+            style={{ color: ACCENT }}
+          >
+            your tambourine
+          </span>
         </h1>
-        <p className="text-sm md:text-base mb-10" style={{ color: "rgba(0,0,0,0.62)" }}>
+
+        <p
+          className="text-sm md:text-base mb-10"
+          style={{ color: "rgba(0,0,0,0.62)" }}
+        >
           Design a tambourine that's uniquely yours.
         </p>
 
         <StepLabel n={1} title="Choose your size" />
+
         <div className="grid grid-cols-2 gap-3 mb-8">
           {SIZES.map((s) => (
             <button
@@ -741,73 +1186,160 @@ export default function CustomizeTambourinePage() {
               onClick={() => setSize(s.id)}
               className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-5 transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:shadow-md"
               style={{
-                border: `1.5px solid ${size === s.id ? ACCENT : "rgba(0,0,0,0.12)"}`,
-                backgroundColor: size === s.id ? "#EFE3C4" : "transparent",
+                border: `1.5px solid ${
+                  size === s.id
+                    ? ACCENT
+                    : "rgba(0,0,0,0.12)"
+                }`,
+                backgroundColor:
+                  size === s.id
+                    ? "#EFE3C4"
+                    : "transparent",
               }}
             >
               <img
                 src={s.img}
                 alt=""
                 className="object-contain"
-                style={{ width: `${24 + (s.cm / MAX_CM) * 16}px`, height: `${24 + (s.cm / MAX_CM) * 16}px` }}
+                style={{
+                  width: `${
+                    24 + (s.cm / MAX_CM) * 16
+                  }px`,
+                  height: `${
+                    24 + (s.cm / MAX_CM) * 16
+                  }px`,
+                }}
               />
-              <span className="text-xs font-semibold tracking-wide" style={{ color: "#000000" }}>{s.label}</span>
-              <span className="text-[11px]" style={{ color: "rgba(0,0,0,0.62)" }}>{s.price} LE</span>
+
+              <span
+                className="text-xs font-semibold tracking-wide"
+                style={{ color: "#000000" }}
+              >
+                {s.label}
+              </span>
+
+              <span
+                className="text-[11px]"
+                style={{
+                  color: "rgba(0,0,0,0.62)",
+                }}
+              >
+                {s.price} LE
+              </span>
             </button>
           ))}
         </div>
 
-        <StepLabel n={2} title="Choose your ribbon color" />
+        <StepLabel
+          n={2}
+          title="Choose your ribbon color"
+        />
+
         <div className="mb-8 flex items-center gap-3">
           <span
             className="h-8 w-8 flex-shrink-0 rounded-full"
             style={{
-              backgroundColor: RIBBON_COLORS.find((c) => c.id === ribbonColor)!.hex,
-              border: "1.5px solid rgba(0,0,0,0.15)",
-              boxShadow: ribbonColor === "gold" ? "inset 0 0 6px rgba(255,255,255,0.6)" : undefined,
+              backgroundColor:
+                RIBBON_COLORS.find(
+                  (c) => c.id === ribbonColor
+                )!.hex,
+              border:
+                "1.5px solid rgba(0,0,0,0.15)",
+              boxShadow:
+                ribbonColor === "gold"
+                  ? "inset 0 0 6px rgba(255,255,255,0.6)"
+                  : undefined,
             }}
           />
+
           <select
             value={ribbonColor}
-            onChange={(e) => setRibbonColor(e.target.value as RibbonColorId)}
+            onChange={(e) =>
+              setRibbonColor(
+                e.target.value as RibbonColorId
+              )
+            }
             className="flex-1 rounded-xl px-3 py-3 text-sm outline-none"
-            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+            style={{
+              border:
+                "1.5px solid rgba(0,0,0,0.15)",
+              backgroundColor: "#FFFFFF",
+              color: "#000000",
+            }}
           >
             {RIBBON_COLORS.map((c) => (
-              <option key={c.id} value={c.id}>{c.label}</option>
+              <option
+                key={c.id}
+                value={c.id}
+              >
+                {c.label}
+              </option>
             ))}
           </select>
         </div>
 
-        <StepLabel n={3} title="Design the drum face (optional)" />
+        <StepLabel
+          n={3}
+          title="Design the drum face (optional)"
+        />
 
         {designMode === null ? (
-          // The fork, made explicit in the layout — two clearly different
-          // paths instead of a pile of tools with no framing.
           <div className="grid grid-cols-2 gap-3 mb-8">
             <button
-              onClick={() => setDesignMode("upload")}
+              onClick={() =>
+                setDesignMode("upload")
+              }
               className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-6 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]"
-              style={{ border: `1.5px dashed ${ACCENT}`, backgroundColor: "#EFE3C4" }}
+              style={{
+                border: `1.5px dashed ${ACCENT}`,
+                backgroundColor: "#EFE3C4",
+              }}
             >
               <PhotoUploadIcon />
-              <span className="text-xs font-semibold" style={{ color: "#000000" }}>
+
+              <span
+                className="text-xs font-semibold"
+                style={{ color: "#000000" }}
+              >
                 Upload your own design
               </span>
-              <span className="text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>
-                One finished image, shaped to the drum
+
+              <span
+                className="text-[11px]"
+                style={{
+                  color: "rgba(0,0,0,0.55)",
+                }}
+              >
+                One finished image, shaped to
+                the drum
               </span>
             </button>
+
             <button
-              onClick={() => setDesignMode("build")}
+              onClick={() =>
+                setDesignMode("build")
+              }
               className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-6 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]"
-              style={{ border: `1.5px dashed ${ACCENT}`, backgroundColor: "#EFE3C4" }}
+              style={{
+                border: `1.5px dashed ${ACCENT}`,
+                backgroundColor: "#EFE3C4",
+              }}
             >
               <PaletteIcon />
-              <span className="text-xs font-semibold" style={{ color: "#000000" }}>
+
+              <span
+                className="text-xs font-semibold"
+                style={{ color: "#000000" }}
+              >
                 Design it here
               </span>
-              <span className="text-[11px]" style={{ color: "rgba(0,0,0,0.55)" }}>
+
+              <span
+                className="text-[11px]"
+                style={{
+                  color: "rgba(0,0,0,0.55)",
+                }}
+              >
                 Color, photo, and message
               </span>
             </button>
@@ -815,78 +1347,201 @@ export default function CustomizeTambourinePage() {
         ) : (
           <div className="mb-8">
             <button
-              onClick={() => setDesignMode(null)}
+              onClick={() =>
+                setDesignMode(null)
+              }
               className="mb-3 text-[11px] font-medium underline"
               style={{ color: ACCENT }}
             >
-              ← choose a different way to design it
+              ← choose a different way to
+              design it
             </button>
 
             {designMode === "upload" && (
               <>
-                <button
-                  onClick={() => patternFileInputRef.current?.click()}
-                  className="w-full flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
-                  style={{ border: `1.5px dashed ${ACCENT}`, backgroundColor: "#EFE3C4" }}
-                >
-                  <PhotoUploadIcon />
-                  <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
-                    Upload your own finished design
-                    <br />
-                    <span className="text-[11px]">It&apos;ll be shaped to fit the drum exactly — drag, resize, and tint it once it&apos;s added.</span>
-                  </span>
-                </button>
-                <input ref={patternFileInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handlePatternUpload} />
+                {!hasBackground && (
+                  <div className="flex gap-3 mb-4">
+                    <button
+                      onClick={() =>
+                        patternFileInputRef.current?.click()
+                      }
+                      className="flex-1 flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
+                      style={{
+                        border: `1.5px dashed ${ACCENT}`,
+                        backgroundColor: "#EFE3C4",
+                      }}
+                    >
+                      <PhotoUploadIcon />
+
+                      <span
+                        className="text-xs md:text-sm"
+                        style={{
+                          color:
+                            "rgba(0,0,0,0.62)",
+                        }}
+                      >
+                        Upload your own finished
+                        design
+                        <br />
+                        <span className="text-[11px]">
+                          It&apos;ll be shaped to fit
+                          the drum exactly — drag,
+                          resize, and tint it once
+                          it&apos;s added.
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {hasBackground && (
+                  <p
+                    className="mb-4 text-xs"
+                    style={{
+                      color: "rgba(0,0,0,0.5)",
+                    }}
+                  >
+                    Background added — delete it
+                    from the stage above to choose a
+                    different type.
+                  </p>
+                )}
+
+                <input
+                  ref={patternFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={handlePatternUpload}
+                />
               </>
             )}
 
             {designMode === "build" && (
               <div className="flex flex-col gap-6">
-                <div>
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
-                    Color
-                  </p>
-                  <button
-                    onClick={addFill}
-                    className="w-full flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
-                    style={{ border: `1.5px solid ${ACCENT}`, backgroundColor: "#EFE3C4" }}
+                {!hasBackground && (
+                  <div className="flex gap-3 mb-4">
+                    <div className="flex-1">
+                      <p
+                        className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
+                        style={{ color: ACCENT }}
+                      >
+                        Color
+                      </p>
+
+                      <button
+                        onClick={addFill}
+                        className="w-full flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
+                        style={{
+                          border: `1.5px solid ${ACCENT}`,
+                          backgroundColor:
+                            "#EFE3C4",
+                        }}
+                      >
+                        <span
+                          className="h-6 w-6 flex-shrink-0 rounded-full"
+                          style={{
+                            background:
+                              "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
+                          }}
+                        />
+
+                        <span
+                          className="text-xs md:text-sm"
+                          style={{
+                            color:
+                              "rgba(0,0,0,0.62)",
+                          }}
+                        >
+                          Add a solid color or
+                          blend
+                          <br />
+                          <span className="text-[11px]">
+                            Pick one color, or add
+                            more to blend them.
+                          </span>
+                        </span>
+                      </button>
+                    </div>
+
+                    <div className="flex-1">
+                      <p
+                        className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
+                        style={{ color: ACCENT }}
+                      >
+                        Photo
+                      </p>
+
+                      <button
+                        onClick={() =>
+                          patternFileInputRef.current?.click()
+                        }
+                        className="w-full flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
+                        style={{
+                          border: `1.5px dashed ${ACCENT}`,
+                          backgroundColor:
+                            "#EFE3C4",
+                        }}
+                      >
+                        <PhotoUploadIcon />
+
+                        <span
+                          className="text-xs md:text-sm"
+                          style={{
+                            color:
+                              "rgba(0,0,0,0.62)",
+                          }}
+                        >
+                          Add your own photo
+                          <br />
+                          <span className="text-[11px]">
+                            JPG, PNG up to 8MB —
+                            drag and resize once
+                            it&apos;s added.
+                          </span>
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {hasBackground && (
+                  <p
+                    className="mb-4 text-xs"
+                    style={{
+                      color: "rgba(0,0,0,0.5)",
+                    }}
                   >
-                    <span className="h-6 w-6 flex-shrink-0 rounded-full" style={{ background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)" }} />
-                    <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
-                      Add a solid color or blend
-                      <br />
-                      <span className="text-[11px]">Pick one color, or add more to blend them.</span>
-                    </span>
-                  </button>
-                </div>
+                    Background added — delete it
+                    from the stage above to choose a
+                    different type.
+                  </p>
+                )}
+
+                <input
+                  ref={patternFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={handlePatternUpload}
+                />
 
                 <div>
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
-                    Photo
-                  </p>
-                  <button
-                    onClick={() => patternFileInputRef.current?.click()}
-                    className="w-full flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
-                    style={{ border: `1.5px dashed ${ACCENT}`, backgroundColor: "#EFE3C4" }}
+                  <p
+                    className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
+                    style={{ color: ACCENT }}
                   >
-                    <PhotoUploadIcon />
-                    <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
-                      Add your own photo
-                      <br />
-                      <span className="text-[11px]">JPG, PNG up to 8MB — drag and resize once it&apos;s added.</span>
-                    </span>
-                  </button>
-                  <input ref={patternFileInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={handlePatternUpload} />
-                </div>
-
-                <div>
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
                     Message
                   </p>
+
                   <button
                     onClick={addMessage}
                     className="w-full rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 hover:scale-[1.01] active:scale-[0.98]"
-                    style={{ backgroundColor: "#FFFFFF", border: `1px solid ${ACCENT}`, color: ACCENT }}
+                    style={{
+                      backgroundColor: "#FFFFFF",
+                      border: `1px solid ${ACCENT}`,
+                      color: ACCENT,
+                    }}
                   >
                     + Add a message
                   </button>
@@ -900,16 +1555,30 @@ export default function CustomizeTambourinePage() {
           <button
             onClick={() => setShowPreview(true)}
             className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
-            style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
+            style={{
+              backgroundColor: ACCENT,
+              color: "#FFF4E6",
+            }}
           >
             Preview my tambourine
           </button>
-          <span className="text-lg font-semibold" style={{ color: "#000000" }}>{selectedSize.price} LE</span>
+
+          <span
+            className="text-lg font-semibold"
+            style={{ color: "#000000" }}
+          >
+            {selectedSize.price} LE
+          </span>
         </div>
       </div>
 
       {showPreview && (
-        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-8 px-6 py-10 overflow-y-auto" style={{ backgroundColor: "#FFF4E6" }}>
+        <div
+          className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-8 px-6 py-10 overflow-y-auto"
+          style={{
+            backgroundColor: "#FFF4E6",
+          }}
+        >
           <button
             onClick={() => setShowPreview(false)}
             className="absolute top-6 right-6 text-2xl transition-all duration-150 hover:scale-110 active:scale-90 hover:opacity-70"
@@ -920,19 +1589,48 @@ export default function CustomizeTambourinePage() {
           </button>
 
           <div className="relative flex w-full max-w-sm md:max-w-md items-center justify-center">
-            <div className="relative" style={{ width: `${(selectedSize.cm / MAX_CM) * 100}%` }}>
-              <img src={selectedSize.img} alt="Your customized tambourine" className="w-full h-auto" draggable={false} />
-              {layers.slice().sort((a, b) => a.z - b.z).map((layer) => renderLayer(layer, false))}
+            <div
+              className="relative"
+              style={{
+                width: `${
+                  (selectedSize.cm / MAX_CM) *
+                  100
+                }%`,
+              }}
+            >
+              <img
+                src={selectedSize.img}
+                alt="Your customized tambourine"
+                className="w-full h-auto"
+                draggable={false}
+              />
+
+              {layers
+                .slice()
+                .sort((a, b) => a.z - b.z)
+                .map((layer) =>
+                  renderLayer(layer, false)
+                )}
             </div>
           </div>
 
           <button
             onClick={() => {
-              // TODO: wire this up to your real cart store once it exists
-              console.log("Tambourine order:", { size, ribbonColor, layers, price: selectedSize.price });
+              console.log(
+                "Tambourine order:",
+                {
+                  size,
+                  ribbonColor,
+                  layers,
+                  price: selectedSize.price,
+                }
+              );
             }}
             className="inline-flex items-center justify-center gap-2 px-10 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
-            style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
+            style={{
+              backgroundColor: ACCENT,
+              color: "#FFF4E6",
+            }}
           >
             Checkout — {selectedSize.price} LE
           </button>
@@ -942,22 +1640,59 @@ export default function CustomizeTambourinePage() {
   );
 }
 
-function StepLabel({ n, title }: { n: number; title: string }) {
+function StepLabel({
+  n,
+  title,
+}: {
+  n: number;
+  title: string;
+}) {
   return (
     <div className="flex items-center gap-2 mb-3">
-      <span className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold" style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}>
+      <span
+        className="w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-semibold"
+        style={{
+          backgroundColor: ACCENT,
+          color: "#FFF4E6",
+        }}
+      >
         {n}
       </span>
-      <span className="uppercase tracking-[0.15em] text-[11px] font-medium" style={{ color: "#000000" }}>{title}</span>
+
+      <span
+        className="uppercase tracking-[0.15em] text-[11px] font-medium"
+        style={{ color: "#000000" }}
+      >
+        {title}
+      </span>
     </div>
   );
 }
 
 function PhotoUploadIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DE4B33" strokeWidth="1.6">
-      <rect x="3" y="5" width="18" height="14" rx="2" />
-      <circle cx="9" cy="10" r="1.6" fill="#DE4B33" stroke="none" />
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#DE4B33"
+      strokeWidth="1.6"
+    >
+      <rect
+        x="3"
+        y="5"
+        width="18"
+        height="14"
+        rx="2"
+      />
+      <circle
+        cx="9"
+        cy="10"
+        r="1.6"
+        fill="#DE4B33"
+        stroke="none"
+      />
       <path d="M21 16l-5.5-5.5L9 17" />
     </svg>
   );
@@ -965,11 +1700,36 @@ function PhotoUploadIcon() {
 
 function PaletteIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DE4B33" strokeWidth="1.6">
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#DE4B33"
+      strokeWidth="1.6"
+    >
       <path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.2 0-1 .8-1.5 1.8-1.5H16a5 5 0 0 0 5-5c0-4-4-7-9-7Z" />
-      <circle cx="7.5" cy="10.5" r="1.1" fill="#DE4B33" stroke="none" />
-      <circle cx="11" cy="7" r="1.1" fill="#DE4B33" stroke="none" />
-      <circle cx="15.5" cy="8.5" r="1.1" fill="#DE4B33" stroke="none" />
+      <circle
+        cx="7.5"
+        cy="10.5"
+        r="1.1"
+        fill="#DE4B33"
+        stroke="none"
+      />
+      <circle
+        cx="11"
+        cy="7"
+        r="1.1"
+        fill="#DE4B33"
+        stroke="none"
+      />
+      <circle
+        cx="15.5"
+        cy="8.5"
+        r="1.1"
+        fill="#DE4B33"
+        stroke="none"
+      />
     </svg>
   );
 }
