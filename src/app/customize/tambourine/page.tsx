@@ -359,8 +359,8 @@ export default function CustomizeTambourinePage() {
         id,
         type: "fill",
         colors: [ACCENT],
-        x: 50,
-        y: 50,
+               x: selectedSize.drumPos.x,
+        y: selectedSize.drumPos.y,
         scale: 1,
         rotation: 0,
         z: 0,
@@ -589,118 +589,124 @@ export default function CustomizeTambourinePage() {
      * person zooms or pans the photo inside it.
      */
     if (layer.type === "fill" || layer.type === "pattern") {
-      const frameStyle: React.CSSProperties = {
-        position: "absolute",
-        left: `${selectedSize.drumPos.x}%`,
-        top: `${selectedSize.drumPos.y}%`,
-        width: `${selectedSize.drumDiameterPct}%`,
-        aspectRatio: "1 / 1",
-        borderRadius: "50%",
-        overflow: "hidden",
-        transform: "translate(-50%, -50%)",
-        outline: isSelected
-          ? `1.5px dashed ${ACCENT}`
-          : "none",
-        outlineOffset: "4px",
-      };
+  // Base size (at scale 1) is fixed to the drum's own diameter, so
+  // pinching out can never grow the design past the drum edge.
+  // Pinching in can still shrink it down to minScale.
+  const frameStyle: React.CSSProperties = {
+    position: "absolute",
+    left: `${layer.x}%`,
+    top: `${layer.y}%`,
+    width: `${selectedSize.drumDiameterPct}%`,
+    aspectRatio: "1 / 1",
+    borderRadius: "50%",
+    overflow: "hidden",
+    transform: `translate(-50%, -50%) scale(${layer.scale})`,
+    transformOrigin: "center center",
+    outline: isSelected ? `1.5px dashed ${ACCENT}` : "none",
+    outlineOffset: "4px",
+    touchAction: interactive ? "none" : undefined,
+  };
 
-      if (layer.type === "fill") {
-        const background =
-          layer.colors.length === 1
-            ? layer.colors[0]
-            : `linear-gradient(135deg, ${layer.colors.join(
-                ", "
-              )})`;
+  const scaleOpts = {
+    minScale: 0.3,
+    maxScale: 1,
+  };
 
-        return (
-          <div
-            key={layer.id}
-            onClick={
-              interactive
-                ? () => setSelectedId(layer.id)
-                : undefined
-            }
-            style={{
-              ...frameStyle,
-              background,
-              cursor: interactive ? "pointer" : "default",
-            }}
-          />
-        );
+  if (layer.type === "fill") {
+    const background =
+      layer.colors.length === 1
+        ? layer.colors[0]
+        : `linear-gradient(135deg, ${layer.colors.join(", ")})`;
+
+    return (
+      <div
+        key={layer.id}
+        onPointerDown={
+          interactive
+            ? gestures.onPointerDown(
+                layer.id,
+                stageRef.current,
+                scaleOpts
+              )
+            : undefined
+        }
+        onPointerMove={
+          interactive
+            ? gestures.onPointerMove(stageRef.current)
+            : undefined
+        }
+        onPointerUp={
+          interactive ? gestures.onPointerUp : undefined
+        }
+        onWheel={
+          interactive
+            ? gestures.onWheelZoom(layer.id, scaleOpts)
+            : undefined
+        }
+        style={{
+          ...frameStyle,
+          background,
+          cursor: interactive ? "grab" : "default",
+        }}
+      />
+    );
+  }
+
+  return (
+    <div
+      key={layer.id}
+      onPointerDown={
+        interactive
+          ? gestures.onPointerDown(
+              layer.id,
+              stageRef.current,
+              scaleOpts
+            )
+          : undefined
       }
+      onPointerMove={
+        interactive
+          ? gestures.onPointerMove(stageRef.current)
+          : undefined
+      }
+      onPointerUp={
+        interactive ? gestures.onPointerUp : undefined
+      }
+      onWheel={
+        interactive
+          ? gestures.onWheelZoom(layer.id, scaleOpts)
+          : undefined
+      }
+      style={{
+        ...frameStyle,
+        cursor: interactive ? "grab" : "default",
+      }}
+    >
+      <img
+        src={layer.src}
+        alt="Your uploaded pattern"
+        draggable={false}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+        }}
+      />
 
-      /*
-       * Pattern (uploaded photo): the frame above is fixed, so
-       * pinch/drag here only pans and zooms the photo itself — it
-       * can never leave a gap, because zoom is clamped to a minimum
-       * of 1 (which is exactly "fully covers the circle").
-       */
-      const zoom = layer.scale;
-      const maxPanPct = (zoom - 1) * 50;
-      const offsetX = ((layer.x - 50) / 50) * maxPanPct;
-      const offsetY = ((layer.y - 50) / 50) * maxPanPct;
-
-      return (
+      {layer.tint && (
         <div
-          key={layer.id}
-          onPointerDown={
-            interactive
-              ? gestures.onPointerDown(layer.id, stageRef.current, {
-                  minScale: 1,
-                  maxScale: 3,
-                })
-              : undefined
-          }
-          onPointerMove={
-            interactive
-              ? gestures.onPointerMove(stageRef.current)
-              : undefined
-          }
-          onPointerUp={
-            interactive ? gestures.onPointerUp : undefined
-          }
-          onWheel={
-            interactive
-              ? gestures.onWheelZoom(layer.id, {
-                  minScale: 1,
-                  maxScale: 3,
-                })
-              : undefined
-          }
           style={{
-            ...frameStyle,
-            cursor: interactive ? "grab" : "default",
-            touchAction: "none",
+            position: "absolute",
+            inset: 0,
+            backgroundColor: layer.tint,
+            mixBlendMode: "color",
+            opacity: 0.85,
           }}
-        >
-          <img
-            src={layer.src}
-            alt="Your uploaded pattern"
-            draggable={false}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              transform: `translate(${offsetX}%, ${offsetY}%) scale(${zoom})`,
-              transformOrigin: "center center",
-            }}
-          />
-
-          {layer.tint && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                backgroundColor: layer.tint,
-                mixBlendMode: "color",
-                opacity: 0.85,
-              }}
-            />
-          )}
-        </div>
-      );
-    }
-
+        />
+      )}
+    </div>
+  );
+}
     /* ---------------------------------------------------------- */
     /* Text layer — freely draggable/pinchable, unchanged           */
     /* ---------------------------------------------------------- */

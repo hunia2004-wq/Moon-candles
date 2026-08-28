@@ -713,13 +713,17 @@ export default function CustomizeFanPage() {
      * artwork, including the top corners, instead of being
      * letterboxed into a smaller guessed region.
      */
-    const frameStyle: React.CSSProperties = {
+       const frameStyle: React.CSSProperties = {
       position: "absolute",
       inset: 0,
       outline: isSelected
         ? `1.5px dashed ${ACCENT}`
         : "none",
       outlineOffset: "4px",
+      // The fan artwork includes the rivet + tassel below the blade
+      // itself. Clip that bottom sliver off so color/pattern fills
+      // only stop at the blade, never the handle/tassel area.
+      clipPath: "inset(0% 0% 24% 0%)",
     };
 
     const maskWrapperStyle: React.CSSProperties = {

@@ -256,12 +256,14 @@ export default function ProductDetailView({
   ] = useState<string | null>(
     product.scents?.[0] ?? null
   );
- const [
+  const [
   selectedRibbon,
   setSelectedRibbon,
 ] = useState<RibbonColorId>(
   RIBBON_COLORS[0].id
 );
+
+const [plainQuantity, setPlainQuantity] = useState(1);
 
   const [
     selectedNoorWhite,
@@ -1891,13 +1893,15 @@ export default function ProductDetailView({
    * ============================================================
    */
 
-  function addRegularProductToCart() {
+   function addRegularProductToCart() {
     const existingCart =
       JSON.parse(
         localStorage.getItem(
           "cart"
         ) || "[]"
       );
+
+   
 
     const productColor =
       selectedColor?.name ??
@@ -2021,7 +2025,7 @@ export default function ProductDetailView({
         return updated;
       }
 
-      return [
+           return [
         ...prev,
         {
           id: lineId,
@@ -2039,6 +2043,95 @@ export default function ProductDetailView({
         },
       ];
     });
+  }
+
+  /*
+   * ============================================================
+   * TAMBOURINE PLAIN — STACKABLE ORDER
+   * ============================================================
+   */
+
+  function addTambourineLineToOrder() {
+    const productColor = selectedColor?.name ?? productName;
+    const ribbon = RIBBON_COLORS.find((c) => c.id === selectedRibbon)!;
+
+    const lineId = [product.id, productColor, ribbon.id]
+      .join("-")
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+
+    setOrderLines((prev) => {
+      const existingIndex = prev.findIndex((line) => line.id === lineId);
+
+      if (existingIndex !== -1) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: updated[existingIndex].quantity + plainQuantity,
+        };
+        return updated;
+      }
+
+      return [
+        ...prev,
+        {
+          id: lineId,
+          colorName: `${productColor} · ${ribbon.label} Ribbon`,
+          scentName: null,
+          price: Number(displayPrice),
+          quantity: plainQuantity,
+          image: gallery[0] ?? "",
+        },
+      ];
+    });
+
+    setPlainQuantity(1);
+  }
+
+  function updateTambourineLineQuantity(lineId: string, newQuantity: number) {
+    if (newQuantity <= 0) {
+      setOrderLines((prev) => prev.filter((line) => line.id !== lineId));
+      return;
+    }
+
+    setOrderLines((prev) =>
+      prev.map((line) =>
+        line.id === lineId ? { ...line, quantity: newQuantity } : line
+      )
+    );
+  }
+
+  function removeTambourineLine(lineId: string) {
+    setOrderLines((prev) => prev.filter((line) => line.id !== lineId));
+  }
+
+  function addTambourineOrderToCart() {
+    if (!orderLines.length) return;
+
+    const existingCart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+    const otherItems = existingCart.filter(
+      (item: any) =>
+        !(item.productId === product.id && item.productName === productName)
+    );
+
+    const newItems = orderLines.map((line) => ({
+      id: line.id,
+      productId: product.id,
+      productName,
+      price: line.price,
+      quantity: line.quantity,
+      color: line.colorName,
+      scent: null,
+      image: line.image,
+    }));
+
+    localStorage.setItem("cart", JSON.stringify([...otherItems, ...newItems]));
+
+    window.dispatchEvent(new Event("cartUpdated"));
+
+    setOrderLines([]);
+    router.push("/cart");
   }
 
   function updateNormalLineQuantity(
@@ -3294,154 +3387,254 @@ export default function ProductDetailView({
                 REGULAR ADD TO CART
                 ================================================== */}
 
-                        {!customizeOnly &&
-              (!isGiveaway || isPlainSellableGiveaway) &&
-              !isQuackAndKiss &&
-              !isTwoColorProduct && (
-                <>
+                       {!customizeOnly &&
+  (!isGiveaway || isPlainSellableGiveaway) &&
+  !isQuackAndKiss &&
+  !isTwoColorProduct &&
+  productName !== "Tambourine" && (
+    <>
+      <button
+        type="button"
+        onClick={addRegularProductToCart}
+        className="mt-6 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+        style={{ backgroundColor: accent, color: "#FFF4E6" }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = accentDark;
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = accent;
+        }}
+      >
+        Add to Cart
+      </button>
+
+      {orderLines.length > 0 && (
+        <div className="mt-5">
+          <p
+            className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+            style={{ color: accent }}
+          >
+            Your Order
+          </p>
+
+          <div className="flex flex-col gap-2">
+            {orderLines.map((line, index) => (
+              <div
+                key={`order-${line.id}-${index}`}
+                className="rounded-2xl p-3"
+                style={{ backgroundColor: "#EFE3C4" }}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold">{line.colorName}</p>
+                    {line.scentName && (
+                      <p className="mt-1 text-xs opacity-55">{line.scentName}</p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateNormalLineQuantity(line.id, line.quantity - 1)
+                      }
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                    >
+                      −
+                    </button>
+
+                    <span className="w-5 text-center text-sm font-semibold">
+                      {line.quantity}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateNormalLineQuantity(line.id, line.quantity + 1)
+                      }
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                    >
+                      +
+                    </button>
+
+                    <span
+                      className="ml-2 min-w-[70px] text-right text-sm font-bold"
+                      style={{ color: accent }}
+                    >
+                      {line.price * line.quantity} EGP
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-1 text-right">
                   <button
                     type="button"
-                    onClick={
-                      addRegularProductToCart
-                    }
-                    className="mt-6 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
-                    style={{
-                      backgroundColor:
-                        accent,
-                      color:
-                        "#FFF4E6",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor =
-                        accentDark;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor =
-                        accent;
-                    }}
+                    onClick={() => removeLine(line.id)}
+                    className="text-xs underline opacity-50 hover:opacity-100"
                   >
-                    Add to Cart
+                    remove
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  )}
+
+{/* ==================================================
+    TAMBOURINE PLAIN — STACKABLE ORDER (size + ribbon)
+    ================================================== */}
+
+{!customizeOnly && productName === "Tambourine" && (
+  <>
+    <div className="mt-6">
+      <p
+        className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+        style={{ color: accent }}
+      >
+        Quantity
+      </p>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            setPlainQuantity((q) => Math.max(1, q - 1))
+          }
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all hover:scale-105 active:scale-95"
+        >
+          −
+        </button>
+
+        <span className="w-6 text-center text-sm font-semibold">
+          {plainQuantity}
+        </span>
+
+        <button
+          type="button"
+          onClick={() => setPlainQuantity((q) => q + 1)}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all hover:scale-105 active:scale-95"
+        >
+          +
+        </button>
+      </div>
+    </div>
+
+    {/* PRIMARY ACTION 1 — stack this size+ribbon combo */}
+    <button
+      type="button"
+      onClick={addTambourineLineToOrder}
+      className="mt-4 w-full rounded-full border-2 px-8 py-3.5 text-sm font-bold uppercase tracking-[0.12em] transition-all duration-200 hover:-translate-y-0.5"
+      style={{
+        backgroundColor: "transparent",
+        borderColor: accent,
+        color: accent,
+      }}
+    >
+      + Add to Order
+    </button>
+
+    {orderLines.length > 0 && (
+      <div className="mt-5">
+        <p
+          className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+          style={{ color: accent }}
+        >
+          Your Order
+        </p>
+
+        <div className="flex flex-col gap-2">
+          {orderLines.map((line, index) => (
+            <div
+              key={`tamb-order-${line.id}-${index}`}
+              className="rounded-2xl p-3"
+              style={{ backgroundColor: "#EFE3C4" }}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="min-w-0 text-sm font-semibold">
+                  {line.colorName}
+                </p>
+
+                <div className="flex flex-shrink-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateTambourineLineQuantity(line.id, line.quantity - 1)
+                    }
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                  >
+                    −
                   </button>
 
-                  {orderLines.length >
-                    0 && (
-                    <div className="mt-5">
+                  <span className="w-5 text-center text-sm font-semibold">
+                    {line.quantity}
+                  </span>
 
-                      <p
-                        className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
-                        style={{
-                          color:
-                            accent,
-                        }}
-                      >
-                        Your Order
-                      </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateTambourineLineQuantity(line.id, line.quantity + 1)
+                    }
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                  >
+                    +
+                  </button>
 
-                      <div className="flex flex-col gap-2">
+                  <span
+                    className="ml-2 min-w-[70px] text-right text-sm font-bold"
+                    style={{ color: accent }}
+                  >
+                    {line.price * line.quantity} EGP
+                  </span>
+                </div>
+              </div>
 
-                        {orderLines.map(
-                          (
-                            line,
-                            index
-                          ) => (
-                            <div
-                              key={`order-${line.id}-${index}`}
-                              className="rounded-2xl p-3"
-                              style={{
-                                backgroundColor:
-                                  "#EFE3C4",
-                              }}
-                            >
-                              <div className="flex items-center justify-between gap-3">
+              <div className="mt-1 text-right">
+                <button
+                  type="button"
+                  onClick={() => removeTambourineLine(line.id)}
+                  className="text-xs underline opacity-50 hover:opacity-100"
+                >
+                  remove
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
 
-                                <div className="min-w-0">
-                                  <p className="text-sm font-semibold">
-                                    {
-                                      line.colorName
-                                    }
-                                  </p>
+        <div
+          className="mt-4 flex items-center justify-between rounded-2xl px-5 py-4"
+          style={{ border: `1px solid ${accent}` }}
+        >
+          <span className="text-sm font-semibold">
+            {totalQuantity} tambourine{totalQuantity !== 1 ? "s" : ""} total
+          </span>
+          <span className="text-lg font-bold" style={{ color: accent }}>
+            {totalOrderPrice} EGP
+          </span>
+        </div>
 
-                                  {line.scentName && (
-                                    <p className="mt-1 text-xs opacity-55">
-                                      {
-                                        line.scentName
-                                      }
-                                    </p>
-                                  )}
-                                </div>
-
-                                <div className="flex flex-shrink-0 items-center gap-2">
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      updateNormalLineQuantity(
-                                        line.id,
-                                        line.quantity -
-                                          1
-                                      )
-                                    }
-                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
-                                  >
-                                    −
-                                  </button>
-
-                                  <span className="w-5 text-center text-sm font-semibold">
-                                    {
-                                      line.quantity
-                                    }
-                                  </span>
-
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      updateNormalLineQuantity(
-                                        line.id,
-                                        line.quantity +
-                                          1
-                                      )
-                                    }
-                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
-                                  >
-                                    +
-                                  </button>
-
-                                  <span
-                                    className="ml-2 min-w-[70px] text-right text-sm font-bold"
-                                    style={{
-                                      color:
-                                        accent,
-                                    }}
-                                  >
-                                    {line.price *
-                                      line.quantity}{" "}
-                                    EGP
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="mt-1 text-right">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    removeLine(
-                                      line.id
-                                    )
-                                  }
-                                  className="text-xs underline opacity-50 hover:opacity-100"
-                                >
-                                  remove
-                                </button>
-                              </div>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-
+        {/* PRIMARY ACTION 2 — commit the whole stacked order */}
+        <button
+          type="button"
+          onClick={addTambourineOrderToCart}
+          className="mt-4 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+          style={{ backgroundColor: accent, color: "#FFF4E6" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = accentDark;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = accent;
+          }}
+        >
+          Add Order to Cart
+        </button>
+      </div>
+    )}
+  </>
+)}
             {/* ==================================================
                 QUACK ADD TO CART
                 ================================================== */}
