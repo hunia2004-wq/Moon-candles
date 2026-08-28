@@ -38,6 +38,14 @@ const permanentMarker = Permanent_Marker({ subsets: ["latin"], weight: ["400"] }
 
 const ACCENT = "#DE4B33";
 
+// Shared zoom bounds for the tambourine's uploaded photo. The circular
+// frame around it is now permanently pinned to the drum (position AND
+// size never change with pinch — see renderLayer), so this only bounds
+// the photo itself inside that fixed frame. minScale 1 keeps the photo
+// covering the frame with no blank gaps; maxScale is high so the photo
+// can be pinched in as far as the person wants.
+const PATTERN_SCALE_OPTS = { minScale: 1, maxScale: 8 };
+
 const SIZES = [
   {
     id: "small",
@@ -45,8 +53,8 @@ const SIZES = [
     cm: 12,
     price: 100,
     img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/custom%20tambourines/small%20tambourine%20custom.png",
-    drumPos: { x: 50, y: 42 },
-    drumDiameterPct: 66,
+    drumPos: { x: 50, y: 54 },
+    drumDiameterPct: 85,
   },
   {
     id: "large",
@@ -54,8 +62,8 @@ const SIZES = [
     cm: 20,
     price: 145,
     img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/custom%20tambourines/large%20tambourine%20custom.png",
-    drumPos: { x: 50, y: 33 },
-    drumDiameterPct: 66,
+    drumPos: { x: 51, y: 49 },
+    drumDiameterPct: 82,
   },
 ] as const;
 
@@ -288,7 +296,7 @@ export default function CustomizeTambourinePage() {
     RIBBON_COLORS[0].id
   );
 
-  const [designMode, setDesignMode] = useState<
+  const [designMode, setDesignMode] = useState
     "upload" | "build" | null
   >(null);
 
@@ -359,8 +367,11 @@ export default function CustomizeTambourinePage() {
         id,
         type: "fill",
         colors: [ACCENT],
-               x: selectedSize.drumPos.x,
-        y: selectedSize.drumPos.y,
+        // x/y/scale are unused for fill now — the frame is always
+        // pinned to the drum directly from selectedSize (see
+        // renderLayer). Kept only because BaseLayer requires them.
+        x: 50,
+        y: 50,
         scale: 1,
         rotation: 0,
         z: 0,
@@ -400,11 +411,13 @@ export default function CustomizeTambourinePage() {
         type: "pattern",
         src: url,
         tint: null,
-        // x/y here are the photo's own pan position (50 = centered, no
-        // pan), and scale is the photo's own zoom (1 = fully covers the
-        // drum, so nothing is cropped until the person pinches to zoom
-        // in themselves). The circle frame itself is always fixed to
-        // the drum — see renderLayer.
+        // x/y here are the photo's own PAN position inside the frame
+        // (50 = centered, no pan), and scale is the photo's own ZOOM
+        // (1 = fully covers the drum, so nothing is cropped until the
+        // person pinches to zoom in themselves). The circle frame
+        // itself is always fixed to the drum's position and size —
+        // pinching can never move or resize the frame, only pan/zoom
+        // the photo inside it. See renderLayer.
         x: 50,
         y: 50,
         scale: 1,
@@ -583,130 +596,118 @@ export default function CustomizeTambourinePage() {
     /* Background layers (fill / pattern)                          */
     /* ---------------------------------------------------------- */
     /*
-     * The circle "frame" is always fixed to the drum's own position
-     * and size — it is NEVER affected by pinch/zoom. That's what
-     * makes the design fit the drum perfectly no matter how the
-     * person zooms or pans the photo inside it.
+     * The frame below is ALWAYS pinned to the drum's own position and
+     * size, taken directly from selectedSize — never from layer.x/y
+     * or layer.scale. This is what makes it physically impossible to
+     * drag or pinch the design off the drum or past its edge.
+     *
+     * For a pattern layer, layer.x/y/scale instead describe the PAN
+     * and ZOOM of the photo *inside* this fixed frame — so the person
+     * can pinch to zoom the photo in as far as they like, and pan it
+     * around, entirely independent of the frame itself.
      */
     if (layer.type === "fill" || layer.type === "pattern") {
-  // Base size (at scale 1) is fixed to the drum's own diameter, so
-  // pinching out can never grow the design past the drum edge.
-  // Pinching in can still shrink it down to minScale.
-  const frameStyle: React.CSSProperties = {
-    position: "absolute",
-    left: `${layer.x}%`,
-    top: `${layer.y}%`,
-    width: `${selectedSize.drumDiameterPct}%`,
-    aspectRatio: "1 / 1",
-    borderRadius: "50%",
-    overflow: "hidden",
-    transform: `translate(-50%, -50%) scale(${layer.scale})`,
-    transformOrigin: "center center",
-    outline: isSelected ? `1.5px dashed ${ACCENT}` : "none",
-    outlineOffset: "4px",
-    touchAction: interactive ? "none" : undefined,
-  };
+      const frameStyle: React.CSSProperties = {
+        position: "absolute",
+        left: `${selectedSize.drumPos.x}%`,
+        top: `${selectedSize.drumPos.y}%`,
+        width: `${selectedSize.drumDiameterPct}%`,
+        aspectRatio: "1 / 1",
+        borderRadius: "50%",
+        overflow: "hidden",
+        transform: "translate(-50%, -50%)",
+        outline: isSelected ? `1.5px dashed ${ACCENT}` : "none",
+        outlineOffset: "4px",
+        touchAction: interactive ? "none" : undefined,
+      };
 
-  const scaleOpts = {
-    minScale: 0.3,
-    maxScale: 1,
-  };
+      if (layer.type === "fill") {
+        const background =
+          layer.colors.length === 1
+            ? layer.colors[0]
+            : `linear-gradient(135deg, ${layer.colors.join(", ")})`;
 
-  if (layer.type === "fill") {
-    const background =
-      layer.colors.length === 1
-        ? layer.colors[0]
-        : `linear-gradient(135deg, ${layer.colors.join(", ")})`;
-
-    return (
-      <div
-        key={layer.id}
-        onPointerDown={
-          interactive
-            ? gestures.onPointerDown(
-                layer.id,
-                stageRef.current,
-                scaleOpts
-              )
-            : undefined
-        }
-        onPointerMove={
-          interactive
-            ? gestures.onPointerMove(stageRef.current)
-            : undefined
-        }
-        onPointerUp={
-          interactive ? gestures.onPointerUp : undefined
-        }
-        onWheel={
-          interactive
-            ? gestures.onWheelZoom(layer.id, scaleOpts)
-            : undefined
-        }
-        style={{
-          ...frameStyle,
-          background,
-          cursor: interactive ? "grab" : "default",
-        }}
-      />
-    );
-  }
-
-  return (
-    <div
-      key={layer.id}
-      onPointerDown={
-        interactive
-          ? gestures.onPointerDown(
-              layer.id,
-              stageRef.current,
-              scaleOpts
-            )
-          : undefined
+        return (
+          <div
+            key={layer.id}
+            onClick={
+              interactive
+                ? () => setSelectedId(layer.id)
+                : undefined
+            }
+            style={{
+              ...frameStyle,
+              background,
+              cursor: interactive ? "pointer" : "default",
+            }}
+          />
+        );
       }
-      onPointerMove={
-        interactive
-          ? gestures.onPointerMove(stageRef.current)
-          : undefined
-      }
-      onPointerUp={
-        interactive ? gestures.onPointerUp : undefined
-      }
-      onWheel={
-        interactive
-          ? gestures.onWheelZoom(layer.id, scaleOpts)
-          : undefined
-      }
-      style={{
-        ...frameStyle,
-        cursor: interactive ? "grab" : "default",
-      }}
-    >
-      <img
-        src={layer.src}
-        alt="Your uploaded pattern"
-        draggable={false}
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-        }}
-      />
 
-      {layer.tint && (
+      // Pattern layer — photo pans/zooms independently inside the
+      // fixed frame, same technique as the fan's pattern layer.
+      const zoom = layer.scale;
+      const maxPanPct = (zoom - 1) * 50;
+      const offsetX = ((layer.x - 50) / 50) * maxPanPct;
+      const offsetY = ((layer.y - 50) / 50) * maxPanPct;
+
+      return (
         <div
+          key={layer.id}
+          onPointerDown={
+            interactive
+              ? gestures.onPointerDown(
+                  layer.id,
+                  stageRef.current,
+                  PATTERN_SCALE_OPTS
+                )
+              : undefined
+          }
+          onPointerMove={
+            interactive
+              ? gestures.onPointerMove(stageRef.current)
+              : undefined
+          }
+          onPointerUp={
+            interactive ? gestures.onPointerUp : undefined
+          }
+          onWheel={
+            interactive
+              ? gestures.onWheelZoom(layer.id, PATTERN_SCALE_OPTS)
+              : undefined
+          }
           style={{
-            position: "absolute",
-            inset: 0,
-            backgroundColor: layer.tint,
-            mixBlendMode: "color",
-            opacity: 0.85,
+            ...frameStyle,
+            cursor: interactive ? "grab" : "default",
           }}
-        />
-      )}
-    </div>
-  );
-}
+        >
+          <img
+            src={layer.src}
+            alt="Your uploaded pattern"
+            draggable={false}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              transform: `translate(${offsetX}%, ${offsetY}%) scale(${zoom})`,
+              transformOrigin: "center center",
+            }}
+          />
+
+          {layer.tint && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                backgroundColor: layer.tint,
+                mixBlendMode: "color",
+                opacity: 0.85,
+              }}
+            />
+          )}
+        </div>
+      );
+    }
     /* ---------------------------------------------------------- */
     /* Text layer — freely draggable/pinchable, unchanged           */
     /* ---------------------------------------------------------- */
@@ -917,8 +918,8 @@ export default function CustomizeTambourinePage() {
                       color: "rgba(0,0,0,0.45)",
                     }}
                   >
-                    tap the wheel to pick any color · pinch the design
-                    on the drum to zoom &amp; move it
+                    tap the wheel to pick any color · pinch the photo
+                    to zoom &amp; move it
                   </span>
                 </div>
               </div>

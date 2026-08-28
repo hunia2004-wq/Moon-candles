@@ -48,6 +48,14 @@ const PRICE = 25;
 const FAN_IMG =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customized%20fan/custom%20fan.png";
 
+// Shared zoom bounds for the fan's pattern layer — used by both the
+// pinch/drag handler and the wheel handler so they can never drift out
+// of sync with each other again. minScale stays at 1: the pattern sits
+// behind a CSS mask (not a cropped circle frame like the tambourine),
+// so going below "fully covers the fan" would show blank gaps inside
+// the mask. maxScale raised to match the tambourine's zoom-in range.
+const PATTERN_SCALE_OPTS = { minScale: 1, maxScale: 6 };
+
 const BG_SHAPES = [
   { id: "rectangle", label: "Rectangle" },
   { id: "pill", label: "Pill" },
@@ -133,6 +141,7 @@ type FillLayer = BaseLayer & {
 };
 
 type Layer = TextLayer | PatternLayer | FillLayer;
+type LayersBySide = Record<SideId, Layer[]>;
 
 type SideId = "front" | "back";
 
@@ -286,9 +295,7 @@ function FontPicker({
 export default function CustomizeFanPage() {
   const [activeSide, setActiveSide] = useState<SideId>("front");
 
-  const [layersBySide, setLayersBySide] = useState<
-    Record<SideId, Layer[]>
-  >({
+    const [layersBySide, setLayersBySide] = useState<LayersBySide>({
     front: defaultLayersForSide(),
     back: defaultLayersForSide(),
   });
@@ -791,10 +798,11 @@ export default function CustomizeFanPage() {
           key={layer.id}
           onPointerDown={
             interactive
-              ? gestures.onPointerDown(layer.id, stageRef.current, {
-                  minScale: 1,
-                  maxScale: 3,
-                })
+              ? gestures.onPointerDown(
+                  layer.id,
+                  stageRef.current,
+                  PATTERN_SCALE_OPTS
+                )
               : undefined
           }
           onPointerMove={
@@ -809,10 +817,10 @@ export default function CustomizeFanPage() {
           }
           onWheel={
             interactive
-              ? gestures.onWheelZoom(layer.id, {
-                  minScale: 1,
-                  maxScale: 3,
-                })
+              ? gestures.onWheelZoom(
+                  layer.id,
+                  PATTERN_SCALE_OPTS
+                )
               : undefined
           }
           style={{
