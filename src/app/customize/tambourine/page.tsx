@@ -296,9 +296,9 @@ export default function CustomizeTambourinePage() {
     RIBBON_COLORS[0].id
   );
 
-  const [designMode, setDesignMode] = useState
-    "upload" | "build" | null
-  >(null);
+const [designMode, setDesignMode] = useState<
+  "upload" | "build" | null
+>(null);
 
   const [layers, setLayers] = useState<Layer[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
