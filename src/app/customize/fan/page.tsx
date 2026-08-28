@@ -66,111 +66,21 @@ const BG_SHAPES = [
 /* ------------------------------------------------------------------ */
 
 const FONTS = [
-  {
-    id: "vibes",
-    label: "Great Vibes",
-    short: "Vibes",
-    className: greatVibes.className,
-    previewSize: 17,
-  },
-  {
-    id: "dancing",
-    label: "Dancing Script",
-    short: "Dancing",
-    className: dancingScript.className,
-    previewSize: 16,
-  },
-  {
-    id: "sacramento",
-    label: "Sacramento",
-    short: "Sacramento",
-    className: sacramento.className,
-    previewSize: 17,
-  },
-  {
-    id: "playfair",
-    label: "Playfair Display",
-    short: "Playfair",
-    className: playfair.className,
-    previewSize: 15,
-  },
-  {
-    id: "bitter",
-    label: "Bitter Slab",
-    short: "Slab",
-    className: bitter.className,
-    previewSize: 15,
-  },
-  {
-    id: "baskerville",
-    label: "Libre Baskerville",
-    short: "Baskerville",
-    className: libreBaskerville.className,
-    previewSize: 13,
-  },
-  {
-    id: "poppins",
-    label: "Poppins",
-    short: "Poppins",
-    className: poppins.className,
-    previewSize: 14,
-  },
-  {
-    id: "oswald",
-    label: "Oswald",
-    short: "Oswald",
-    className: oswald.className,
-    previewSize: 15,
-  },
-  {
-    id: "archivo",
-    label: "Archivo Black",
-    short: "Archivo",
-    className: archivoBlack.className,
-    previewSize: 14,
-  },
-  {
-    id: "abril",
-    label: "Abril Fatface",
-    short: "Abril",
-    className: abrilFatface.className,
-    previewSize: 15,
-  },
-  {
-    id: "bebas",
-    label: "Bebas Neue",
-    short: "Bebas",
-    className: bebasNeue.className,
-    previewSize: 17,
-  },
-  {
-    id: "righteous",
-    label: "Righteous",
-    short: "Righteous",
-    className: righteous.className,
-    previewSize: 14,
-  },
-  {
-    id: "pacifico",
-    label: "Pacifico",
-    short: "Pacifico",
-    className: pacifico.className,
-    previewSize: 14,
-  },
-  {
-    id: "mono",
-    label: "Space Mono",
-    short: "Mono",
-    className: spaceMono.className,
-    previewSize: 12,
-  },
-  {
-    id: "marker",
-    label: "Permanent Marker",
-    short: "Marker",
-    className: permanentMarker.className,
-    previewSize: 13,
-  },
+  { id: "vibes", label: "Great Vibes", short: "Vibes", className: greatVibes.className, previewSize: 17 },
+  { id: "dancing", label: "Dancing Script", short: "Dancing", className: dancingScript.className, previewSize: 16 },
+  { id: "sacramento", label: "Sacramento", short: "Sacramento", className: sacramento.className, previewSize: 17 },
+  { id: "playfair", label: "Playfair Display", short: "Playfair", className: playfair.className, previewSize: 15 },
+  { id: "bitter", label: "Bitter Slab", short: "Slab", className: bitter.className, previewSize: 15 },
+  { id: "baskerville", label: "Libre Baskerville", short: "Baskerville", className: libreBaskerville.className, previewSize: 13 },
+  { id: "poppins", label: "Poppins", short: "Poppins", className: poppins.className, previewSize: 14 },
+  { id: "oswald", label: "Oswald", short: "Oswald", className: oswald.className, previewSize: 15 },
+  { id: "archivo", label: "Archivo Black", short: "Archivo", className: archivoBlack.className, previewSize: 14 },
+  { id: "abril", label: "Abril Fatface", short: "Abril", className: abrilFatface.className, previewSize: 15 },
+  { id: "bebas", label: "Bebas Neue", short: "Bebas", className: bebasNeue.className, previewSize: 17 },
+  { id: "righteous", label: "Righteous", short: "Righteous", className: righteous.className, previewSize: 14 },
+  { id: "pacifico", label: "Pacifico", short: "Pacifico", className: pacifico.className, previewSize: 14 },
+  { id: "mono", label: "Space Mono", short: "Mono", className: spaceMono.className, previewSize: 12 },
+  { id: "marker", label: "Permanent Marker", short: "Marker", className: permanentMarker.className, previewSize: 13 },
 ] as const;
 
 type FontId = (typeof FONTS)[number]["id"];
@@ -395,11 +305,21 @@ export default function CustomizeFanPage() {
 
   const layers = layersBySide[activeSide];
 
+  function setLayers(updater: (prev: Layer[]) => Layer[]) {
+    setLayersBySide((prev) => ({
+      ...prev,
+      [activeSide]: updater(prev[activeSide]),
+    }));
+  }
+
   /* -------------------------------------------------------------- */
   /* LAYER GESTURES                                                 */
   /* -------------------------------------------------------------- */
 
-  const gestures = useLayerGestures(layers, setLayers);
+  // Third arg re-selects a layer the instant it's pressed, so tapping a
+  // design you already placed lets you edit it again (fixes it being
+  // stuck deselected / uneditable).
+  const gestures = useLayerGestures(layers, setLayers, setSelectedId);
 
   /* -------------------------------------------------------------- */
   /* CHECK WHETHER CURRENT SIDE ALREADY HAS A BACKGROUND             */
@@ -411,13 +331,6 @@ export default function CustomizeFanPage() {
 
   const otherSide: SideId =
     activeSide === "front" ? "back" : "front";
-
-  function setLayers(updater: (prev: Layer[]) => Layer[]) {
-    setLayersBySide((prev) => ({
-      ...prev,
-      [activeSide]: updater(prev[activeSide]),
-    }));
-  }
 
   /* ---------------------------------------------------------------- */
   /* Add text                                                         */
@@ -499,6 +412,11 @@ export default function CustomizeFanPage() {
         type: "pattern",
         src: url,
         tint: null,
+        // x/y are the photo's own pan (50 = centered / no pan) and
+        // scale is its own zoom (1 = fully covers the fan, so it's
+        // never cropped until the person pinches to zoom in
+        // themselves). The fan-shaped mask itself is always fixed to
+        // the fan artwork's own box — see renderLayer.
         x: 50,
         y: 50,
         scale: 1,
@@ -786,12 +704,18 @@ export default function CustomizeFanPage() {
     const isSelected =
       interactive && layer.id === selectedId;
 
-    const commonStyle: React.CSSProperties = {
+    /*
+     * The mask/frame below is always `position:absolute; inset:0` —
+     * i.e. it exactly overlays the fan <img>'s own box (the stage
+     * sizes itself to the image via h-auto), and the mask is drawn at
+     * maskSize 100% 100% instead of "contain". That's what makes the
+     * colored/pattern layer align pixel-for-pixel with the real fan
+     * artwork, including the top corners, instead of being
+     * letterboxed into a smaller guessed region.
+     */
+    const frameStyle: React.CSSProperties = {
       position: "absolute",
-      left: `${layer.x}%`,
-      top: `${layer.y}%`,
-      transform: `translate(-50%, -50%) scale(${layer.scale})`,
-      cursor: interactive ? "grab" : "default",
+      inset: 0,
       outline: isSelected
         ? `1.5px dashed ${ACCENT}`
         : "none",
@@ -803,8 +727,8 @@ export default function CustomizeFanPage() {
       height: "100%",
       WebkitMaskImage: `url(${FAN_IMG})`,
       maskImage: `url(${FAN_IMG})`,
-      WebkitMaskSize: "contain",
-      maskSize: "contain",
+      WebkitMaskSize: "100% 100%",
+      maskSize: "100% 100%",
       WebkitMaskRepeat: "no-repeat",
       maskRepeat: "no-repeat",
       WebkitMaskPosition: "center",
@@ -814,7 +738,7 @@ export default function CustomizeFanPage() {
     };
 
     /* -------------------------------------------------------------- */
-    /* Fill layer                                                      */
+    /* Fill layer — fixed frame, always fully covers the fan           */
     /* -------------------------------------------------------------- */
 
     if (layer.type === "fill") {
@@ -828,34 +752,14 @@ export default function CustomizeFanPage() {
       return (
         <div
           key={layer.id}
-          onPointerDown={
+          onClick={
             interactive
-              ? gestures.onPointerDown(
-                  layer.id,
-                  stageRef.current
-                )
-              : undefined
-          }
-          onPointerMove={
-            interactive
-              ? gestures.onPointerMove(stageRef.current)
-              : undefined
-          }
-          onPointerUp={
-            interactive
-              ? gestures.onPointerUp
-              : undefined
-          }
-          onWheel={
-            interactive
-              ? gestures.onWheelZoom(layer.id)
+              ? () => setSelectedId(layer.id)
               : undefined
           }
           style={{
-            ...commonStyle,
-            width: "100%",
-            aspectRatio: "3 / 2",
-            clipPath: "inset(0 0 22% 0)",
+            ...frameStyle,
+            cursor: interactive ? "pointer" : "default",
           }}
         >
           <div
@@ -869,19 +773,24 @@ export default function CustomizeFanPage() {
     }
 
     /* -------------------------------------------------------------- */
-    /* Pattern layer                                                   */
+    /* Pattern layer — fixed frame, photo pans/zooms independently     */
     /* -------------------------------------------------------------- */
 
     if (layer.type === "pattern") {
+      const zoom = layer.scale;
+      const maxPanPct = (zoom - 1) * 50;
+      const offsetX = ((layer.x - 50) / 50) * maxPanPct;
+      const offsetY = ((layer.y - 50) / 50) * maxPanPct;
+
       return (
         <div
           key={layer.id}
           onPointerDown={
             interactive
-              ? gestures.onPointerDown(
-                  layer.id,
-                  stageRef.current
-                )
+              ? gestures.onPointerDown(layer.id, stageRef.current, {
+                  minScale: 1,
+                  maxScale: 3,
+                })
               : undefined
           }
           onPointerMove={
@@ -896,14 +805,16 @@ export default function CustomizeFanPage() {
           }
           onWheel={
             interactive
-              ? gestures.onWheelZoom(layer.id)
+              ? gestures.onWheelZoom(layer.id, {
+                  minScale: 1,
+                  maxScale: 3,
+                })
               : undefined
           }
           style={{
-            ...commonStyle,
-            width: "100%",
-            aspectRatio: "3 / 2",
-            clipPath: "inset(0 0 22% 0)",
+            ...frameStyle,
+            cursor: interactive ? "grab" : "default",
+            touchAction: "none",
           }}
         >
           <div style={maskWrapperStyle}>
@@ -915,6 +826,8 @@ export default function CustomizeFanPage() {
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
+                transform: `translate(${offsetX}%, ${offsetY}%) scale(${zoom})`,
+                transformOrigin: "center center",
               }}
             />
 
@@ -935,8 +848,21 @@ export default function CustomizeFanPage() {
     }
 
     /* -------------------------------------------------------------- */
-    /* Text layer                                                      */
+    /* Text layer — freely draggable/pinchable, unchanged              */
     /* -------------------------------------------------------------- */
+
+    const commonStyle: React.CSSProperties = {
+      position: "absolute",
+      left: `${layer.x}%`,
+      top: `${layer.y}%`,
+      transform: `translate(-50%, -50%) scale(${layer.scale})`,
+      cursor: interactive ? "grab" : "default",
+      outline: isSelected
+        ? `1.5px dashed ${ACCENT}`
+        : "none",
+      outlineOffset: "4px",
+      touchAction: interactive ? "none" : undefined,
+    };
 
     const hasBg = !!layer.bgColor;
     const fontDef = getFont(layer.font);
@@ -1069,23 +995,24 @@ export default function CustomizeFanPage() {
         {/* SELECTED LAYER CONTROLS                                   */}
         {/* ========================================================== */}
 
-       {selectedLayer && (
-  <div
-    className="mt-4 flex w-full max-w-[320px] flex-col gap-3 rounded-xl px-4 py-3"
-    style={{
-      backgroundColor: "#EFE3C4",
-    }}
-  >
-    {/* UNDO */}
-    <button
-      onClick={gestures.undo}
-      className="text-left text-xs font-medium underline"
-      style={{ color: ACCENT }}
-    >
-      ↺ Undo
-    </button>
+        {selectedLayer && (
+          <div
+            className="mt-4 flex w-full max-w-[320px] flex-col gap-3 rounded-xl px-4 py-3"
+            style={{
+              backgroundColor: "#EFE3C4",
+            }}
+          >
+            {/* UNDO */}
+            <button
+              onClick={gestures.undo}
+              disabled={!gestures.canUndo()}
+              className="text-left text-xs font-medium underline disabled:opacity-30"
+              style={{ color: ACCENT }}
+            >
+              ↺ Undo
+            </button>
 
-    {/* TEXT */}
+            {/* TEXT */}
             {selectedLayer.type === "text" && (
               <>
                 <input
@@ -1141,40 +1068,13 @@ export default function CustomizeFanPage() {
               </>
             )}
 
-            {/* SCALE */}
-            <div className="flex items-center gap-2">
-              <span
-                className="w-14 text-[11px]"
-                style={{
-                  color:
-                    "rgba(0,0,0,0.55)",
-                }}
-              >
-                {selectedLayer.type ===
-                "text"
-                  ? "Size"
-                  : "Space used"}
-              </span>
-
-              <input
-                type="range"
-                min={0.2}
-                max={2.5}
-                step={0.05}
-                value={selectedLayer.scale}
-                onChange={(e) =>
-                  updateLayer(
-                    selectedLayer.id,
-                    {
-                      scale: Number(
-                        e.target.value
-                      ),
-                    }
-                  )
-                }
-                className="flex-1"
-              />
-            </div>
+            {/*
+              No more scale slider — every layer (text, fill, pattern)
+              is resized with a two-finger pinch directly on the fan,
+              and moved with a one-finger drag. Pattern layers can
+              never zoom out past "fully covers the fan" so nothing
+              gets cropped without the person choosing to.
+            */}
 
             {/* PATTERN TINT */}
             {selectedLayer.type ===
@@ -1538,8 +1438,8 @@ export default function CustomizeFanPage() {
             color: "rgba(0,0,0,0.45)",
           }}
         >
-          Tap an item below to add it, then drag
-          it into place on the {activeSide}.
+          Tap an item below to add it, then use one finger to move it and
+          two fingers to pinch-zoom it into place on the {activeSide}.
         </p>
       </div>
 
@@ -1628,8 +1528,9 @@ export default function CustomizeFanPage() {
 
                 <span className="text-[11px]">
                   It'll be shaped to fit the fan
-                  automatically — drag, resize, and
-                  tint it once it's added.
+                  automatically — pinch to zoom and
+                  drag to reposition it once it's
+                  added.
                 </span>
               </span>
             </button>

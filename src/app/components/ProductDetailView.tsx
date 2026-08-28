@@ -71,27 +71,20 @@ const COLOR_SCROLL_PRODUCTS = [
   "Iced Latte",
 ];
 const RIBBON_COLORS = [
-  {
-    id: "light-pink",
-    label: "Light Pink",
-    hex: "#F5C6D6",
-  },
-  {
-    id: "light-blue",
-    label: "Light Blue",
-    hex: "#B9D9EC",
-  },
-  {
-    id: "navy",
-    label: "Navy",
-    hex: "#22345C",
-  },
-  {
-    id: "white",
-    label: "White",
-    hex: "#FFFFFF",
-  },
-];
+  { id: "light-pink", label: "Light Pink", hex: "#F5C6D6" },
+  { id: "light-blue", label: "Light Blue", hex: "#B9D9EC" },
+  { id: "navy", label: "Navy", hex: "#22345C" },
+  { id: "white", label: "White", hex: "#FFFFFF" },
+  { id: "red", label: "Red", hex: "#C0392B" },
+  { id: "beige", label: "Beige", hex: "#E8DCC4" },
+  { id: "maroon", label: "Maroon", hex: "#6B1F2A" },
+  { id: "gold", label: "Glittery Gold", hex: "#D4AF37" },
+  { id: "olive", label: "Olive", hex: "#6E6E36" },
+  { id: "light-purple", label: "Light Purple", hex: "#C9B6E4" },
+  { id: "dark-purple", label: "Dark Purple", hex: "#4B2E6F" },
+] as const;
+
+type RibbonColorId = (typeof RIBBON_COLORS)[number]["id"];
 
 const QUACK_IMAGES = {
   combo:
@@ -263,10 +256,10 @@ export default function ProductDetailView({
   ] = useState<string | null>(
     product.scents?.[0] ?? null
   );
-  const [
+ const [
   selectedRibbon,
   setSelectedRibbon,
-] = useState(
+] = useState<RibbonColorId>(
   RIBBON_COLORS[0].id
 );
 
@@ -2602,37 +2595,50 @@ export default function ProductDetailView({
                 ================================================== */}
 
             {productName === "Tambourine" && (
-              <div className="mt-5">
-                <p
-                  className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
-                  style={{ color: accent }}
-                >
-                  Ribbon Color
-                </p>
+  <div className="mt-5">
+    <p
+      className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+      style={{ color: accent }}
+    >
+      Ribbon Color
+    </p>
 
-                <div className="flex flex-wrap gap-2">
-                  {RIBBON_COLORS.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() =>
-                        setSelectedRibbon(c.id)
-                      }
-                      title={c.label}
-                      aria-label={`Select ${c.label} ribbon`}
-                      className="h-8 w-8 rounded-full border-2 transition-transform hover:scale-110"
-                      style={{
-                        backgroundColor: c.hex,
-                        borderColor:
-                          selectedRibbon === c.id
-                            ? accent
-                            : "rgba(0,0,0,0.15)",
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+    <div className="flex items-center gap-3">
+      <span
+        className="h-8 w-8 flex-shrink-0 rounded-full"
+        style={{
+          backgroundColor: RIBBON_COLORS.find(
+            (c) => c.id === selectedRibbon
+          )!.hex,
+          border: "1.5px solid rgba(0,0,0,0.15)",
+          boxShadow:
+            selectedRibbon === "gold"
+              ? "inset 0 0 6px rgba(255,255,255,0.6)"
+              : undefined,
+        }}
+      />
+
+      <select
+        value={selectedRibbon}
+        onChange={(e) =>
+          setSelectedRibbon(e.target.value as RibbonColorId)
+        }
+        className="flex-1 rounded-xl px-3 py-3 text-sm outline-none"
+        style={{
+          border: "1.5px solid rgba(0,0,0,0.15)",
+          backgroundColor: "#FFFFFF",
+          color: "#000000",
+        }}
+      >
+        {RIBBON_COLORS.map((c) => (
+          <option key={c.id} value={c.id}>
+            {c.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  </div>
+)}
 
             {/* ==================================================
                 OPTIONS

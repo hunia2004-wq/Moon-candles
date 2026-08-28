@@ -297,10 +297,14 @@ export default function CustomizeTambourinePage() {
   const [showPreview, setShowPreview] = useState(false);
 
   const stageRef = useRef<HTMLDivElement>(null);
-const nextZ = useRef(1);
-const patternFileInputRef = useRef<HTMLInputElement>(null);
+  const nextZ = useRef(1);
+  const patternFileInputRef = useRef<HTMLInputElement>(null);
 
-const gestures = useLayerGestures(layers, setLayers);
+  // Third arg: whenever a layer is pressed (drag start / pinch start),
+  // it becomes the selected layer again — this is what lets you tap a
+  // design you already placed and edit it, instead of it being stuck
+  // deselected.
+  const gestures = useLayerGestures(layers, setLayers, setSelectedId);
 
   const selectedSize = SIZES.find((s) => s.id === size)!;
 
@@ -355,8 +359,8 @@ const gestures = useLayerGestures(layers, setLayers);
         id,
         type: "fill",
         colors: [ACCENT],
-        x: selectedSize.drumPos.x,
-        y: selectedSize.drumPos.y,
+        x: 50,
+        y: 50,
         scale: 1,
         rotation: 0,
         z: 0,
@@ -396,8 +400,13 @@ const gestures = useLayerGestures(layers, setLayers);
         type: "pattern",
         src: url,
         tint: null,
-        x: selectedSize.drumPos.x,
-        y: selectedSize.drumPos.y,
+        // x/y here are the photo's own pan position (50 = centered, no
+        // pan), and scale is the photo's own zoom (1 = fully covers the
+        // drum, so nothing is cropped until the person pinches to zoom
+        // in themselves). The circle frame itself is always fixed to
+        // the drum — see renderLayer.
+        x: 50,
+        y: 50,
         scale: 1,
         rotation: 0,
         z: 0,
@@ -472,7 +481,6 @@ const gestures = useLayerGestures(layers, setLayers);
     );
   }
 
-  
   const selectedLayer =
     layers.find((l) => l.id === selectedId) ?? null;
 
@@ -571,20 +579,25 @@ const gestures = useLayerGestures(layers, setLayers);
     const isSelected =
       interactive && layer.id === selectedId;
 
-    if (
-      layer.type === "fill" ||
-      layer.type === "pattern"
-    ) {
-      const style: React.CSSProperties = {
+    /* ---------------------------------------------------------- */
+    /* Background layers (fill / pattern)                          */
+    /* ---------------------------------------------------------- */
+    /*
+     * The circle "frame" is always fixed to the drum's own position
+     * and size — it is NEVER affected by pinch/zoom. That's what
+     * makes the design fit the drum perfectly no matter how the
+     * person zooms or pans the photo inside it.
+     */
+    if (layer.type === "fill" || layer.type === "pattern") {
+      const frameStyle: React.CSSProperties = {
         position: "absolute",
-        left: `${layer.x}%`,
-        top: `${layer.y}%`,
+        left: `${selectedSize.drumPos.x}%`,
+        top: `${selectedSize.drumPos.y}%`,
         width: `${selectedSize.drumDiameterPct}%`,
         aspectRatio: "1 / 1",
         borderRadius: "50%",
         overflow: "hidden",
-        transform: `translate(-50%, -50%) scale(${layer.scale})`,
-        cursor: interactive ? "grab" : "default",
+        transform: "translate(-50%, -50%)",
         outline: isSelected
           ? `1.5px dashed ${ACCENT}`
           : "none",
@@ -601,60 +614,65 @@ const gestures = useLayerGestures(layers, setLayers);
 
         return (
           <div
-  key={layer.id}
-  onPointerDown={
-    interactive
-      ? gestures.onPointerDown(layer.id, stageRef.current)
-      : undefined
-  }
-  onPointerMove={
-    interactive
-      ? gestures.onPointerMove(stageRef.current)
-      : undefined
-  }
-  onPointerUp={
-    interactive
-      ? gestures.onPointerUp
-      : undefined
-  }
-  onWheel={
-    interactive
-      ? gestures.onWheelZoom(layer.id)
-      : undefined
-  }
-  style={{
-    ...style,
-    background,
-  }}
-/>
+            key={layer.id}
+            onClick={
+              interactive
+                ? () => setSelectedId(layer.id)
+                : undefined
+            }
+            style={{
+              ...frameStyle,
+              background,
+              cursor: interactive ? "pointer" : "default",
+            }}
+          />
         );
       }
 
+      /*
+       * Pattern (uploaded photo): the frame above is fixed, so
+       * pinch/drag here only pans and zooms the photo itself — it
+       * can never leave a gap, because zoom is clamped to a minimum
+       * of 1 (which is exactly "fully covers the circle").
+       */
+      const zoom = layer.scale;
+      const maxPanPct = (zoom - 1) * 50;
+      const offsetX = ((layer.x - 50) / 50) * maxPanPct;
+      const offsetY = ((layer.y - 50) / 50) * maxPanPct;
+
       return (
-       <div
-  key={layer.id}
-  onPointerDown={
-    interactive
-      ? gestures.onPointerDown(layer.id, stageRef.current)
-      : undefined
-  }
-  onPointerMove={
-    interactive
-      ? gestures.onPointerMove(stageRef.current)
-      : undefined
-  }
-  onPointerUp={
-    interactive
-      ? gestures.onPointerUp
-      : undefined
-  }
-  onWheel={
-    interactive
-      ? gestures.onWheelZoom(layer.id)
-      : undefined
-  }
-  style={style}
->
+        <div
+          key={layer.id}
+          onPointerDown={
+            interactive
+              ? gestures.onPointerDown(layer.id, stageRef.current, {
+                  minScale: 1,
+                  maxScale: 3,
+                })
+              : undefined
+          }
+          onPointerMove={
+            interactive
+              ? gestures.onPointerMove(stageRef.current)
+              : undefined
+          }
+          onPointerUp={
+            interactive ? gestures.onPointerUp : undefined
+          }
+          onWheel={
+            interactive
+              ? gestures.onWheelZoom(layer.id, {
+                  minScale: 1,
+                  maxScale: 3,
+                })
+              : undefined
+          }
+          style={{
+            ...frameStyle,
+            cursor: interactive ? "grab" : "default",
+            touchAction: "none",
+          }}
+        >
           <img
             src={layer.src}
             alt="Your uploaded pattern"
@@ -663,6 +681,8 @@ const gestures = useLayerGestures(layers, setLayers);
               width: "100%",
               height: "100%",
               objectFit: "cover",
+              transform: `translate(${offsetX}%, ${offsetY}%) scale(${zoom})`,
+              transformOrigin: "center center",
             }}
           />
 
@@ -681,6 +701,10 @@ const gestures = useLayerGestures(layers, setLayers);
       );
     }
 
+    /* ---------------------------------------------------------- */
+    /* Text layer — freely draggable/pinchable, unchanged           */
+    /* ---------------------------------------------------------- */
+
     const commonStyle: React.CSSProperties = {
       position: "absolute",
       left: `${layer.x}%`,
@@ -691,35 +715,36 @@ const gestures = useLayerGestures(layers, setLayers);
         ? `1.5px dashed ${ACCENT}`
         : "none",
       outlineOffset: "4px",
+      touchAction: interactive ? "none" : undefined,
     };
 
     const hasBg = !!layer.bgColor;
     const fontDef = getFont(layer.font);
 
     return (
-     <div
-  key={layer.id}
-  onPointerDown={
-    interactive
-      ? gestures.onPointerDown(layer.id, stageRef.current)
-      : undefined
-  }
-  onPointerMove={
-    interactive
-      ? gestures.onPointerMove(stageRef.current)
-      : undefined
-  }
-  onPointerUp={
-    interactive
-      ? gestures.onPointerUp
-      : undefined
-  }
-  onWheel={
-    interactive
-      ? gestures.onWheelZoom(layer.id)
-      : undefined
-  }
-  className={fontDef.className}
+      <div
+        key={layer.id}
+        onPointerDown={
+          interactive
+            ? gestures.onPointerDown(layer.id, stageRef.current)
+            : undefined
+        }
+        onPointerMove={
+          interactive
+            ? gestures.onPointerMove(stageRef.current)
+            : undefined
+        }
+        onPointerUp={
+          interactive
+            ? gestures.onPointerUp
+            : undefined
+        }
+        onWheel={
+          interactive
+            ? gestures.onWheelZoom(layer.id)
+            : undefined
+        }
+        className={fontDef.className}
         style={{
           ...commonStyle,
           fontSize: layer.fontSize,
@@ -753,17 +778,17 @@ const gestures = useLayerGestures(layers, setLayers);
       <div className="flex flex-col items-center px-6 py-8">
         <div className="relative flex w-full max-w-[220px] md:max-w-[320px] items-center justify-center">
           <div
-  ref={stageRef}
-  className="relative touch-none select-none"
-  style={{
-    width: `${(selectedSize.cm / MAX_CM) * 100}%`,
-  }}
-  onClick={(e) => {
-    if (e.target === stageRef.current) {
-      setSelectedId(null);
-    }
-  }}
->
+            ref={stageRef}
+            className="relative touch-none select-none"
+            style={{
+              width: `${(selectedSize.cm / MAX_CM) * 100}%`,
+            }}
+            onClick={(e) => {
+              if (e.target === stageRef.current) {
+                setSelectedId(null);
+              }
+            }}
+          >
             <img
               src={selectedSize.img}
               alt="Your customized tambourine"
@@ -886,7 +911,8 @@ const gestures = useLayerGestures(layers, setLayers);
                       color: "rgba(0,0,0,0.45)",
                     }}
                   >
-                    tap the wheel to pick any color
+                    tap the wheel to pick any color · pinch the design
+                    on the drum to zoom &amp; move it
                   </span>
                 </div>
               </div>
@@ -1110,7 +1136,7 @@ const gestures = useLayerGestures(layers, setLayers);
               </>
             )}
 
-                        <div className="flex items-center justify-between pt-1">
+            <div className="flex items-center justify-between pt-1">
               <button
                 onClick={gestures.undo}
                 disabled={!gestures.canUndo()}
@@ -1141,8 +1167,8 @@ const gestures = useLayerGestures(layers, setLayers);
             color: "rgba(0,0,0,0.45)",
           }}
         >
-          Tap an item below to add it, then drag it
-          into place on the drum.
+          Tap an item below to add it, then use one finger to move it and
+          two fingers to pinch-zoom it into place.
         </p>
       </div>
 
@@ -1346,15 +1372,25 @@ const gestures = useLayerGestures(layers, setLayers);
           </div>
         ) : (
           <div className="mb-8">
+            {/*
+              Once a mode is picked, don't offer it as a choice again —
+              only offer a direct switch to the OTHER mode. Pressing
+              "Design it here" and then wanting to change your mind
+              should only ever show "upload a different design",
+              never both original cards again.
+            */}
             <button
               onClick={() =>
-                setDesignMode(null)
+                setDesignMode(
+                  designMode === "upload" ? "build" : "upload"
+                )
               }
               className="mb-3 text-[11px] font-medium underline"
               style={{ color: ACCENT }}
             >
-              ← choose a different way to
-              design it
+              {designMode === "upload"
+                ? "→ design it here instead"
+                : "→ upload a different design instead"}
             </button>
 
             {designMode === "upload" && (
@@ -1385,9 +1421,9 @@ const gestures = useLayerGestures(layers, setLayers);
                         <br />
                         <span className="text-[11px]">
                           It&apos;ll be shaped to fit
-                          the drum exactly — drag,
-                          resize, and tint it once
-                          it&apos;s added.
+                          the drum exactly — pinch to
+                          zoom and drag to reposition
+                          it once it&apos;s added.
                         </span>
                       </span>
                     </button>
@@ -1496,8 +1532,8 @@ const gestures = useLayerGestures(layers, setLayers);
                           <br />
                           <span className="text-[11px]">
                             JPG, PNG up to 8MB —
-                            drag and resize once
-                            it&apos;s added.
+                            pinch to zoom and drag
+                            once it&apos;s added.
                           </span>
                         </span>
                       </button>

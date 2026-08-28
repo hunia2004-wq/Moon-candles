@@ -10,9 +10,14 @@ type Layer = {
   [key: string]: any;
 };
 
+type ScaleOpts = {
+  minScale?: number;
+  maxScale?: number;
+};
+
 /**
  * Adds pinch-to-zoom and single-finger drag directly on a layer element,
- * plus undo support — no sliders needed.
+ * plus undo support and tap-to-select — no sliders needed.
  *
  * Touch:
  * - One finger = drag
@@ -21,13 +26,22 @@ type Layer = {
  * Desktop:
  * - Drag = move
  * - Mouse wheel = zoom
+ *
+ * `onSelect`, if provided, fires the moment a layer is pressed/tapped —
+ * this is what lets a design be re-opened for editing after it was
+ * deselected (tapping it always re-selects it, even mid-gesture).
  */
 export function useLayerGestures<T extends Layer>(
   layers: T[],
-  setLayers: (updater: (prev: T[]) => T[]) => void
+  setLayers: (updater: (prev: T[]) => T[]) => void,
+  onSelect?: (id: string) => void
 ) {
   const history = useRef<T[][]>([]);
   const activeId = useRef<string | null>(null);
+  const activeOpts = useRef<Required<ScaleOpts>>({
+    minScale: 0.2,
+    maxScale: 3,
+  });
 
   const pointers = useRef<Map<number, { x: number; y: number }>>(
     new Map()
@@ -68,11 +82,6 @@ export function useLayerGestures<T extends Layer>(
 
   /**
    * Update only the requested properties of a layer.
-   *
-   * Partial<Layer> is used here instead of Partial<T>.
-   * This allows us to safely update common Layer properties such
-   * as x, y, and scale without TypeScript requiring every property
-   * that may exist on the specific T type.
    */
   function updateLayer(id: string, patch: Partial<Layer>) {
     setLayers((prevLayers) =>
@@ -86,17 +95,29 @@ export function useLayerGestures<T extends Layer>(
 
   /**
    * Pointer down:
+   * - Always re-selects the layer being pressed (fixes tapping a design
+   *   again not letting you edit it).
    * - First pointer starts dragging.
    * - Second pointer starts pinch-to-zoom.
+   *
+   * `opts` lets a caller enforce a minimum/maximum scale for this layer
+   * (e.g. a photo layer that must never zoom out past "fully covers the
+   * frame", so it can never show a gap/blank edge).
    */
   const onPointerDown = useCallback(
-    (id: string, containerEl: HTMLElement | null) =>
+    (id: string, containerEl: HTMLElement | null, opts?: ScaleOpts) =>
       (e: React.PointerEvent) => {
         const target = e.target as HTMLElement;
 
         target.setPointerCapture(e.pointerId);
 
         activeId.current = id;
+        activeOpts.current = {
+          minScale: opts?.minScale ?? 0.2,
+          maxScale: opts?.maxScale ?? 3,
+        };
+
+        onSelect?.(id);
 
         pointers.current.set(e.pointerId, {
           x: e.clientX,
@@ -139,7 +160,7 @@ export function useLayerGestures<T extends Layer>(
           startScale.current = layer.scale;
         }
       },
-    [layers]
+    [layers, onSelect]
   );
 
   /**
@@ -163,6 +184,7 @@ export function useLayerGestures<T extends Layer>(
         });
 
         const id = activeId.current;
+        const { minScale, maxScale } = activeOpts.current;
 
         /**
          * ONE POINTER
@@ -221,9 +243,9 @@ export function useLayerGestures<T extends Layer>(
             distance / (startDistance.current || 1);
 
           const newScale = Math.min(
-            3,
+            maxScale,
             Math.max(
-              0.2,
+              minScale,
               startScale.current * ratio
             )
           );
@@ -259,7 +281,7 @@ export function useLayerGestures<T extends Layer>(
    * Mouse wheel zooms the selected layer.
    */
   const onWheelZoom = useCallback(
-    (id: string) => (e: React.WheelEvent) => {
+    (id: string, opts?: ScaleOpts) => (e: React.WheelEvent) => {
       e.preventDefault();
 
       const layer = layers.find(
@@ -270,13 +292,16 @@ export function useLayerGestures<T extends Layer>(
 
       pushHistory();
 
+      const minScale = opts?.minScale ?? 0.2;
+      const maxScale = opts?.maxScale ?? 3;
+
       const delta =
         e.deltaY > 0 ? -0.05 : 0.05;
 
       const newScale = Math.min(
-        3,
+        maxScale,
         Math.max(
-          0.2,
+          minScale,
           layer.scale + delta
         )
       );
