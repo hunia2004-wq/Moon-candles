@@ -6,7 +6,7 @@ import { Caveat, Cormorant_Garamond } from "next/font/google";
 import CustomizationTeaser from "./components/CustomizationTeaser";
 import Link from "next/link";
 import OurCollection from "./components/OurCollection";
-
+import Testimonials from "./components/Testimonials";
 const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 const cormorant = Cormorant_Garamond({
 
@@ -455,10 +455,13 @@ if (collectionError) {
     </div>
   </RevealOnScroll>
 
-  {/* OUR COLLECTION */}
+    {/* OUR COLLECTION */}
   <OurCollection />
 
+  
+
   <CustomizationTeaser />
+  <Testimonials />
 </main>
     </div>
   );

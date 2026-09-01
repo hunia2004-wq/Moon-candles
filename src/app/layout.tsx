@@ -5,11 +5,6 @@ import Header from "./components/Header";
 import FloatingMoon from "./components/FloatingMoon";
 import { ActiveCandleProvider } from "./components/ActiveCandleContext";
 import Footer from "./components/Footer";
-import AddToCartToast from "./components/AddToCartToast";
-
-
-
-
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,19 +21,26 @@ export const metadata: Metadata = {
   description: "Handmade candles from Moon Candles",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body
+        className="min-h-full flex flex-col"
+        style={{ backgroundColor: "#efe3c4" }}
+      >
         <ActiveCandleProvider>
           <Header />
-          <AddToCartToast />
           <FloatingMoon />
           <div className="flex-1 flex flex-col">{children}</div>
         </ActiveCandleProvider>
+
         <Footer />
       </body>
     </html>

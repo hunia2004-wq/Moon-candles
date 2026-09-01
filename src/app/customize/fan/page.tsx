@@ -20,6 +20,7 @@ import {
 } from "next/font/google";
 
 import { useLayerGestures } from "../../components/useLayerGestures";
+import { addToCart } from "@/lib/cart";
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: ["400"] });
 const dancingScript = Dancing_Script({ subsets: ["latin"], weight: ["700"] });
 const sacramento = Sacramento({ subsets: ["latin"], weight: ["400"] });
@@ -560,30 +561,27 @@ export default function CustomizeFanPage() {
   /* ADD FAN TO CART                                                  */
   /* ---------------------------------------------------------------- */
 
-  function addFanToCart() {
-    const cartItem = {
+    function addFanToCart() {
+    addToCart({
       id: makeId(),
+      productId: "fan",
       productName: "Fan",
       price: PRICE,
       quantity,
-
-      design: {
-        front: layersBySide.front,
-        back: layersBySide.back,
+      scent: null,
+      color: null,
+      image: FAN_IMG,
+      customization: {
+        type: "customized-tambourine",
+        size: "small",
+        sizeCm: 12,
+        ribbonColor: "",
+        layers: [
+          ...layersBySide.front,
+          ...layersBySide.back,
+        ],
       },
-    };
-
-    const existingCart = JSON.parse(
-      localStorage.getItem("cart") || "[]"
-    );
-
-    localStorage.setItem(
-      "cart",
-      JSON.stringify([
-        ...existingCart,
-        cartItem,
-      ])
-    );
+    });
 
     setAddedToCart(true);
 

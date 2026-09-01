@@ -751,81 +751,55 @@ const [plainQuantity, setPlainQuantity] = useState(1);
    */
 
   function handleGalleryScroll() {
-    const container =
-      imageScrollRef.current;
+  const container = imageScrollRef.current;
 
-    if (
-      !container ||
-      gallery.length <= 1
-    ) {
-      return;
-    }
+  if (!container || gallery.length <= 1) {
+    return;
+  }
 
-    const containerCenter =
-      container.scrollLeft +
-      container.clientWidth /
-        2;
+  const containerCenter =
+    container.scrollLeft + container.clientWidth / 2;
 
-    let closestIndex = 0;
+  let closestIndex = 0;
+  let closestDistance = Infinity;
 
-    let closestDistance =
-      Infinity;
+  imageRefs.current.forEach((slide, index) => {
+    if (!slide) return;
 
-    imageRefs.current.forEach(
-      (
-        slide,
-        index
-      ) => {
-        if (!slide) return;
+    const slideCenter =
+      slide.offsetLeft + slide.clientWidth / 2;
 
-        const slideCenter =
-          slide.offsetLeft +
-          slide.clientWidth /
-            2;
-
-        const distance =
-          Math.abs(
-            slideCenter -
-              containerCenter
-          );
-
-        if (
-          distance <
-          closestDistance
-        ) {
-          closestDistance =
-            distance;
-
-          closestIndex =
-            index;
-        }
-      }
+    const distance = Math.abs(
+      slideCenter - containerCenter
     );
 
-        if (
-      closestIndex !==
-      selectedImageIndex
-    ) {
-      setSelectedImageIndex(closestIndex);
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestIndex = index;
+    }
+  });
 
-      // Keep the swatch/price in sync with whichever color's photo is
-      // currently centered, for products whose gallery spans colors.
-      if (isColorScrollProduct) {
-        const item = galleryItems[closestIndex];
-        if (
-          item &&
-          item.colorIndex >= 0 &&
-          item.colorIndex !== selectedColorIndex
-        ) {
-          scrollSyncing.current = true;
-          setSelectedColorIndex(item.colorIndex);
-          setSelectedOptionIndex(0);
-        }
+  if (closestIndex !== selectedImageIndex) {
+    setSelectedImageIndex(closestIndex);
+
+    // Keep the swatch/price in sync with
+    // whichever color's photo is centered.
+    if (isColorScrollProduct) {
+      const item = galleryItems[closestIndex];
+
+      if (
+        item &&
+        item.colorIndex >= 0 &&
+        item.colorIndex !== selectedColorIndex
+      ) {
+        scrollSyncing.current = true;
+
+        setSelectedColorIndex(item.colorIndex);
+        setSelectedOptionIndex(0);
       }
     }
   }
-
-  /*
+}  /*
    * ============================================================
    * NEXT / PREVIOUS
    * ============================================================
@@ -1234,6 +1208,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     window.dispatchEvent(
       new Event("cartUpdated")
     );
+    window.dispatchEvent(new Event("openCart"));
 
     setSelectedNoorWhite(
       true
@@ -1351,6 +1326,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     window.dispatchEvent(
       new Event("cartUpdated")
     );
+    window.dispatchEvent(new Event("openCart"));
 
     setSelectedNoorGray(
       true
@@ -1595,6 +1571,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     window.dispatchEvent(
       new Event("cartUpdated")
     );
+    window.dispatchEvent(new Event("openCart"));
 
     setSelectedBride(true);
 
@@ -1710,6 +1687,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     window.dispatchEvent(
       new Event("cartUpdated")
     );
+    window.dispatchEvent(new Event("openCart"));
 
     setSelectedGroom(true);
 
@@ -1988,6 +1966,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     window.dispatchEvent(
       new Event("cartUpdated")
     );
+    window.dispatchEvent(new Event("openCart"));
 
     setOrderLines((prev) => {
       const existingLineIndex =
@@ -2129,9 +2108,9 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     localStorage.setItem("cart", JSON.stringify([...otherItems, ...newItems]));
 
     window.dispatchEvent(new Event("cartUpdated"));
+    window.dispatchEvent(new Event("openCart"));
 
     setOrderLines([]);
-    router.push("/cart");
   }
 
   function updateNormalLineQuantity(

@@ -17,35 +17,49 @@ const SAND = "#EFE3C4";
 const WHITE = "#FFFFFF";
 const BLACK = "#000000";
 
-const EGYPT_GOVERNORATES = [
-  "Cairo",
-  "Alexandria",
-  "Giza",
-  "Qalyubia",
-  "Port Said",
-  "Suez",
-  "Dakahlia",
-  "Sharqia",
-  "Gharbia",
-  "Monufia",
-  "Beheira",
-  "Ismailia",
-  "Faiyum",
-  "Beni Suef",
-  "Minya",
-  "Asyut",
-  "Sohag",
-  "Qena",
-  "Aswan",
-  "Luxor",
-  "Red Sea",
-  "New Valley",
-  "Matrouh",
-  "North Sinai",
-  "South Sinai",
-  "Kafr El Sheikh",
-  "Damietta",
-];
+// Delivery zones Moon ships to, with the delivery fee for each — shown
+// in the checkout dropdown and added to the order total automatically
+// once the customer picks a zone.
+const DELIVERY_ZONES = [
+  { name: "Alexandria", fee: 60 },
+  { name: "Burj Al Arab", fee: 85 },
+  { name: "Al-Amriya", fee: 85 },
+  { name: "Abdel Qader", fee: 85 },
+  { name: "Cairo", fee: 95 },
+  { name: "New Cairo", fee: 95 },
+  { name: "Giza", fee: 95 },
+  { name: "10th of Ramadan", fee: 105 },
+  { name: "Obour City", fee: 105 },
+  { name: "Badr City", fee: 105 },
+  { name: "Ajmi", fee: 80 },
+  { name: "Sadat City", fee: 105 },
+  { name: "Ismailia", fee: 105 },
+  { name: "Suez", fee: 105 },
+  { name: "Port Said", fee: 105 },
+  { name: "Dakahlia", fee: 105 },
+  { name: "Qalyubia", fee: 105 },
+  { name: "Menoufia", fee: 105 },
+  { name: "Sharkia", fee: 105 },
+  { name: "Gharbia", fee: 105 },
+  { name: "Beheira", fee: 105 },
+  { name: "Kafr El Sheikh", fee: 105 },
+  { name: "Damietta", fee: 105 },
+  { name: "Beni Suef", fee: 120 },
+  { name: "Fayoum", fee: 120 },
+  { name: "Minya", fee: 120 },
+  { name: "Assiut", fee: 120 },
+  { name: "Qena", fee: 120 },
+  { name: "Luxor", fee: 120 },
+  { name: "Aswan", fee: 120 },
+  { name: "Red Sea", fee: 130 },
+  { name: "Sohag", fee: 120 },
+  { name: "Matruh", fee: 140 },
+  { name: "North Coast", fee: 140 },
+  { name: "New Valley", fee: 150 },
+  { name: "South Sinai", fee: 150 },
+  { name: "Ajmi To Alex", fee: 80 },
+  { name: "Ajmi To Ajmi", fee: 60 },
+] as const;
 
 type FormState = {
   fullName: string;
@@ -62,9 +76,12 @@ const EMPTY_FORM: FormState = {
   address: "",
   notes: "",
 };
+type FormErrors = Partial<Record<keyof FormState, string>>;
 
 type PlacedOrder = {
   items: CartItem[];
+  subtotal: number;
+  shippingFee: number;
   total: number;
   customer: FormState;
   orderNumber: string;
@@ -77,9 +94,7 @@ export default function CheckoutPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [errors, setErrors] = useState<
-    Partial<Record<keyof FormState, string>>
-  >({});
+     const [errors, setErrors] = useState<FormErrors>({});
   const [placedOrder, setPlacedOrder] =
     useState<PlacedOrder | null>(null);
 
@@ -95,8 +110,8 @@ export default function CheckoutPage() {
     }));
   }
 
-  function validate(): boolean {
-    const nextErrors: Partial<Record<keyof FormState, string>> = {};
+    function validate(): boolean {
+    const nextErrors: FormErrors = {};
 
     if (!form.fullName.trim()) nextErrors.fullName = "Required";
     if (!form.phone.trim()) nextErrors.phone = "Required";
@@ -108,6 +123,14 @@ export default function CheckoutPage() {
     return Object.keys(nextErrors).length === 0;
   }
 
+  // Looked up from the selected zone name — 0 until a zone is chosen.
+  const selectedZone = DELIVERY_ZONES.find(
+    (z) => z.name === form.city
+  );
+  const shippingFee = selectedZone?.fee ?? 0;
+  const subtotal = cartTotal(items);
+  const grandTotal = subtotal + shippingFee;
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
@@ -115,7 +138,9 @@ export default function CheckoutPage() {
 
     const order: PlacedOrder = {
       items,
-      total: cartTotal(items),
+      subtotal,
+      shippingFee,
+      total: grandTotal,
       customer: form,
       orderNumber: `MC-${Date.now().toString().slice(-6)}`,
       createdAt: new Date().toISOString(),
@@ -368,13 +393,15 @@ if (placedOrder) {
               <div className="flex justify-between">
                 <span>SUBTOTAL</span>
                 <span>
-                  {placedOrder.total.toLocaleString()} EGP
+                  {placedOrder.subtotal.toLocaleString()} EGP
                 </span>
               </div>
 
               <div className="flex justify-between">
                 <span>SHIPPING</span>
-                <span>FREE</span>
+                <span>
+                  {placedOrder.shippingFee.toLocaleString()} EGP
+                </span>
               </div>
 
             </div>
@@ -640,7 +667,7 @@ if (placedOrder) {
                       color: "rgba(0,0,0,0.6)",
                     }}
                   >
-                    Governorate
+                    Delivery Zone
                   </label>
 
                   <select
@@ -668,13 +695,13 @@ if (placedOrder) {
                       Select...
                     </option>
 
-                    {EGYPT_GOVERNORATES.map(
-                      (governorate) => (
+                    {DELIVERY_ZONES.map(
+                      (zone) => (
                         <option
-                          key={governorate}
-                          value={governorate}
+                          key={zone.name}
+                          value={zone.name}
                         >
-                          {governorate}
+                          {zone.name} — {zone.fee} EGP
                         </option>
                       )
                     )}
@@ -904,7 +931,7 @@ if (placedOrder) {
                 className="text-sm font-semibold"
                 style={{ color: BLACK }}
               >
-                {cartTotal(items)} EGP
+                {subtotal} EGP
               </span>
             </div>
 
@@ -918,14 +945,23 @@ if (placedOrder) {
                 Shipping
               </span>
 
-              <span
-                className="text-[11px]"
-                style={{
-                  color: "rgba(0,0,0,0.5)",
-                }}
-              >
-                Calculated at delivery
-              </span>
+              {selectedZone ? (
+                <span
+                  className="text-sm font-semibold"
+                  style={{ color: BLACK }}
+                >
+                  {shippingFee} EGP
+                </span>
+              ) : (
+                <span
+                  className="text-[11px]"
+                  style={{
+                    color: "rgba(0,0,0,0.5)",
+                  }}
+                >
+                  Select a delivery zone
+                </span>
+              )}
             </div>
 
             <div
@@ -947,7 +983,7 @@ if (placedOrder) {
                 className="text-xl font-bold"
                 style={{ color: ACCENT }}
               >
-                {cartTotal(items)} EGP
+                {grandTotal} EGP
               </span>
             </div>
 

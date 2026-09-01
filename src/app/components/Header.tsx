@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import HamburgerMenu from "./HamburgerMenu";
+import CartDrawer from "./CartDrawer";
 
 export default function Header() {
   return (
@@ -24,9 +25,14 @@ export default function Header() {
         />
       </Link>
 
-      <Link href="/cart" aria-label="Cart">
+      <button
+        onClick={() => window.dispatchEvent(new Event("openCart"))}
+        aria-label="Cart"
+      >
         <ShoppingCart size={20} style={{ color: "#000000" }} />
-      </Link>
+      </button>
+
+      <CartDrawer />
     </header>
   );
 }
