@@ -25,12 +25,9 @@ export default function Header() {
         />
       </Link>
 
-      <button
-        onClick={() => window.dispatchEvent(new Event("openCart"))}
-        aria-label="Cart"
-      >
+           <Link href="/cart" aria-label="Cart">
         <ShoppingCart size={20} style={{ color: "#000000" }} />
-      </button>
+      </Link>
 
       <CartDrawer />
     </header>

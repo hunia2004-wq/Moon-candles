@@ -8,7 +8,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { Product } from "@/lib/supabase/types";
-
+import { addToCart, updateCartItemQuantity, removeCartItem } from "@/lib/cart";
 type OrderLine = {
   id: string;
   colorName: string;
@@ -1023,6 +1023,28 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     isTwoColorProduct,
     isQuackAndKiss,
   ]);
+    useEffect(() => {
+    if (productName !== "Tambourine") return;
+
+    function syncTambourineOrderWithCart() {
+      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+      setOrderLines((prev) =>
+        prev.map((line) => {
+          const cartMatch = cart.find((item: any) => item.id === line.id);
+          return cartMatch
+            ? { ...line, quantity: cartMatch.quantity }
+            : line;
+        })
+      );
+    }
+
+    window.addEventListener("cartUpdated", syncTambourineOrderWithCart);
+
+    return () => {
+      window.removeEventListener("cartUpdated", syncTambourineOrderWithCart);
+    };
+  }, [productName]);
 
   /*
    * ============================================================
@@ -1208,7 +1230,6 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     window.dispatchEvent(
       new Event("cartUpdated")
     );
-    window.dispatchEvent(new Event("openCart"));
 
     setSelectedNoorWhite(
       true
@@ -1326,7 +1347,6 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     window.dispatchEvent(
       new Event("cartUpdated")
     );
-    window.dispatchEvent(new Event("openCart"));
 
     setSelectedNoorGray(
       true
@@ -1571,7 +1591,6 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     window.dispatchEvent(
       new Event("cartUpdated")
     );
-    window.dispatchEvent(new Event("openCart"));
 
     setSelectedBride(true);
 
@@ -1687,7 +1706,6 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     window.dispatchEvent(
       new Event("cartUpdated")
     );
-    window.dispatchEvent(new Event("openCart"));
 
     setSelectedGroom(true);
 
@@ -1872,153 +1890,48 @@ const [plainQuantity, setPlainQuantity] = useState(1);
    */
 
    function addRegularProductToCart() {
-    const existingCart =
-      JSON.parse(
-        localStorage.getItem(
-          "cart"
-        ) || "[]"
-      );
+    const productColor = selectedColor?.name ?? productName;
+    const productScent = selectedScent ?? null;
+    const lineId = createLineId(productColor, productScent);
 
-   
-
-    const productColor =
-      selectedColor?.name ??
-      productName;
-
-    const productScent =
-      selectedScent ?? null;
-
-    const lineId =
-      createLineId(
-        productColor,
-        productScent
-      );
-
-    const existingIndex =
-      existingCart.findIndex(
-        (item: any) =>
-          item.productId ===
-            product.id &&
-          item.productName ===
-            productName &&
-          (item.color ??
-            productName) ===
-            productColor &&
-          (item.scent ?? null) ===
-            productScent
-      );
-
-    const newQuantity =
-      existingIndex !== -1
-        ? Number(
-            existingCart[
-              existingIndex
-            ].quantity
-          ) || 1
-        : 1;
-
-    const newItem = {
+    // Single source of truth for cart writes — addToCart() already
+    // finds a line with this exact id and increments its quantity by
+    // 1 instead of creating a duplicate, or adds a fresh line at
+    // quantity 1 if this variant isn't in the cart yet.
+    addToCart({
       id: lineId,
-      productId:
-        product.id,
+      productId: product.id,
       productName,
-      price: Number(
-        displayPrice
-      ),
-      quantity:
-        newQuantity,
-      scent:
-        productScent,
-      color:
-        productColor,
-      image:
-        gallery[0] ?? "",
-    };
-
-    const updatedCart = [
-      ...existingCart,
-    ];
-
-    if (
-      existingIndex !== -1
-    ) {
-      updatedCart[
-        existingIndex
-      ] = {
-        ...updatedCart[
-          existingIndex
-        ],
-        ...newItem,
-      };
-    } else {
-      updatedCart.push(
-        newItem
-      );
-    }
-
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(
-        updatedCart
-      )
-    );
-
-    window.dispatchEvent(
-      new Event("cartUpdated")
-    );
-    window.dispatchEvent(new Event("openCart"));
+      price: Number(displayPrice),
+      quantity: 1,
+      scent: productScent,
+      color: productColor,
+      image: gallery[0] ?? "",
+    });
 
     setOrderLines((prev) => {
-      const existingLineIndex =
-        prev.findIndex(
-          (line) =>
-            line.id === lineId
-        );
+      const existingLineIndex = prev.findIndex(
+        (line) => line.id === lineId
+      );
 
-      if (
-        existingLineIndex !== -1
-      ) {
-        const updated = [
-          ...prev,
-        ];
-
-        updated[
-          existingLineIndex
-        ] = {
-          ...updated[
-            existingLineIndex
-          ],
-          colorName:
-            productColor,
-          scentName:
-            productScent,
-          price: Number(
-            displayPrice
-          ),
-          quantity:
-            newQuantity,
-          image:
-            gallery[0] ?? "",
+      if (existingLineIndex !== -1) {
+        const updated = [...prev];
+        updated[existingLineIndex] = {
+          ...updated[existingLineIndex],
+          quantity: updated[existingLineIndex].quantity + 1,
         };
-
         return updated;
       }
 
-           return [
+      return [
         ...prev,
         {
           id: lineId,
-          colorName:
-            productColor,
-          scentName:
-            productScent,
-          price: Number(
-            displayPrice
-          ),
-          quantity:
-            newQuantity,
-          image:
-            gallery[0] ?? "",
+          colorName: productColor,
+          scentName: productScent,
+          price: Number(displayPrice),
+          quantity: 1,
+          image: gallery[0] ?? "",
         },
       ];
     });
@@ -2067,50 +1980,55 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     setPlainQuantity(1);
   }
 
-  function updateTambourineLineQuantity(lineId: string, newQuantity: number) {
+    function updateTambourineLineQuantity(lineId: string, newQuantity: number) {
     if (newQuantity <= 0) {
-      setOrderLines((prev) => prev.filter((line) => line.id !== lineId));
+      removeTambourineLine(lineId);
       return;
     }
 
+    const safeQuantity = Math.max(1, newQuantity);
+
     setOrderLines((prev) =>
       prev.map((line) =>
-        line.id === lineId ? { ...line, quantity: newQuantity } : line
+        line.id === lineId ? { ...line, quantity: safeQuantity } : line
       )
     );
+
+    // No-op if this line hasn't been committed to the cart yet
+    // (still just staged locally) — otherwise keeps the real cart in
+    // sync, quietly, without popping the drawer open.
+    updateCartItemQuantity(lineId, safeQuantity);
   }
 
   function removeTambourineLine(lineId: string) {
     setOrderLines((prev) => prev.filter((line) => line.id !== lineId));
+
+    removeCartItem(lineId);
   }
 
   function addTambourineOrderToCart() {
     if (!orderLines.length) return;
 
-    const existingCart = JSON.parse(localStorage.getItem("cart") || "[]");
+    // Write each stacked size+ribbon combo through the shared helper
+    // — this is what actually makes it show in the cart drawer, and
+    // keeps it deduped/in sync with everywhere else that reads the
+    // cart.
+    orderLines.forEach((line) => {
+      addToCart({
+        id: line.id,
+        productId: product.id,
+        productName,
+        price: line.price,
+        quantity: line.quantity,
+        scent: null,
+        color: line.colorName,
+        image: line.image,
+      });
+    });
 
-    const otherItems = existingCart.filter(
-      (item: any) =>
-        !(item.productId === product.id && item.productName === productName)
-    );
-
-    const newItems = orderLines.map((line) => ({
-      id: line.id,
-      productId: product.id,
-      productName,
-      price: line.price,
-      quantity: line.quantity,
-      color: line.colorName,
-      scent: null,
-      image: line.image,
-    }));
-
-    localStorage.setItem("cart", JSON.stringify([...otherItems, ...newItems]));
-
-    window.dispatchEvent(new Event("cartUpdated"));
-    window.dispatchEvent(new Event("openCart"));
-
-    setOrderLines([]);
+    // Don't clear orderLines — they're now the real cart lines for
+    // this product, so keep them visible here too (matches how the
+    // regular Add to Cart flow leaves "Your Order" showing).
   }
 
   function updateNormalLineQuantity(
@@ -2122,88 +2040,25 @@ const [plainQuantity, setPlainQuantity] = useState(1);
       return;
     }
 
-    const safeQuantity =
-      Math.max(
-        1,
-        newQuantity
-      );
+    const safeQuantity = Math.max(1, newQuantity);
 
     setOrderLines((prev) =>
       prev.map((line) =>
         line.id === lineId
-          ? {
-              ...line,
-              quantity:
-                safeQuantity,
-            }
+          ? { ...line, quantity: safeQuantity }
           : line
       )
     );
 
-    const existingCart =
-      JSON.parse(
-        localStorage.getItem(
-          "cart"
-        ) || "[]"
-      );
-
-    const updatedCart =
-      existingCart.map(
-        (item: any) =>
-          item.id === lineId
-            ? {
-                ...item,
-                quantity:
-                  safeQuantity,
-              }
-            : item
-      );
-
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(
-        updatedCart
-      )
-    );
-
-    window.dispatchEvent(
-      new Event("cartUpdated")
-    );
+    // Shared helper — writes the real cart and tells the drawer to
+    // just refresh its count, not pop open.
+    updateCartItemQuantity(lineId, safeQuantity);
   }
 
-  function removeLine(
-    id: string
-  ) {
-    setOrderLines((prev) =>
-      prev.filter(
-        (line) =>
-          line.id !== id
-      )
-    );
+  function removeLine(id: string) {
+    setOrderLines((prev) => prev.filter((line) => line.id !== id));
 
-    const existingCart =
-      JSON.parse(
-        localStorage.getItem(
-          "cart"
-        ) || "[]"
-      );
-
-    const updatedCart =
-      existingCart.filter(
-        (item: any) =>
-          item.id !== id
-      );
-
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(
-        updatedCart
-      )
-    );
-
-    window.dispatchEvent(
-      new Event("cartUpdated")
-    );
+    removeCartItem(id);
   }
 
   const totalQuantity =

@@ -40,10 +40,17 @@ export function getCart(): CartItem[] {
   }
 }
 
-function setCart(items: CartItem[]) {
+function setCart(items: CartItem[], options?: { open?: boolean }) {
   localStorage.setItem("cart", JSON.stringify(items));
 
-  window.dispatchEvent(new Event("cartUpdated"));
+  // "open" tells the drawer whether this write should pop it open.
+  // Adding a new item should; a quantity tweak on an already-open
+  // order list shouldn't.
+  window.dispatchEvent(
+    new CustomEvent("cartUpdated", {
+      detail: { open: options?.open ?? false },
+    })
+  );
 }
 
 export function addToCart(item: CartItem) {
@@ -59,11 +66,11 @@ export function addToCart(item: CartItem) {
       quantity: updatedCart[existingIndex].quantity + item.quantity,
     };
 
-    setCart(updatedCart);
+    setCart(updatedCart, { open: true });
     return;
   }
 
-  setCart([...cart, item]);
+  setCart([...cart, item], { open: true });
 }
 
 export function updateCartItemQuantity(id: string, quantity: number) {
