@@ -25,10 +25,10 @@ export default function CartDrawer() {
   // Load the cart once on mount, then keep it in sync and open the
   // drawer whenever anything dispatches "cartUpdated" (every Add to
   // Cart button across the site already fires this event).
-  useEffect(() => {
+    useEffect(() => {
     setItems(getCart());
 
-        function handleCartUpdated(e: Event) {
+    function handleCartUpdated(e: Event) {
       setItems(getCart());
 
       const detail = (e as CustomEvent<{ open?: boolean }>).detail;
@@ -38,10 +38,17 @@ export default function CartDrawer() {
       }
     }
 
+    function handleOpenCart() {
+      setItems(getCart());
+      setOpen(true);
+    }
+
     window.addEventListener("cartUpdated", handleCartUpdated);
+    window.addEventListener("openCart", handleOpenCart);
 
     return () => {
       window.removeEventListener("cartUpdated", handleCartUpdated);
+      window.removeEventListener("openCart", handleOpenCart);
     };
   }, []);
 
@@ -173,21 +180,24 @@ export default function CartDrawer() {
                       {item.productName}
                     </p>
 
-                    {(item.color || item.scent) && (
+                                        {item.color && (
                       <p
                         className="mt-0.5 text-[11px]"
                         style={{ color: "rgba(0,0,0,0.5)" }}
                       >
-                        {[item.color, item.scent].filter(Boolean).join(" · ")}
+                        Color: {item.color}
                       </p>
                     )}
 
-                    <p
-                      className="mt-1 text-[11px]"
-                      style={{ color: "rgba(0,0,0,0.45)" }}
-                    >
-                      {item.price} EGP each
-                    </p>
+                    {item.scent && (
+                      <p
+                        className="mt-0.5 text-[11px]"
+                        style={{ color: "rgba(0,0,0,0.5)" }}
+                      >
+                        Scent: {item.scent}
+                      </p>
+                    )}
+
                   </div>
 
                   <div className="mt-2 flex items-center gap-3">

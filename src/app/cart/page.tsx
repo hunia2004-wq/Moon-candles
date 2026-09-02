@@ -147,10 +147,10 @@ export default function CartPage() {
                 {items.map((item, index) => {
                   const lineTotal = item.price * item.quantity;
 
-                  return (
+                                    return (
                     <div
                       key={item.id}
-                      className="flex items-center gap-3 px-4 py-4 md:gap-4 md:px-5"
+                      className="flex flex-col gap-3 px-4 py-4 md:px-5"
                       style={{
                         borderBottom:
                           index !== items.length - 1
@@ -158,107 +158,113 @@ export default function CartPage() {
                             : "none",
                       }}
                     >
-                      {/* Smaller image */}
-                      <div
-                        className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl md:h-[68px] md:w-[68px]"
-                        style={{ backgroundColor: SAND }}
-                      >
-                        {item.image && (
-                          <img
-                            src={item.image}
-                            alt={item.productName}
-                            className="h-full w-full object-contain"
-                          />
-                        )}
-                      </div>
+                      {/* Image + name, side by side */}
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <div
+                          className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl md:h-[68px] md:w-[68px]"
+                          style={{ backgroundColor: SAND }}
+                        >
+                          {item.image && (
+                            <img
+                              src={item.image}
+                              alt={item.productName}
+                              className="h-full w-full object-contain"
+                            />
+                          )}
+                        </div>
 
-                      {/* Product info */}
-                      <div className="min-w-0 flex-1">
                         <p
-                          className="truncate text-sm font-semibold"
+                          className="text-sm font-semibold"
                           style={{ color: BLACK }}
                         >
                           {item.productName}
                         </p>
+                      </div>
 
-                        {(item.color || item.scent) && (
-                          <p
-                            className="mt-0.5 truncate text-[11px]"
-                            style={{ color: "rgba(0,0,0,0.5)" }}
+                      {/* Color / scent — full width, one line each */}
+                      {(item.color || item.scent) && (
+                        <div className="flex flex-col gap-0.5">
+                          {item.color && (
+                            <p
+                              className="whitespace-nowrap text-[11px]"
+                              style={{ color: "rgba(0,0,0,0.5)" }}
+                            >
+                              Color: {item.color}
+                            </p>
+                          )}
+
+                          {item.scent && (
+                            <p
+                              className="whitespace-nowrap text-[11px]"
+                              style={{ color: "rgba(0,0,0,0.5)" }}
+                            >
+                              Scent: {item.scent}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Quantity + price, on their own row */}
+                      <div className="flex items-center justify-between">
+                        <div
+                          className="flex items-center rounded-full border px-1 py-1"
+                          style={{ borderColor: "rgba(0,0,0,0.1)" }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateCartItemQuantity(
+                                item.id,
+                                item.quantity - 1
+                              )
+                            }
+                            className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-semibold transition-all hover:scale-110 active:scale-95"
+                            style={{ color: BLACK }}
                           >
-                            {[item.color, item.scent]
-                              .filter(Boolean)
-                              .join(" · ")}
+                            −
+                          </button>
+
+                          <span
+                            className="w-6 text-center text-xs font-semibold"
+                            style={{ color: BLACK }}
+                          >
+                            {item.quantity}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateCartItemQuantity(
+                                item.id,
+                                item.quantity + 1
+                              )
+                            }
+                            className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-semibold transition-all hover:scale-110 active:scale-95"
+                            style={{ color: BLACK }}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <div className="flex flex-col items-end">
+                          <p
+                            className="text-sm font-bold"
+                            style={{ color: ACCENT }}
+                          >
+                            {lineTotal} EGP
                           </p>
-                        )}
 
-                        <p
-                          className="mt-1 text-[11px]"
-                          style={{ color: "rgba(0,0,0,0.45)" }}
-                        >
-                          {item.price} EGP each
-                        </p>
-                      </div>
-
-                      {/* Quantity */}
-                      <div className="flex flex-shrink-0 items-center rounded-full border px-1 py-1"
-                        style={{ borderColor: "rgba(0,0,0,0.1)" }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateCartItemQuantity(
-                              item.id,
-                              item.quantity - 1
-                            )
-                          }
-                          className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-semibold transition-all hover:scale-110 active:scale-95"
-                          style={{ color: BLACK }}
-                        >
-                          −
-                        </button>
-
-                        <span
-                          className="w-6 text-center text-xs font-semibold"
-                          style={{ color: BLACK }}
-                        >
-                          {item.quantity}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            updateCartItemQuantity(
-                              item.id,
-                              item.quantity + 1
-                            )
-                          }
-                          className="flex h-6 w-6 items-center justify-center rounded-full text-sm font-semibold transition-all hover:scale-110 active:scale-95"
-                          style={{ color: BLACK }}
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      {/* Price + remove */}
-                      <div className="flex w-[72px] flex-shrink-0 flex-col items-end">
-                        <p
-                          className="text-sm font-bold"
-                          style={{ color: ACCENT }}
-                        >
-                          {lineTotal} EGP
-                        </p>
-
-                        <button
-                          type="button"
-                          onClick={() => removeCartItem(item.id)}
-                          className="mt-1 text-[10px] underline transition-opacity hover:opacity-60"
-                          style={{
-                            color: "rgba(0,0,0,0.45)",
-                          }}
-                        >
-                          remove
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => removeCartItem(item.id)}
+                            className="mt-1 text-[10px] underline transition-opacity hover:opacity-60"
+                            style={{
+                              color: "rgba(0,0,0,0.45)",
+                            }}
+                          >
+                            remove
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );

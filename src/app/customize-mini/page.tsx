@@ -31,10 +31,13 @@ type ColorCombo = {
   quantity: number;
   scents: string[]; // one entry per unit in `quantity`
   // Whether this combo has been pushed to the cart yet. Uncommitted
-  // combos are purely local (staged, not yet in the cart). Committed
-  // combos are a live mirror of their cart line(s) — every edit here
-  // pushes to the cart, and every cart change pulls back here.
+  // combos are purely local (staged, not yet in the cart).
   committed?: boolean;
+  // For committed combos only: whether the current on-page state
+  // matches what's actually in the cart. Local edits set this false
+  // ("dirty") instead of pushing immediately — the Update button is
+  // what actually syncs and flips it back to true.
+  synced?: boolean;
 };
 
 function comboKeyId(colorA: string, colorB: string) {
@@ -87,6 +90,7 @@ function buildCommittedCombosFromCart(cart: CartItem[]): ColorCombo[] {
       quantity: scentsFlat.length,
       scents: scentsFlat,
       committed: true,
+      synced: true,
     });
   });
 
@@ -130,15 +134,34 @@ export default function CustomizeMiniPage() {
    * Runs once on mount (rebuilding any combos already in the cart —
    * e.g. after a page reload) and again every time the cart changes
    * anywhere else (the drawer, another tab, etc). Uncommitted combos
-   * the person is still staging are preserved as-is; only the
-   * committed ones are refreshed from the cart's actual state.
+   * the person is still staging are preserved as-is. Committed combos
+   * that are still "dirty" (unsaved local edits, Update not pressed
+   * yet) are ALSO preserved as-is — otherwise this rebuild would wipe
+   * out an in-progress edit with the cart's older data. Only combos
+   * that are fully synced get refreshed from the cart.
    */
   useEffect(() => {
     function syncFromCart() {
       setCombos((prev) => {
         const stillPending = prev.filter((c) => !c.committed);
+
+        const dirty = new Map(
+          prev
+            .filter((c) => c.committed && c.synced === false)
+            .map((c) => [c.id, c])
+        );
+
         const committedFromCart = buildCommittedCombosFromCart(getCart());
-        return [...committedFromCart, ...stillPending];
+        const merged = committedFromCart.map((c) => dirty.get(c.id) ?? c);
+
+        // A dirty combo whose cart lines were all removed elsewhere
+        // (e.g. the whole thing deleted from the drawer) won't show up
+        // in committedFromCart — keep it anyway so the edit isn't lost.
+        dirty.forEach((c, id) => {
+          if (!merged.some((m) => m.id === id)) merged.push(c);
+        });
+
+        return [...merged, ...stillPending];
       });
     }
 
@@ -176,7 +199,8 @@ export default function CustomizeMiniPage() {
    * Pushes one combo's current quantity/scent breakdown to the cart —
    * creating, updating, or removing cart lines as needed so the cart
    * ends up with exactly the lines this combo implies. Safe to call
-   * repeatedly; never double-adds.
+   * repeatedly; never double-adds. This is the only thing that
+   * actually touches the cart/opens the drawer for an existing combo.
    */
   function syncComboToCart(combo: ColorCombo) {
     const colorKey = `${combo.colorA} + ${combo.colorB}`;
@@ -225,6 +249,14 @@ export default function CustomizeMiniPage() {
     });
   }
 
+  /** The Update button for a combo: pushes it to the cart and marks it synced. */
+  function pushComboUpdate(combo: ColorCombo) {
+    syncComboToCart(combo);
+    setCombos((prev) =>
+      prev.map((c) => (c.id === combo.id ? { ...c, synced: true } : c))
+    );
+  }
+
   function updateQuantity(id: string, delta: number) {
     setCombos((prev) =>
       prev.map((c) => {
@@ -235,9 +267,12 @@ export default function CustomizeMiniPage() {
         while (newScents.length < newQty) newScents.push(scents[0] ?? "");
         newScents.length = newQty;
 
-        const next = { ...c, quantity: newQty, scents: newScents };
-        if (next.committed) syncComboToCart(next);
-        return next;
+        return {
+          ...c,
+          quantity: newQty,
+          scents: newScents,
+          synced: c.committed ? false : c.synced,
+        };
       })
     );
   }
@@ -250,9 +285,11 @@ export default function CustomizeMiniPage() {
         const newScents = [...c.scents];
         newScents[unitIndex] = scent;
 
-        const next = { ...c, scents: newScents };
-        if (next.committed) syncComboToCart(next);
-        return next;
+        return {
+          ...c,
+          scents: newScents,
+          synced: c.committed ? false : c.synced,
+        };
       })
     );
   }
@@ -262,9 +299,11 @@ export default function CustomizeMiniPage() {
       prev.map((c) => {
         if (c.id !== comboId) return c;
 
-        const next = { ...c, scents: c.scents.map(() => scent) };
-        if (next.committed) syncComboToCart(next);
-        return next;
+        return {
+          ...c,
+          scents: c.scents.map(() => scent),
+          synced: c.committed ? false : c.synced,
+        };
       })
     );
   }
@@ -273,8 +312,8 @@ export default function CustomizeMiniPage() {
     setCombos((prev) => {
       const combo = prev.find((c) => c.id === id);
 
-      // If this combo is already in the cart, clear out every line it
-      // owns before dropping it from the page.
+      // Removing is a deliberate, final action — unlike quantity/scent
+      // tweaks it takes effect immediately rather than waiting on Update.
       if (combo?.committed) {
         syncComboToCart({ ...combo, quantity: 0, scents: [] });
       }
@@ -286,7 +325,7 @@ export default function CustomizeMiniPage() {
   /**
    * Commits every staged (uncommitted) combo to the cart. Combos stay
    * on the page afterward — they just flip to "committed" and become
-   * live-synced with their cart lines instead of disappearing.
+   * synced with their cart lines instead of disappearing.
    */
   function addComboOrderToCart() {
     const hasPending = combos.some((c) => !c.committed);
@@ -313,6 +352,7 @@ export default function CustomizeMiniPage() {
 
         byStableId.set(stableId, merged);
         syncComboToCart(merged);
+        byStableId.set(stableId, { ...merged, synced: true });
       });
 
       return Array.from(byStableId.values());
@@ -457,23 +497,18 @@ export default function CustomizeMiniPage() {
           <>
             <StepLabel n={4} title="Set quantity & scent for each candle" />
             <div className="flex flex-col gap-4 mb-8">
-              {combos.map((combo) => (
+              {combos.map((combo) => {
+                const isDirty = combo.committed && combo.synced === false;
+
+                return (
                 <div
                   key={combo.id}
                   className="rounded-xl px-4 py-4"
                   style={{ backgroundColor: "#EFE3C4" }}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium flex items-center gap-2" style={{ color: "#000000" }}>
+                    <span className="text-sm font-medium" style={{ color: "#000000" }}>
                       {combo.colorA} + {combo.colorB}
-                      {combo.committed && (
-                        <span
-                          className="text-[9px] font-semibold uppercase tracking-wide rounded-full px-2 py-0.5"
-                          style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
-                        >
-                          In cart
-                        </span>
-                      )}
                     </span>
 
                     <div className="flex items-center gap-3">
@@ -547,8 +582,23 @@ export default function CustomizeMiniPage() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Update button — only appears once this combo has
+                      unsaved changes relative to what's in the cart. */}
+                  {isDirty && (
+                    <button
+                      onClick={() => pushComboUpdate(combo)}
+                      className="mt-4 w-full rounded-full py-2 text-xs font-semibold transition-colors"
+                      style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#B23A26")}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#DE4B33")}
+                    >
+                      Update cart
+                    </button>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
@@ -576,7 +626,7 @@ export default function CustomizeMiniPage() {
           }}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#DE4B33")}
         >
-          Add to Order — {totalPrice} LE
+          Add to Order
         </button>
       </div>
     </div>

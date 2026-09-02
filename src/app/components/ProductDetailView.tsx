@@ -1380,9 +1380,10 @@ const [plainQuantity, setPlainQuantity] = useState(1);
       )
     );
 
-    window.dispatchEvent(
+        window.dispatchEvent(
       new Event("cartUpdated")
     );
+    window.dispatchEvent(new Event("openCart"));
 
     setSelectedBride(true);
 
@@ -1495,9 +1496,10 @@ const [plainQuantity, setPlainQuantity] = useState(1);
       )
     );
 
-    window.dispatchEvent(
+        window.dispatchEvent(
       new Event("cartUpdated")
     );
+    window.dispatchEvent(new Event("openCart"));
 
     setSelectedGroom(true);
 
@@ -2836,19 +2838,11 @@ const [plainQuantity, setPlainQuantity] = useState(1);
 
                   <div className="grid grid-cols-2 gap-3">
 
-                    <button
+                                       <button
                       type="button"
                       onClick={() => {
-                        if (
-                          !selectedBride
-                        ) {
-                          setSelectedBride(
-                            true
-                          );
-
-                          setBrideQuantity(
-                            1
-                          );
+                        if (!selectedBride) {
+                          addBrideToCart();
                         }
                       }}
                       className="rounded-2xl border px-4 py-4 text-sm font-semibold transition-all hover:-translate-y-0.5"
@@ -2870,19 +2864,11 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                       Bride Duck
                     </button>
 
-                    <button
+                                       <button
                       type="button"
                       onClick={() => {
-                        if (
-                          !selectedGroom
-                        ) {
-                          setSelectedGroom(
-                            true
-                          );
-
-                          setGroomQuantity(
-                            1
-                          );
+                        if (!selectedGroom) {
+                          addGroomToCart();
                         }
                       }}
                       className="rounded-2xl border px-4 py-4 text-sm font-semibold transition-all hover:-translate-y-0.5"
