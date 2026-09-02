@@ -66,9 +66,22 @@ const PLAIN_SELLABLE_GIVEAWAY_NAMES = ["Tambourine"];
  * horizontal gallery should move through the COLORS themselves.
  */
 const COLOR_SCROLL_PRODUCTS = [
-  "Marble",
+  "Marble Moon",
+  "Dimple Moon",
+  "Iced Latte",
+];
+
+// These simple, single-variant candles skip the on-page "Your Order"
+// counter entirely — Add to Cart just adds one each click, and
+// quantity is only adjusted from the cart drawer/page from here on.
+const NO_ORDER_COUNTER_NAMES = [
+  "Marble Moon",
   "Dimple",
   "Iced Latte",
+  "Molten Muse",
+  "Crystal Glow",
+  "Shell",
+  "Melt Balm",
 ];
 const RIBBON_COLORS = [
   { id: "light-pink", label: "Light Pink", hex: "#F5C6D6" },
@@ -180,6 +193,10 @@ export default function ProductDetailView({
       (name) =>
         name.toLowerCase() ===
         normalizedProductName
+    );
+      const hasNoOrderCounter =
+    NO_ORDER_COUNTER_NAMES.some(
+      (name) => name.toLowerCase() === normalizedProductName
     );
 
   const accent = isGiveaway
@@ -1023,7 +1040,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     isTwoColorProduct,
     isQuackAndKiss,
   ]);
-    useEffect(() => {
+      useEffect(() => {
     if (productName !== "Tambourine") return;
 
     function syncTambourineOrderWithCart() {
@@ -1045,6 +1062,45 @@ const [plainQuantity, setPlainQuantity] = useState(1);
       window.removeEventListener("cartUpdated", syncTambourineOrderWithCart);
     };
   }, [productName]);
+
+  useEffect(() => {
+    if (!isTwoColorProduct) return;
+
+    function syncNoorWithCart() {
+      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+      const whiteItem = cart.find(
+        (item: any) => item.id === `${product.id}-white`
+      );
+
+      const grayItem = cart.find(
+        (item: any) => item.id === `${product.id}-gray`
+      );
+
+      if (whiteItem) {
+        setNoorWhiteQuantity(Number(whiteItem.quantity) || 1);
+      }
+
+      if (grayItem) {
+        setNoorGrayQuantity(Number(grayItem.quantity) || 1);
+      }
+
+      setOrderLines((prev) =>
+        prev.map((line) => {
+          const cartMatch = cart.find((item: any) => item.id === line.id);
+          return cartMatch
+            ? { ...line, quantity: cartMatch.quantity }
+            : line;
+        })
+      );
+    }
+
+    window.addEventListener("cartUpdated", syncNoorWithCart);
+
+    return () => {
+      window.removeEventListener("cartUpdated", syncNoorWithCart);
+    };
+  }, [isTwoColorProduct, product.id]);
 
   /*
    * ============================================================
@@ -1165,292 +1221,67 @@ const [plainQuantity, setPlainQuantity] = useState(1);
    * ============================================================
    */
 
-  function addNoorWhiteToCart() {
-    const existingCart =
-      JSON.parse(
-        localStorage.getItem(
-          "cart"
-        ) || "[]"
-      );
+   function addNoorOrderToCart() {
+    if (!selectedNoorWhite && !selectedNoorGray) return;
 
-    const existingIndex =
-      existingCart.findIndex(
-        (item: any) =>
-          item.productId ===
-            product.id &&
-          item.productName ===
-            productName &&
-          item.color ===
-            "White"
-      );
-
-    const newItem = {
-      id: `${product.id}-white`,
-      productId: product.id,
-      productName,
-      price: Number(
-        displayPrice
-      ),
-      quantity:
-        noorWhiteQuantity,
-      scent: null,
-      color: "White",
-      image:
-        gallery[0] ?? "",
-    };
-
-    const updatedCart = [
-      ...existingCart,
-    ];
-
-    if (
-      existingIndex !== -1
-    ) {
-      updatedCart[
-        existingIndex
-      ] = {
-        ...updatedCart[
-          existingIndex
-        ],
-        ...newItem,
-      };
-    } else {
-      updatedCart.push(
-        newItem
-      );
-    }
-
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(
-        updatedCart
-      )
-    );
-
-    window.dispatchEvent(
-      new Event("cartUpdated")
-    );
-
-    setSelectedNoorWhite(
-      true
-    );
-
-    setOrderLines((prev) => {
+    // Unlike addToCart() elsewhere (which is a repeatable "+1 per
+    // click" action), this button confirms whatever quantity is
+    // currently staged on the page — so the cart line should be SET
+    // to that number, not incremented by it each time the button is
+    // pressed. Removing any existing line first, then adding fresh,
+    // gives set semantics while still using the shared helper (so
+    // the drawer still pops open to confirm).
+    if (selectedNoorWhite) {
       const id = `${product.id}-white`;
-
-      const existingLineIndex =
-        prev.findIndex(
-          (line) =>
-            line.id === id
-        );
-
-      if (
-        existingLineIndex !== -1
-      ) {
-        const updated = [
-          ...prev,
-        ];
-
-        updated[
-          existingLineIndex
-        ] = {
-          ...updated[
-            existingLineIndex
-          ],
-          quantity:
-            noorWhiteQuantity,
-        };
-
-        return updated;
-      }
-
-      return [
-        ...prev,
-        {
-          id,
-          colorName: "White",
-          scentName: null,
-          price: Number(
-            displayPrice
-          ),
-          quantity:
-            noorWhiteQuantity,
-          image:
-            gallery[0] ?? "",
-        },
-      ];
-    });
-  }
-
-  function addNoorGrayToCart() {
-    const existingCart =
-      JSON.parse(
-        localStorage.getItem(
-          "cart"
-        ) || "[]"
-      );
-
-    const existingIndex =
-      existingCart.findIndex(
-        (item: any) =>
-          item.productId ===
-            product.id &&
-          item.productName ===
-            productName &&
-          item.color ===
-            "Gray"
-      );
-
-    const newItem = {
-      id: `${product.id}-gray`,
-      productId: product.id,
-      productName,
-      price: Number(
-        displayPrice
-      ),
-      quantity:
-        noorGrayQuantity,
-      scent: null,
-      color: "Gray",
-      image:
-        gallery[0] ?? "",
-    };
-
-    const updatedCart = [
-      ...existingCart,
-    ];
-
-    if (
-      existingIndex !== -1
-    ) {
-      updatedCart[
-        existingIndex
-      ] = {
-        ...updatedCart[
-          existingIndex
-        ],
-        ...newItem,
-      };
-    } else {
-      updatedCart.push(
-        newItem
-      );
+      removeCartItem(id);
+      addToCart({
+        id,
+        productId: product.id,
+        productName,
+        price: Number(displayPrice),
+        quantity: noorWhiteQuantity,
+        scent: null,
+        color: "White",
+        image: gallery[0] ?? "",
+      });
     }
 
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(
-        updatedCart
-      )
-    );
-
-    window.dispatchEvent(
-      new Event("cartUpdated")
-    );
-
-    setSelectedNoorGray(
-      true
-    );
-
-    setOrderLines((prev) => {
+    if (selectedNoorGray) {
       const id = `${product.id}-gray`;
-
-      const existingLineIndex =
-        prev.findIndex(
-          (line) =>
-            line.id === id
-        );
-
-      if (
-        existingLineIndex !== -1
-      ) {
-        const updated = [
-          ...prev,
-        ];
-
-        updated[
-          existingLineIndex
-        ] = {
-          ...updated[
-            existingLineIndex
-          ],
-          quantity:
-            noorGrayQuantity,
-        };
-
-        return updated;
-      }
-
-      return [
-        ...prev,
-        {
-          id,
-          colorName: "Gray",
-          scentName: null,
-          price: Number(
-            displayPrice
-          ),
-          quantity:
-            noorGrayQuantity,
-          image:
-            gallery[0] ?? "",
-        },
-      ];
-    });
+      removeCartItem(id);
+      addToCart({
+        id,
+        productId: product.id,
+        productName,
+        price: Number(displayPrice),
+        quantity: noorGrayQuantity,
+        scent: null,
+        color: "Gray",
+        image: gallery[0] ?? "",
+      });
+    }
   }
-
-  function removeNoorColor(
-    color: "White" | "Gray"
-  ) {
+   function removeNoorColor(color: "White" | "Gray") {
     const id = `${product.id}-${color.toLowerCase()}`;
 
-    const existingCart =
-      JSON.parse(
-        localStorage.getItem(
-          "cart"
-        ) || "[]"
-      );
+    setOrderLines((prev) => prev.filter((line) => line.id !== id));
 
-    const updatedCart =
-      existingCart.filter(
-        (item: any) =>
-          item.id !== id
-      );
-
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(
-        updatedCart
-      )
-    );
-
-    window.dispatchEvent(
-      new Event("cartUpdated")
-    );
-
-    setOrderLines((prev) =>
-      prev.filter(
-        (line) =>
-          line.id !== id
-      )
-    );
+    // Safe even if this color was never actually committed to the
+    // cart yet — removeCartItem is a no-op if the id isn't there.
+    removeCartItem(id);
 
     if (color === "White") {
-      setSelectedNoorWhite(
-        false
-      );
+      setSelectedNoorWhite(false);
       setNoorWhiteQuantity(1);
     }
 
     if (color === "Gray") {
-      setSelectedNoorGray(
-        false
-      );
+      setSelectedNoorGray(false);
       setNoorGrayQuantity(1);
     }
   }
 
-  function updateNoorQuantity(
+    function updateNoorQuantity(
     color: "White" | "Gray",
     newQuantity: number
   ) {
@@ -1459,66 +1290,27 @@ const [plainQuantity, setPlainQuantity] = useState(1);
       return;
     }
 
-    const safeQuantity =
-      Math.max(
-        1,
-        newQuantity
-      );
-
+    const safeQuantity = Math.max(1, newQuantity);
     const id = `${product.id}-${color.toLowerCase()}`;
 
     if (color === "White") {
-      setNoorWhiteQuantity(
-        safeQuantity
-      );
+      setNoorWhiteQuantity(safeQuantity);
     } else {
-      setNoorGrayQuantity(
-        safeQuantity
-      );
+      setNoorGrayQuantity(safeQuantity);
     }
 
     setOrderLines((prev) =>
       prev.map((line) =>
-        line.id === id
-          ? {
-              ...line,
-              quantity:
-                safeQuantity,
-            }
-          : line
+        line.id === id ? { ...line, quantity: safeQuantity } : line
       )
     );
 
-    const existingCart =
-      JSON.parse(
-        localStorage.getItem(
-          "cart"
-        ) || "[]"
-      );
-
-    const updatedCart =
-      existingCart.map(
-        (item: any) =>
-          item.id === id
-            ? {
-                ...item,
-                quantity:
-                  safeQuantity,
-              }
-            : item
-      );
-
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(
-        updatedCart
-      )
-    );
-
-    window.dispatchEvent(
-      new Event("cartUpdated")
-    );
+    // No-op if this color hasn't been committed via "Add to Cart"
+    // yet (still just staged locally) — otherwise keeps the real
+    // cart in sync, quietly, without popping the drawer open.
+    updateCartItemQuantity(id, safeQuantity);
   }
+  
 
   /*
    * ============================================================
@@ -2429,7 +2221,22 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                               color.name
                             }
                             aria-label={`Select ${color.name}`}
-                            onClick={() => {
+                                                        onClick={() => {
+                              /*
+                               * For Marble/Dimple/Iced Latte,
+                               * clicking a swatch should scroll
+                               * directly to that color's image —
+                               * mark this as a sync-originated
+                               * color change so the "reset gallery
+                               * on color change" effect below
+                               * doesn't immediately snap the
+                               * scroll position back to 0 and
+                               * undo it.
+                               */
+                              if (isColorScrollProduct) {
+                                scrollSyncing.current = true;
+                              }
+
                               setSelectedColorIndex(
                                 index
                               );
@@ -2438,11 +2245,6 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                                 0
                               );
 
-                              /*
-                               * For Marble/Dimple/Iced Latte,
-                               * clicking a swatch should scroll
-                               * directly to that color's image.
-                               */
                               if (
                                 isColorScrollProduct
                               ) {
@@ -2769,11 +2571,22 @@ const [plainQuantity, setPlainQuantity] = useState(1);
 
                     <button
                       type="button"
-                      onClick={() => {
-                        if (
-                          !selectedNoorWhite
-                        ) {
-                          addNoorWhiteToCart();
+                                           onClick={() => {
+                        if (!selectedNoorWhite) {
+                          setSelectedNoorWhite(true);
+                          setNoorWhiteQuantity(1);
+
+                          setOrderLines((prev) => [
+                            ...prev,
+                            {
+                              id: `${product.id}-white`,
+                              colorName: "White",
+                              scentName: null,
+                              price: Number(displayPrice),
+                              quantity: 1,
+                              image: gallery[0] ?? "",
+                            },
+                          ]);
                         }
                       }}
                       className="rounded-2xl border px-4 py-4 text-sm font-semibold transition-all hover:-translate-y-0.5"
@@ -2795,11 +2608,22 @@ const [plainQuantity, setPlainQuantity] = useState(1);
 
                     <button
                       type="button"
-                      onClick={() => {
-                        if (
-                          !selectedNoorGray
-                        ) {
-                          addNoorGrayToCart();
+                                            onClick={() => {
+                        if (!selectedNoorGray) {
+                          setSelectedNoorGray(true);
+                          setNoorGrayQuantity(1);
+
+                          setOrderLines((prev) => [
+                            ...prev,
+                            {
+                              id: `${product.id}-gray`,
+                              colorName: "Gray",
+                              scentName: null,
+                              price: Number(displayPrice),
+                              quantity: 1,
+                              image: gallery[0] ?? "",
+                            },
+                          ]);
                         }
                       }}
                       className="rounded-2xl border px-4 py-4 text-sm font-semibold transition-all hover:-translate-y-0.5"
@@ -2956,7 +2780,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                               +
                             </button>
 
-                            <button
+                     <button
                               type="button"
                               onClick={() =>
                                 removeNoorColor(
@@ -2972,6 +2796,23 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                       </div>
                     )}
                   </div>
+
+                  {(selectedNoorWhite || selectedNoorGray) && (
+                    <button
+                      type="button"
+                      onClick={addNoorOrderToCart}
+                      className="mt-4 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+                      style={{ backgroundColor: accent, color: "#FFF4E6" }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = accentDark;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = accent;
+                      }}
+                    >
+                      Add to Cart
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -3238,11 +3079,11 @@ const [plainQuantity, setPlainQuantity] = useState(1);
         onMouseLeave={(e) => {
           e.currentTarget.style.backgroundColor = accent;
         }}
-      >
+           >
         Add to Cart
       </button>
 
-      {orderLines.length > 0 && (
+      {!hasNoOrderCounter && orderLines.length > 0 && (
         <div className="mt-5">
           <p
             className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"

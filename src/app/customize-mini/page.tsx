@@ -2,6 +2,18 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  addToCart,
+  getCart,
+  updateCartItemQuantity,
+  removeCartItem,
+  type CartItem,
+} from "@/lib/cart";
+
+const MINI_CANDLES_PRODUCT_ID = "mini-candles";
+const MINI_CANDLES_PRODUCT_NAME = "Mini Candles";
+const MINI_IMG =
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/mini%20candles%20all.jpg";
 
 const COLORS = [
   "Light Green", "Dark Green", "Purple", "Orange", "Red", "Yellow",
@@ -18,7 +30,68 @@ type ColorCombo = {
   colorB: string;
   quantity: number;
   scents: string[]; // one entry per unit in `quantity`
+  // Whether this combo has been pushed to the cart yet. Uncommitted
+  // combos are purely local (staged, not yet in the cart). Committed
+  // combos are a live mirror of their cart line(s) — every edit here
+  // pushes to the cart, and every cart change pulls back here.
+  committed?: boolean;
 };
+
+function comboKeyId(colorA: string, colorB: string) {
+  return `combo-${colorA}-${colorB}`.toLowerCase().replace(/\s+/g, "-");
+}
+
+function comboLineId(colorA: string, colorB: string, scent: string) {
+  return [MINI_CANDLES_PRODUCT_ID, colorA, colorB, scent || "unscented"]
+    .join("-")
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+}
+
+/**
+ * Rebuilds the committed combos directly from whatever's actually in the
+ * cart right now. Used both on first mount (so combos survive a page
+ * reload) and on every "cartUpdated" event (so drawer edits reflect
+ * back onto the page).
+ */
+function buildCommittedCombosFromCart(cart: CartItem[]): ColorCombo[] {
+  const byColor = new Map<string, CartItem[]>();
+
+  cart
+    .filter((item) => item.productId === MINI_CANDLES_PRODUCT_ID && item.color)
+    .forEach((item) => {
+      const key = item.color as string;
+      if (!byColor.has(key)) byColor.set(key, []);
+      byColor.get(key)!.push(item);
+    });
+
+  const result: ColorCombo[] = [];
+
+  byColor.forEach((items, colorKey) => {
+    const [colorA, colorB] = colorKey.split(" + ");
+    if (!colorA || !colorB) return;
+
+    const scentsFlat: string[] = [];
+    items.forEach((item) => {
+      for (let i = 0; i < item.quantity; i++) {
+        scentsFlat.push(item.scent ?? "");
+      }
+    });
+
+    if (scentsFlat.length === 0) return;
+
+    result.push({
+      id: comboKeyId(colorA, colorB),
+      colorA,
+      colorB,
+      quantity: scentsFlat.length,
+      scents: scentsFlat,
+      committed: true,
+    });
+  });
+
+  return result;
+}
 
 export default function CustomizeMiniPage() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -49,6 +122,32 @@ export default function CustomizeMiniPage() {
     loadScents();
   }, []);
 
+  /*
+   * ============================================================
+   * CART SYNC
+   * ============================================================
+   *
+   * Runs once on mount (rebuilding any combos already in the cart —
+   * e.g. after a page reload) and again every time the cart changes
+   * anywhere else (the drawer, another tab, etc). Uncommitted combos
+   * the person is still staging are preserved as-is; only the
+   * committed ones are refreshed from the cart's actual state.
+   */
+  useEffect(() => {
+    function syncFromCart() {
+      setCombos((prev) => {
+        const stillPending = prev.filter((c) => !c.committed);
+        const committedFromCart = buildCommittedCombosFromCart(getCart());
+        return [...committedFromCart, ...stillPending];
+      });
+    }
+
+    syncFromCart();
+
+    window.addEventListener("cartUpdated", syncFromCart);
+    return () => window.removeEventListener("cartUpdated", syncFromCart);
+  }, []);
+
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -73,15 +172,72 @@ export default function CustomizeMiniPage() {
     ]);
   }
 
+  /**
+   * Pushes one combo's current quantity/scent breakdown to the cart —
+   * creating, updating, or removing cart lines as needed so the cart
+   * ends up with exactly the lines this combo implies. Safe to call
+   * repeatedly; never double-adds.
+   */
+  function syncComboToCart(combo: ColorCombo) {
+    const colorKey = `${combo.colorA} + ${combo.colorB}`;
+
+    const scentCounts = new Map<string, number>();
+    combo.scents.forEach((scent) => {
+      scentCounts.set(scent, (scentCounts.get(scent) ?? 0) + 1);
+    });
+
+    const cart = getCart();
+    const existingLinesForColor = cart.filter(
+      (item) =>
+        item.productId === MINI_CANDLES_PRODUCT_ID && item.color === colorKey
+    );
+
+    // Create or update a line for every scent this combo currently has.
+    scentCounts.forEach((quantity, scent) => {
+      const lineId = comboLineId(combo.colorA, combo.colorB, scent);
+      const existingLine = existingLinesForColor.find((l) => l.id === lineId);
+
+      if (existingLine) {
+        if (existingLine.quantity !== quantity) {
+          updateCartItemQuantity(lineId, quantity);
+        }
+      } else {
+        addToCart({
+          id: lineId,
+          productId: MINI_CANDLES_PRODUCT_ID,
+          productName: MINI_CANDLES_PRODUCT_NAME,
+          price: PRICE_PER_CANDLE,
+          quantity,
+          scent: scent || null,
+          color: colorKey,
+          image: MINI_IMG,
+        });
+      }
+    });
+
+    // Remove any existing line for a scent this combo no longer has
+    // (covers scent changes, quantity decreases, and full removal).
+    existingLinesForColor.forEach((line) => {
+      const scentKey = line.scent ?? "";
+      if (!scentCounts.has(scentKey)) {
+        removeCartItem(line.id);
+      }
+    });
+  }
+
   function updateQuantity(id: string, delta: number) {
     setCombos((prev) =>
       prev.map((c) => {
         if (c.id !== id) return c;
+
         const newQty = Math.max(1, c.quantity + delta);
         const newScents = [...c.scents];
         while (newScents.length < newQty) newScents.push(scents[0] ?? "");
         newScents.length = newQty;
-        return { ...c, quantity: newQty, scents: newScents };
+
+        const next = { ...c, quantity: newQty, scents: newScents };
+        if (next.committed) syncComboToCart(next);
+        return next;
       })
     );
   }
@@ -90,27 +246,82 @@ export default function CustomizeMiniPage() {
     setCombos((prev) =>
       prev.map((c) => {
         if (c.id !== comboId) return c;
+
         const newScents = [...c.scents];
         newScents[unitIndex] = scent;
-        return { ...c, scents: newScents };
+
+        const next = { ...c, scents: newScents };
+        if (next.committed) syncComboToCart(next);
+        return next;
       })
     );
   }
 
   function applyScentToAll(comboId: string, scent: string) {
     setCombos((prev) =>
-      prev.map((c) =>
-        c.id === comboId ? { ...c, scents: c.scents.map(() => scent) } : c
-      )
+      prev.map((c) => {
+        if (c.id !== comboId) return c;
+
+        const next = { ...c, scents: c.scents.map(() => scent) };
+        if (next.committed) syncComboToCart(next);
+        return next;
+      })
     );
   }
 
   function removeCombo(id: string) {
-    setCombos((prev) => prev.filter((c) => c.id !== id));
+    setCombos((prev) => {
+      const combo = prev.find((c) => c.id === id);
+
+      // If this combo is already in the cart, clear out every line it
+      // owns before dropping it from the page.
+      if (combo?.committed) {
+        syncComboToCart({ ...combo, quantity: 0, scents: [] });
+      }
+
+      return prev.filter((c) => c.id !== id);
+    });
+  }
+
+  /**
+   * Commits every staged (uncommitted) combo to the cart. Combos stay
+   * on the page afterward — they just flip to "committed" and become
+   * live-synced with their cart lines instead of disappearing.
+   */
+  function addComboOrderToCart() {
+    const hasPending = combos.some((c) => !c.committed);
+    if (!hasPending) return;
+
+    setCombos((prev) => {
+      const committed = prev.filter((c) => c.committed);
+      const stillPending = prev.filter((c) => !c.committed);
+
+      const byStableId = new Map<string, ColorCombo>();
+      committed.forEach((c) => byStableId.set(c.id, c));
+
+      stillPending.forEach((pending) => {
+        const stableId = comboKeyId(pending.colorA, pending.colorB);
+        const existing = byStableId.get(stableId);
+
+        const merged: ColorCombo = existing
+          ? {
+              ...existing,
+              quantity: existing.quantity + pending.quantity,
+              scents: [...existing.scents, ...pending.scents],
+            }
+          : { ...pending, id: stableId, committed: true };
+
+        byStableId.set(stableId, merged);
+        syncComboToCart(merged);
+      });
+
+      return Array.from(byStableId.values());
+    });
   }
 
   const totalQuantity = combos.reduce((sum, c) => sum + c.quantity, 0);
   const totalPrice = totalQuantity * PRICE_PER_CANDLE;
+  const hasPendingCombo = combos.some((c) => !c.committed);
 
   return (
     <div style={{ backgroundColor: "#FFF4E6" }} className="w-full min-h-screen">
@@ -253,8 +464,16 @@ export default function CustomizeMiniPage() {
                   style={{ backgroundColor: "#EFE3C4" }}
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-medium" style={{ color: "#000000" }}>
+                    <span className="text-sm font-medium flex items-center gap-2" style={{ color: "#000000" }}>
                       {combo.colorA} + {combo.colorB}
+                      {combo.committed && (
+                        <span
+                          className="text-[9px] font-semibold uppercase tracking-wide rounded-full px-2 py-0.5"
+                          style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
+                        >
+                          In cart
+                        </span>
+                      )}
                     </span>
 
                     <div className="flex items-center gap-3">
@@ -347,20 +566,17 @@ export default function CustomizeMiniPage() {
           </span>
         </div>
 
-        <button
-          disabled={combos.length === 0}
-          onClick={() => {
-            // TODO: wire this up to your actual checkout/cart flow once ready
-            console.log("Add mini candles to cart", { photoUrl, message, combos });
-          }}
+               <button
+          disabled={!hasPendingCombo}
+          onClick={addComboOrderToCart}
           className="w-full inline-flex items-center justify-center gap-2 px-10 py-3.5 rounded-full text-sm md:text-base font-semibold transition-colors disabled:opacity-40"
           style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
           onMouseEnter={(e) => {
-            if (combos.length > 0) e.currentTarget.style.backgroundColor = "#B23A26";
+            if (hasPendingCombo) e.currentTarget.style.backgroundColor = "#B23A26";
           }}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#DE4B33")}
         >
-          Checkout — {totalPrice} LE
+          Add to Order — {totalPrice} LE
         </button>
       </div>
     </div>
