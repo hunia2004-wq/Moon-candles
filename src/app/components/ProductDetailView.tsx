@@ -107,7 +107,7 @@ const QUACK_IMAGES = {
     "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/bride%20duck.png",
 
   groom:
-    "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/groom%20duck.png",
+    "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/groom%20duck.png",
 };
 
 
@@ -944,7 +944,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
               item.productName ===
                 productName &&
               item.color ===
-                "Bride"
+                "Bride Duck"
           );
 
         const groomItem =
@@ -955,7 +955,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
               item.productName ===
                 productName &&
               item.color ===
-                "Groom"
+                "Groom Duck"
           );
 
         if (brideItem) {
@@ -1101,6 +1101,85 @@ const [plainQuantity, setPlainQuantity] = useState(1);
       window.removeEventListener("cartUpdated", syncNoorWithCart);
     };
   }, [isTwoColorProduct, product.id]);
+
+  /*
+   * ============================================================
+   * QUACK & KISS — TWO-WAY SYNC WITH CART
+   * ============================================================
+   *
+   * Mirrors the Noor/Tambourine pattern above: whenever the cart
+   * changes anywhere (including the +/- buttons in the cart
+   * drawer), pull the Bride/Groom quantities back into this page's
+   * state so editing "7 -> 10" in the drawer shows "10" here too,
+   * and vice versa.
+   */
+  useEffect(() => {
+    if (!isQuackAndKiss) return;
+
+    function syncQuackWithCart() {
+      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+      const brideId = `${product.id}-bride`;
+      const groomId = `${product.id}-groom`;
+
+      const brideItem = cart.find((item: any) => item.id === brideId);
+      const groomItem = cart.find((item: any) => item.id === groomId);
+
+      if (brideItem) {
+        setSelectedBride(true);
+        setBrideQuantity(Number(brideItem.quantity) || 1);
+      } else {
+        setSelectedBride(false);
+        setBrideQuantity(1);
+      }
+
+      if (groomItem) {
+        setSelectedGroom(true);
+        setGroomQuantity(Number(groomItem.quantity) || 1);
+      } else {
+        setSelectedGroom(false);
+        setGroomQuantity(1);
+      }
+
+      setOrderLines((prev) => {
+        const withoutQuack = prev.filter(
+          (line) => line.id !== brideId && line.id !== groomId
+        );
+
+        const lines = [...withoutQuack];
+
+        if (brideItem) {
+          lines.push({
+            id: brideId,
+            colorName: "Bride Duck",
+            scentName: null,
+            price: Number(brideItem.price) || Number(displayPrice),
+            quantity: Number(brideItem.quantity) || 1,
+            image: QUACK_IMAGES.bride,
+          });
+        }
+
+        if (groomItem) {
+          lines.push({
+            id: groomId,
+            colorName: "Groom Duck",
+            scentName: null,
+            price: Number(groomItem.price) || Number(displayPrice),
+            quantity: Number(groomItem.quantity) || 1,
+            image: QUACK_IMAGES.groom,
+          });
+        }
+
+        return lines;
+      });
+    }
+
+    window.addEventListener("cartUpdated", syncQuackWithCart);
+
+    return () => {
+      window.removeEventListener("cartUpdated", syncQuackWithCart);
+    };
+  }, [isQuackAndKiss, product.id, displayPrice]);
 
   /*
    * ============================================================
@@ -1316,248 +1395,116 @@ const [plainQuantity, setPlainQuantity] = useState(1);
    * ============================================================
    * QUACK & KISS
    * ============================================================
+   *
+   * Both add-functions now dedupe by ID rather than by matching
+   * productId+productName+color. Matching by color broke the
+   * moment "Bride"/"Groom" were renamed to "Bride Duck"/"Groom
+   * Duck" — any stale cart entry still saved under the old color
+   * name no longer matched, so a second entry got pushed under the
+   * SAME id (this was the "two children with the same key,
+   * `10-bride`" warning). Filtering out any existing entry with
+   * this id first — regardless of what color name it was saved
+   * under — makes this safe no matter what's already in
+   * localStorage.
    */
 
   function addBrideToCart() {
-    const existingCart =
-      JSON.parse(
-        localStorage.getItem(
-          "cart"
-        ) || "[]"
-      );
+    const id = `${product.id}-bride`;
 
-    const existingIndex =
-      existingCart.findIndex(
-        (item: any) =>
-          item.productId ===
-            product.id &&
-          item.productName ===
-            productName &&
-          item.color ===
-            "Bride"
-      );
+    const existingCart = JSON.parse(
+      localStorage.getItem("cart") || "[]"
+    );
 
-    const newItem = {
-      id: `${product.id}-bride`,
+    const updatedCart = existingCart.filter(
+      (item: any) => item.id !== id
+    );
+
+    updatedCart.push({
+      id,
       productId: product.id,
       productName,
-      price: Number(
-        displayPrice
-      ),
-      quantity:
-        brideQuantity,
+      price: Number(displayPrice),
+      quantity: brideQuantity,
       scent: null,
-      color: "Bride",
-      image:
-        QUACK_IMAGES.bride,
-    };
+      color: "Bride Duck",
+      image: QUACK_IMAGES.bride,
+    });
 
-    const updatedCart = [
-      ...existingCart,
-    ];
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
 
-    if (
-      existingIndex !== -1
-    ) {
-      updatedCart[
-        existingIndex
-      ] = {
-        ...updatedCart[
-          existingIndex
-        ],
-        ...newItem,
-      };
-    } else {
-      updatedCart.push(
-        newItem
-      );
-    }
-
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(
-        updatedCart
-      )
-    );
-
-        window.dispatchEvent(
-      new Event("cartUpdated")
-    );
-    window.dispatchEvent(new Event("openCart"));
+    window.dispatchEvent(new Event("cartUpdated"));
 
     setSelectedBride(true);
 
     setOrderLines((prev) => {
-      const id = `${product.id}-bride`;
-
-      const existingLineIndex =
-        prev.findIndex(
-          (line) =>
-            line.id === id
-        );
-
-      if (
-        existingLineIndex !== -1
-      ) {
-        const updated = [
-          ...prev,
-        ];
-
-        updated[
-          existingLineIndex
-        ] = {
-          ...updated[
-            existingLineIndex
-          ],
-          quantity:
-            brideQuantity,
-        };
-
-        return updated;
-      }
+      const withoutExisting = prev.filter((line) => line.id !== id);
 
       return [
-        ...prev,
+        ...withoutExisting,
         {
           id,
-          colorName: "Bride",
+          colorName: "Bride Duck",
           scentName: null,
-          price: Number(
-            displayPrice
-          ),
-          quantity:
-            brideQuantity,
-          image:
-            QUACK_IMAGES.bride,
+          price: Number(displayPrice),
+          quantity: brideQuantity,
+          image: QUACK_IMAGES.bride,
         },
       ];
     });
   }
 
   function addGroomToCart() {
-    const existingCart =
-      JSON.parse(
-        localStorage.getItem(
-          "cart"
-        ) || "[]"
-      );
+    const id = `${product.id}-groom`;
 
-    const existingIndex =
-      existingCart.findIndex(
-        (item: any) =>
-          item.productId ===
-            product.id &&
-          item.productName ===
-            productName &&
-          item.color ===
-            "Groom"
-      );
+    const existingCart = JSON.parse(
+      localStorage.getItem("cart") || "[]"
+    );
 
-    const newItem = {
-      id: `${product.id}-groom`,
+    const updatedCart = existingCart.filter(
+      (item: any) => item.id !== id
+    );
+
+    updatedCart.push({
+      id,
       productId: product.id,
       productName,
-      price: Number(
-        displayPrice
-      ),
-      quantity:
-        groomQuantity,
+      price: Number(displayPrice),
+      quantity: groomQuantity,
       scent: null,
-      color: "Groom",
-      image:
-        QUACK_IMAGES.groom,
-    };
+      color: "Groom Duck",
+      image: QUACK_IMAGES.groom,
+    });
 
-    const updatedCart = [
-      ...existingCart,
-    ];
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
 
-    if (
-      existingIndex !== -1
-    ) {
-      updatedCart[
-        existingIndex
-      ] = {
-        ...updatedCart[
-          existingIndex
-        ],
-        ...newItem,
-      };
-    } else {
-      updatedCart.push(
-        newItem
-      );
-    }
-
-    localStorage.setItem(
-      "cart",
-      JSON.stringify(
-        updatedCart
-      )
-    );
-
-        window.dispatchEvent(
-      new Event("cartUpdated")
-    );
-    window.dispatchEvent(new Event("openCart"));
+    window.dispatchEvent(new Event("cartUpdated"));
 
     setSelectedGroom(true);
 
     setOrderLines((prev) => {
-      const id = `${product.id}-groom`;
-
-      const existingLineIndex =
-        prev.findIndex(
-          (line) =>
-            line.id === id
-        );
-
-      if (
-        existingLineIndex !== -1
-      ) {
-        const updated = [
-          ...prev,
-        ];
-
-        updated[
-          existingLineIndex
-        ] = {
-          ...updated[
-            existingLineIndex
-          ],
-          quantity:
-            groomQuantity,
-        };
-
-        return updated;
-      }
+      const withoutExisting = prev.filter((line) => line.id !== id);
 
       return [
-        ...prev,
+        ...withoutExisting,
         {
           id,
-          colorName: "Groom",
+          colorName: "Groom Duck",
           scentName: null,
-          price: Number(
-            displayPrice
-          ),
-          quantity:
-            groomQuantity,
-          image:
-            QUACK_IMAGES.groom,
+          price: Number(displayPrice),
+          quantity: groomQuantity,
+          image: QUACK_IMAGES.groom,
         },
       ];
     });
   }
 
   function addQuackAndKissToCart() {
-    if (selectedBride) {
-      addBrideToCart();
-    }
-
-    if (selectedGroom) {
-      addGroomToCart();
-    }
+    // Bride/Groom are already written to the cart the moment each is
+    // selected (see addBrideToCart/addGroomToCart above), so this
+    // button's only remaining job is to open the drawer for review —
+    // it should NOT re-add them, or every confirm click would double
+    // the quantity.
+    window.dispatchEvent(new Event("openCart"));
   }
 
   function removeDuck(

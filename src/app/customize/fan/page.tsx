@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Great_Vibes,
   Dancing_Script,
@@ -20,7 +20,13 @@ import {
 } from "next/font/google";
 
 import { useLayerGestures } from "../../components/useLayerGestures";
-import { addToCart } from "@/lib/cart";
+import {
+  addToCart,
+  getCart,
+  updateCartItemQuantity,
+  removeCartItem,
+} from "@/lib/cart";
+
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: ["400"] });
 const dancingScript = Dancing_Script({ subsets: ["latin"], weight: ["700"] });
 const sacramento = Sacramento({ subsets: ["latin"], weight: ["400"] });
@@ -49,13 +55,10 @@ const PRICE = 25;
 const FAN_IMG =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customized%20fan/custom%20fan.png";
 
-// Shared zoom bounds for the fan's pattern layer — used by both the
-// pinch/drag handler and the wheel handler so they can never drift out
-// of sync with each other again. minScale stays at 1: the pattern sits
-// behind a CSS mask (not a cropped circle frame like the tambourine),
-// so going below "fully covers the fan" would show blank gaps inside
-// the mask. maxScale raised to match the tambourine's zoom-in range.
-const PATTERN_SCALE_OPTS = { minScale: 1, maxScale: 6 };
+const PATTERN_SCALE_OPTS = {
+  minScale: 1,
+  maxScale: 6,
+};
 
 const BG_SHAPES = [
   { id: "rectangle", label: "Rectangle" },
@@ -70,36 +73,163 @@ const BG_SHAPES = [
   { id: "cloud", label: "Cloud" },
 ] as const;
 
+const TASSEL_COLORS = [
+  { id: "orange", label: "Orange", hex: "#E8813C" },
+  { id: "light-pink", label: "Light Pink", hex: "#F5C6D6" },
+  { id: "green", label: "Green", hex: "#8FAA82" },
+  { id: "light-blue", label: "Light Blue", hex: "#B9D9EC" },
+  { id: "light-purple", label: "Light Purple", hex: "#C9B6E4" },
+  { id: "purple", label: "Purple", hex: "#7B4B94" },
+  { id: "red", label: "Red", hex: "#C0392B" },
+  { id: "white", label: "White", hex: "#FFFFFF" },
+] as const;
+
+type TasselColorId = (typeof TASSEL_COLORS)[number]["id"];
+
+type FanOrderLine = {
+  id: string;
+  tasselColor: TasselColorId;
+  quantity: number;
+};
+
 /* ------------------------------------------------------------------ */
 /* Fonts                                                              */
 /* ------------------------------------------------------------------ */
 
 const FONTS = [
-  { id: "vibes", label: "Great Vibes", short: "Vibes", className: greatVibes.className, previewSize: 17 },
-  { id: "dancing", label: "Dancing Script", short: "Dancing", className: dancingScript.className, previewSize: 16 },
-  { id: "sacramento", label: "Sacramento", short: "Sacramento", className: sacramento.className, previewSize: 17 },
-  { id: "playfair", label: "Playfair Display", short: "Playfair", className: playfair.className, previewSize: 15 },
-  { id: "bitter", label: "Bitter Slab", short: "Slab", className: bitter.className, previewSize: 15 },
-  { id: "baskerville", label: "Libre Baskerville", short: "Baskerville", className: libreBaskerville.className, previewSize: 13 },
-  { id: "poppins", label: "Poppins", short: "Poppins", className: poppins.className, previewSize: 14 },
-  { id: "oswald", label: "Oswald", short: "Oswald", className: oswald.className, previewSize: 15 },
-  { id: "archivo", label: "Archivo Black", short: "Archivo", className: archivoBlack.className, previewSize: 14 },
-  { id: "abril", label: "Abril Fatface", short: "Abril", className: abrilFatface.className, previewSize: 15 },
-  { id: "bebas", label: "Bebas Neue", short: "Bebas", className: bebasNeue.className, previewSize: 17 },
-  { id: "righteous", label: "Righteous", short: "Righteous", className: righteous.className, previewSize: 14 },
-  { id: "pacifico", label: "Pacifico", short: "Pacifico", className: pacifico.className, previewSize: 14 },
-  { id: "mono", label: "Space Mono", short: "Mono", className: spaceMono.className, previewSize: 12 },
-  { id: "marker", label: "Permanent Marker", short: "Marker", className: permanentMarker.className, previewSize: 13 },
+  {
+    id: "vibes",
+    label: "Great Vibes",
+    short: "Vibes",
+    className: greatVibes.className,
+    previewSize: 17,
+  },
+  {
+    id: "dancing",
+    label: "Dancing Script",
+    short: "Dancing",
+    className: dancingScript.className,
+    previewSize: 16,
+  },
+  {
+    id: "sacramento",
+    label: "Sacramento",
+    short: "Sacramento",
+    className: sacramento.className,
+    previewSize: 17,
+  },
+  {
+    id: "playfair",
+    label: "Playfair Display",
+    short: "Playfair",
+    className: playfair.className,
+    previewSize: 15,
+  },
+  {
+    id: "bitter",
+    label: "Bitter Slab",
+    short: "Slab",
+    className: bitter.className,
+    previewSize: 15,
+  },
+  {
+    id: "baskerville",
+    label: "Libre Baskerville",
+    short: "Baskerville",
+    className: libreBaskerville.className,
+    previewSize: 13,
+  },
+  {
+    id: "poppins",
+    label: "Poppins",
+    short: "Poppins",
+    className: poppins.className,
+    previewSize: 14,
+  },
+  {
+    id: "oswald",
+    label: "Oswald",
+    short: "Oswald",
+    className: oswald.className,
+    previewSize: 15,
+  },
+  {
+    id: "archivo",
+    label: "Archivo Black",
+    short: "Archivo",
+    className: archivoBlack.className,
+    previewSize: 14,
+  },
+  {
+    id: "abril",
+    label: "Abril Fatface",
+    short: "Abril",
+    className: abrilFatface.className,
+    previewSize: 15,
+  },
+  {
+    id: "bebas",
+    label: "Bebas Neue",
+    short: "Bebas",
+    className: bebasNeue.className,
+    previewSize: 17,
+  },
+  {
+    id: "righteous",
+    label: "Righteous",
+    short: "Righteous",
+    className: righteous.className,
+    previewSize: 14,
+  },
+  {
+    id: "pacifico",
+    label: "Pacifico",
+    short: "Pacifico",
+    className: pacifico.className,
+    previewSize: 14,
+  },
+  {
+    id: "mono",
+    label: "Space Mono",
+    short: "Mono",
+    className: spaceMono.className,
+    previewSize: 12,
+  },
+  {
+    id: "marker",
+    label: "Permanent Marker",
+    short: "Marker",
+    className: permanentMarker.className,
+    previewSize: 13,
+  },
 ] as const;
 
 type FontId = (typeof FONTS)[number]["id"];
 
-const FONT_GROUPS: { category: string; ids: FontId[] }[] = [
-  { category: "Script", ids: ["vibes", "dancing", "sacramento"] },
-  { category: "Serif", ids: ["playfair", "bitter", "baskerville"] },
-  { category: "Sans", ids: ["poppins", "oswald", "archivo"] },
-  { category: "Display", ids: ["abril", "bebas", "righteous"] },
-  { category: "Playful", ids: ["pacifico", "mono", "marker"] },
+const FONT_GROUPS: {
+  category: string;
+  ids: FontId[];
+}[] = [
+  {
+    category: "Script",
+    ids: ["vibes", "dancing", "sacramento"],
+  },
+  {
+    category: "Serif",
+    ids: ["playfair", "bitter", "baskerville"],
+  },
+  {
+    category: "Sans",
+    ids: ["poppins", "oswald", "archivo"],
+  },
+  {
+    category: "Display",
+    ids: ["abril", "bebas", "righteous"],
+  },
+  {
+    category: "Playful",
+    ids: ["pacifico", "mono", "marker"],
+  },
 ];
 
 function getFont(id: FontId) {
@@ -142,9 +272,10 @@ type FillLayer = BaseLayer & {
 };
 
 type Layer = TextLayer | PatternLayer | FillLayer;
-type LayersBySide = Record<SideId, Layer[]>;
 
 type SideId = "front" | "back";
+
+type LayersBySide = Record<SideId, Layer[]>;
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -226,17 +357,23 @@ function FontPicker({
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
         {FONT_GROUPS.map((group) => (
-          <span key={group.category} className="flex items-center gap-1">
+          <span
+            key={group.category}
+            className="flex items-center gap-1"
+          >
             <span
               className="inline-block h-1.5 w-1.5 rounded-full"
               style={{
-                backgroundColor: CATEGORY_COLORS[group.category],
+                backgroundColor:
+                  CATEGORY_COLORS[group.category],
               }}
             />
 
             <span
               className="text-[8px] font-medium"
-              style={{ color: "rgba(0,0,0,0.45)" }}
+              style={{
+                color: "rgba(0,0,0,0.45)",
+              }}
             >
               {group.category}
             </span>
@@ -257,21 +394,33 @@ function FontPicker({
                 onClick={() => onChange(f.id)}
                 className={`${f.className} flex items-center justify-center rounded-lg px-1 py-2 transition-all duration-150 hover:scale-[1.05] active:scale-[0.95]`}
                 style={{
-                  backgroundColor: isActive ? ACCENT : "#FFFFFF",
+                  backgroundColor: isActive
+                    ? ACCENT
+                    : "#FFFFFF",
                   borderTop: `2.5px solid ${
-                    isActive ? ACCENT : CATEGORY_COLORS[group.category]
+                    isActive
+                      ? ACCENT
+                      : CATEGORY_COLORS[group.category]
                   }`,
-                  borderLeft: "1px solid rgba(0,0,0,0.1)",
-                  borderRight: "1px solid rgba(0,0,0,0.1)",
-                  borderBottom: "1px solid rgba(0,0,0,0.1)",
+                  borderLeft:
+                    "1px solid rgba(0,0,0,0.1)",
+                  borderRight:
+                    "1px solid rgba(0,0,0,0.1)",
+                  borderBottom:
+                    "1px solid rgba(0,0,0,0.1)",
                 }}
                 title={f.label}
               >
                 <span
                   className="leading-none"
                   style={{
-                    fontSize: Math.min(f.previewSize, 14),
-                    color: isActive ? "#FFF4E6" : "#000000",
+                    fontSize: Math.min(
+                      f.previewSize,
+                      14
+                    ),
+                    color: isActive
+                      ? "#FFF4E6"
+                      : "#000000",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -294,29 +443,59 @@ function FontPicker({
 /* ------------------------------------------------------------------ */
 
 export default function CustomizeFanPage() {
-  const [activeSide, setActiveSide] = useState<SideId>("front");
+  const [activeSide, setActiveSide] =
+    useState<SideId>("front");
 
-    const [layersBySide, setLayersBySide] = useState<LayersBySide>({
-    front: defaultLayersForSide(),
-    back: defaultLayersForSide(),
-  });
+  const [layersBySide, setLayersBySide] =
+    useState<LayersBySide>({
+      front: defaultLayersForSide(),
+      back: defaultLayersForSide(),
+    });
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
+  const [selectedId, setSelectedId] =
+    useState<string | null>(null);
+
+  const [showPreview, setShowPreview] =
+    useState(false);
 
   const [quantity, setQuantity] = useState(1);
-  const [addedToCart, setAddedToCart] = useState(false);
 
-  const stageRef = useRef<HTMLDivElement>(null);
+  const [addedToCart, setAddedToCart] =
+    useState(false);
+
+  const [selectedTassel, setSelectedTassel] =
+    useState<TasselColorId>(
+      TASSEL_COLORS[0].id
+    );
+
+  const [fanOrderLines, setFanOrderLines] =
+    useState<FanOrderLine[]>([]);
+
+  const stageRef =
+    useRef<HTMLDivElement>(null);
+
   const nextZ = useRef(1);
-  const patternFileInputRef = useRef<HTMLInputElement>(null);
 
-  const layers = layersBySide[activeSide];
+  const patternFileInputRef =
+    useRef<HTMLInputElement>(null);
 
-  function setLayers(updater: (prev: Layer[]) => Layer[]) {
+  const committedLines =
+    useRef<Set<string>>(new Set());
+
+  const cartSnapshotRef =
+    useRef<string>("");
+
+  const layers =
+    layersBySide[activeSide];
+
+  function setLayers(
+    updater: (prev: Layer[]) => Layer[]
+  ) {
     setLayersBySide((prev) => ({
       ...prev,
-      [activeSide]: updater(prev[activeSide]),
+      [activeSide]: updater(
+        prev[activeSide]
+      ),
     }));
   }
 
@@ -324,27 +503,245 @@ export default function CustomizeFanPage() {
   /* LAYER GESTURES                                                 */
   /* -------------------------------------------------------------- */
 
-  // Third arg re-selects a layer the instant it's pressed, so tapping a
-  // design you already placed lets you edit it again (fixes it being
-  // stuck deselected / uneditable).
-  const gestures = useLayerGestures(layers, setLayers, setSelectedId);
-
-  /* -------------------------------------------------------------- */
-  /* CHECK WHETHER CURRENT SIDE ALREADY HAS A BACKGROUND             */
-  /* -------------------------------------------------------------- */
-
-  const hasBackground = layers.some(
-    (l) => l.type === "fill" || l.type === "pattern"
+  const gestures = useLayerGestures(
+    layers,
+    setLayers,
+    setSelectedId
   );
 
+  /* -------------------------------------------------------------- */
+  /* CART -> PREVIEW SYNCHRONIZATION                               */
+  /* -------------------------------------------------------------- */
+
+  useEffect(() => {
+    function syncFanOrderWithCart() {
+      const cart = getCart();
+
+      const cartFanLines = cart.filter(
+        (item) =>
+          item.productId === "fan" &&
+          item.customization?.type ===
+            "customized-fan"
+      );
+
+      const cartById = new Map(
+        cartFanLines.map((item) => [
+          item.id,
+          item,
+        ])
+      );
+
+      try {
+        cartSnapshotRef.current =
+          JSON.stringify(cart);
+      } catch {
+        cartSnapshotRef.current = "";
+      }
+
+      setFanOrderLines((prev) => {
+        const next: FanOrderLine[] = [];
+
+        for (const line of prev) {
+          if (
+            committedLines.current.has(
+              line.id
+            )
+          ) {
+            const cartItem =
+              cartById.get(line.id);
+
+            if (!cartItem) {
+              continue;
+            }
+
+            next.push({
+              ...line,
+              quantity:
+                cartItem.quantity,
+            });
+
+            continue;
+          }
+
+          next.push(line);
+        }
+
+        return next;
+      });
+
+      committedLines.current.forEach(
+        (id) => {
+          if (!cartById.has(id)) {
+            committedLines.current.delete(
+              id
+            );
+          }
+        }
+      );
+    }
+
+    function handleCartUpdated() {
+      syncFanOrderWithCart();
+    }
+
+    function handleStorage(
+      event: StorageEvent
+    ) {
+      if (event.key === "cart") {
+        syncFanOrderWithCart();
+      }
+    }
+
+    window.addEventListener(
+      "cartUpdated",
+      handleCartUpdated
+    );
+
+    window.addEventListener(
+      "storage",
+      handleStorage
+    );
+
+    syncFanOrderWithCart();
+
+    const pollInterval =
+      window.setInterval(() => {
+        let currentSnapshot = "";
+
+        try {
+          currentSnapshot =
+            JSON.stringify(getCart());
+        } catch {
+          currentSnapshot = "";
+        }
+
+        if (
+          currentSnapshot !==
+          cartSnapshotRef.current
+        ) {
+          syncFanOrderWithCart();
+        }
+      }, 150);
+
+    return () => {
+      window.removeEventListener(
+        "cartUpdated",
+        handleCartUpdated
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleStorage
+      );
+
+      window.clearInterval(
+        pollInterval
+      );
+    };
+  }, []);
+
+  /* -------------------------------------------------------------- */
+  /* REHYDRATE FAN LINES FROM CART                                  */
+  /* -------------------------------------------------------------- */
+
+  useEffect(() => {
+    const cart = getCart();
+
+    /*
+     * IMPORTANT:
+     * We narrow customization to customized-fan
+     * before accessing tasselColor.
+     */
+    const existingFanLines: FanOrderLine[] =
+      cart
+        .filter(
+          (item) =>
+            item.productId === "fan" &&
+            item.customization?.type ===
+              "customized-fan"
+        )
+        .map((item) => {
+          const customization =
+            item.customization;
+
+          if (
+            !customization ||
+            customization.type !==
+              "customized-fan"
+          ) {
+            return null;
+          }
+
+          return {
+            id: item.id,
+            tasselColor:
+              customization.tasselColor,
+            quantity: item.quantity,
+          };
+        })
+        .filter(
+          (
+            line
+          ): line is FanOrderLine =>
+            line !== null
+        );
+
+    if (
+      existingFanLines.length ===
+      0
+    ) {
+      return;
+    }
+
+    existingFanLines.forEach((line) => {
+      committedLines.current.add(
+        line.id
+      );
+    });
+
+    setFanOrderLines((prev) => {
+      const existingIds =
+        new Set(
+          prev.map(
+            (line) => line.id
+          )
+        );
+
+      return [
+        ...prev,
+        ...existingFanLines.filter(
+          (line) =>
+            !existingIds.has(
+              line.id
+            )
+        ),
+      ];
+    });
+  }, []);
+
+  /* -------------------------------------------------------------- */
+  /* BACKGROUND                                                     */
+  /* -------------------------------------------------------------- */
+
+  const hasBackground =
+    layers.some(
+      (l) =>
+        l.type === "fill" ||
+        l.type === "pattern"
+    );
+
   const otherSide: SideId =
-    activeSide === "front" ? "back" : "front";
+    activeSide === "front"
+      ? "back"
+      : "front";
 
-  /* ---------------------------------------------------------------- */
-  /* Add text                                                         */
-  /* ---------------------------------------------------------------- */
+  /* -------------------------------------------------------------- */
+  /* ADD TEXT                                                       */
+  /* -------------------------------------------------------------- */
 
-  function addText(role: "monogram" | "message") {
+  function addText(
+    role: "monogram" | "message"
+  ) {
     const id = makeId();
 
     setLayers((prev) => [
@@ -353,14 +750,26 @@ export default function CustomizeFanPage() {
         id,
         type: "text",
         role,
-        content: role === "monogram" ? "Y & J" : "Your message",
-        fontSize: role === "monogram" ? 20 : 13,
-        font: role === "monogram" ? "playfair" : "poppins",
+        content:
+          role === "monogram"
+            ? "Y & J"
+            : "Your message",
+        fontSize:
+          role === "monogram"
+            ? 20
+            : 13,
+        font:
+          role === "monogram"
+            ? "playfair"
+            : "poppins",
         color: "#000000",
         bgColor: "#FFFFFF",
         bgShape: "rectangle",
         x: 50,
-        y: role === "monogram" ? 42 : 70,
+        y:
+          role === "monogram"
+            ? 42
+            : 70,
         scale: 1,
         rotation: 0,
         z: nextZ.current++,
@@ -370,9 +779,9 @@ export default function CustomizeFanPage() {
     setSelectedId(id);
   }
 
-  /* ---------------------------------------------------------------- */
-  /* Add fill                                                         */
-  /* ---------------------------------------------------------------- */
+  /* -------------------------------------------------------------- */
+  /* ADD FILL                                                       */
+  /* -------------------------------------------------------------- */
 
   function addFill() {
     const id = makeId();
@@ -394,23 +803,31 @@ export default function CustomizeFanPage() {
     setSelectedId(id);
   }
 
-  /* ---------------------------------------------------------------- */
-  /* Upload pattern                                                   */
-  /* ---------------------------------------------------------------- */
+  /* -------------------------------------------------------------- */
+  /* UPLOAD PATTERN                                                 */
+  /* -------------------------------------------------------------- */
 
   function handlePatternUpload(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
-    const file = e.target.files?.[0];
+    const file =
+      e.target.files?.[0];
 
     if (!file) return;
 
-    if (file.size > 8 * 1024 * 1024) {
-      alert("Please choose an image under 8MB.");
+    if (
+      file.size >
+      8 * 1024 * 1024
+    ) {
+      alert(
+        "Please choose an image under 8MB."
+      );
       return;
     }
 
-    const url = URL.createObjectURL(file);
+    const url =
+      URL.createObjectURL(file);
+
     const id = makeId();
 
     setLayers((prev) => [
@@ -420,11 +837,6 @@ export default function CustomizeFanPage() {
         type: "pattern",
         src: url,
         tint: null,
-        // x/y are the photo's own pan (50 = centered / no pan) and
-        // scale is its own zoom (1 = fully covers the fan, so it's
-        // never cropped until the person pinches to zoom in
-        // themselves). The fan-shaped mask itself is always fixed to
-        // the fan artwork's own box — see renderLayer.
         x: 50,
         y: 50,
         scale: 1,
@@ -438,34 +850,43 @@ export default function CustomizeFanPage() {
     e.target.value = "";
   }
 
-  /* ---------------------------------------------------------------- */
-  /* Apply layer to both sides                                        */
-  /* ---------------------------------------------------------------- */
+  /* -------------------------------------------------------------- */
+  /* APPLY TO BOTH SIDES                                            */
+  /* -------------------------------------------------------------- */
 
-  function applyToBothSides(layer: Layer) {
+  function applyToBothSides(
+    layer: Layer
+  ) {
     const copy = {
       ...layer,
       id: makeId(),
-      z: layer.type === "text" ? nextZ.current++ : 0,
+      z:
+        layer.type === "text"
+          ? nextZ.current++
+          : 0,
     } as Layer;
 
     setLayersBySide((prev) => ({
       ...prev,
       [otherSide]:
         layer.type === "text"
-          ? [...prev[otherSide], copy]
+          ? [
+              ...prev[otherSide],
+              copy,
+            ]
           : [
               ...prev[otherSide].filter(
-                (l) => l.type !== layer.type
+                (l) =>
+                  l.type !== layer.type
               ),
               copy,
             ],
     }));
   }
 
-  /* ---------------------------------------------------------------- */
-  /* Update layer                                                     */
-  /* ---------------------------------------------------------------- */
+  /* -------------------------------------------------------------- */
+  /* UPDATE LAYER                                                   */
+  /* -------------------------------------------------------------- */
 
   function updateLayer(
     id: string,
@@ -474,19 +895,24 @@ export default function CustomizeFanPage() {
     setLayers((prev) =>
       prev.map((l) =>
         l.id === id
-          ? ({ ...l, ...patch } as Layer)
+          ? ({
+              ...l,
+              ...patch,
+            } as Layer)
           : l
       )
     );
   }
 
-  /* ---------------------------------------------------------------- */
-  /* Remove layer                                                     */
-  /* ---------------------------------------------------------------- */
+  /* -------------------------------------------------------------- */
+  /* REMOVE LAYER                                                   */
+  /* -------------------------------------------------------------- */
 
   function removeLayer(id: string) {
     setLayers((prev) =>
-      prev.filter((l) => l.id !== id)
+      prev.filter(
+        (l) => l.id !== id
+      )
     );
 
     if (selectedId === id) {
@@ -494,17 +920,21 @@ export default function CustomizeFanPage() {
     }
   }
 
-  /* ---------------------------------------------------------------- */
-  /* Fill colors                                                      */
-  /* ---------------------------------------------------------------- */
+  /* -------------------------------------------------------------- */
+  /* FILL COLORS                                                    */
+  /* -------------------------------------------------------------- */
 
   function addFillColor(id: string) {
     setLayers((prev) =>
       prev.map((l) =>
-        l.id === id && l.type === "fill"
+        l.id === id &&
+        l.type === "fill"
           ? {
               ...l,
-              colors: [...l.colors, "#FFFFFF"],
+              colors: [
+                ...l.colors,
+                "#FFFFFF",
+              ],
             }
           : l
       )
@@ -518,11 +948,17 @@ export default function CustomizeFanPage() {
   ) {
     setLayers((prev) =>
       prev.map((l) => {
-        if (l.id !== id || l.type !== "fill") {
+        if (
+          l.id !== id ||
+          l.type !== "fill"
+        ) {
           return l;
         }
 
-        const colors = [...l.colors];
+        const colors = [
+          ...l.colors,
+        ];
+
         colors[index] = color;
 
         return {
@@ -539,61 +975,221 @@ export default function CustomizeFanPage() {
   ) {
     setLayers((prev) =>
       prev.map((l) => {
-        if (l.id !== id || l.type !== "fill") {
+        if (
+          l.id !== id ||
+          l.type !== "fill"
+        ) {
           return l;
         }
 
-        if (l.colors.length <= 1) {
+        if (
+          l.colors.length <= 1
+        ) {
           return l;
         }
 
         return {
           ...l,
-          colors: l.colors.filter(
-            (_, i) => i !== index
-          ),
+          colors:
+            l.colors.filter(
+              (_, i) =>
+                i !== index
+            ),
         };
       })
     );
   }
 
-  /* ---------------------------------------------------------------- */
-  /* ADD FAN TO CART                                                  */
-  /* ---------------------------------------------------------------- */
+  /* -------------------------------------------------------------- */
+  /* ADD FAN LINE TO PREVIEW ORDER                                  */
+  /* -------------------------------------------------------------- */
 
-    function addFanToCart() {
-    addToCart({
-      id: makeId(),
-      productId: "fan",
-      productName: "Fan",
-      price: PRICE,
-      quantity,
-      scent: null,
-      color: null,
-      image: FAN_IMG,
-      customization: {
-        type: "customized-tambourine",
-        size: "small",
-        sizeCm: 12,
-        ribbonColor: "",
-        layers: [
-          ...layersBySide.front,
-          ...layersBySide.back,
-        ],
-      },
+  function addFanLineToOrder() {
+    const lineId =
+      `fan-${selectedTassel}`;
+
+    setFanOrderLines((prev) => {
+      const existingIndex =
+        prev.findIndex(
+          (line) =>
+            line.id === lineId
+        );
+
+      if (
+        existingIndex !== -1
+      ) {
+        const updated = [
+          ...prev,
+        ];
+
+        updated[
+          existingIndex
+        ] = {
+          ...updated[
+            existingIndex
+          ],
+          quantity:
+            updated[
+              existingIndex
+            ].quantity +
+            quantity,
+        };
+
+        return updated;
+      }
+
+      return [
+        ...prev,
+        {
+          id: lineId,
+          tasselColor:
+            selectedTassel,
+          quantity,
+        },
+      ];
     });
+
+    setQuantity(1);
+  }
+
+  /* -------------------------------------------------------------- */
+  /* UPDATE FAN LINE QUANTITY                                       */
+  /* -------------------------------------------------------------- */
+
+  function updateFanLineQuantity(
+    lineId: string,
+    newQuantity: number
+  ) {
+    if (newQuantity <= 0) {
+      removeFanLine(lineId);
+      return;
+    }
+
+    const safeQuantity =
+      Math.max(
+        1,
+        newQuantity
+      );
+
+    setFanOrderLines(
+      (prev) =>
+        prev.map((line) =>
+          line.id === lineId
+            ? {
+                ...line,
+                quantity:
+                  safeQuantity,
+              }
+            : line
+        )
+    );
+
+    if (
+      committedLines.current.has(
+        lineId
+      )
+    ) {
+      updateCartItemQuantity(
+        lineId,
+        safeQuantity
+      );
+    }
+  }
+
+  /* -------------------------------------------------------------- */
+  /* REMOVE FAN LINE                                                */
+  /* -------------------------------------------------------------- */
+
+  function removeFanLine(
+    lineId: string
+  ) {
+    setFanOrderLines(
+      (prev) =>
+        prev.filter(
+          (line) =>
+            line.id !== lineId
+        )
+    );
+
+    removeCartItem(lineId);
+
+    committedLines.current.delete(
+      lineId
+    );
+  }
+
+  /* -------------------------------------------------------------- */
+  /* COMMIT FAN ORDER TO CART                                       */
+  /* -------------------------------------------------------------- */
+
+  function addFanToCart() {
+    if (!fanOrderLines.length) {
+      return;
+    }
+
+    const currentCart = getCart();
+
+    fanOrderLines.forEach(
+      (line) => {
+        const tasselLabel =
+          TASSEL_COLORS.find(
+            (c) =>
+              c.id ===
+              line.tasselColor
+          )!.label;
+
+        committedLines.current.add(
+          line.id
+        );
+
+        const existing =
+          currentCart.find(
+            (item) =>
+              item.id ===
+              line.id
+          );
+
+        if (existing) {
+          updateCartItemQuantity(
+            line.id,
+            line.quantity
+          );
+
+          return;
+        }
+
+        addToCart({
+          id: line.id,
+          productId: "fan",
+          productName: "Fan",
+          price: PRICE,
+          quantity: line.quantity,
+          scent: null,
+          color:
+            `${tasselLabel} Tassel`,
+          image: FAN_IMG,
+          customization: {
+            type: "customized-fan",
+            size: "small",
+            sizeCm: 12,
+            ribbonColor: "",
+            tasselColor:
+              line.tasselColor,
+            layers: [
+              ...layersBySide.front,
+              ...layersBySide.back,
+            ],
+          },
+        });
+      }
+    );
+
+    cartSnapshotRef.current =
+      JSON.stringify(getCart());
 
     setAddedToCart(true);
 
     setQuantity(1);
-
-    setLayersBySide({
-      front: defaultLayersForSide(),
-      back: defaultLayersForSide(),
-    });
-
-    setSelectedId(null);
-    setShowPreview(false);
 
     setTimeout(() => {
       setAddedToCart(false);
@@ -601,12 +1197,14 @@ export default function CustomizeFanPage() {
   }
 
   const selectedLayer =
-    layers.find((l) => l.id === selectedId) ??
-    null;
+    layers.find(
+      (l) =>
+        l.id === selectedId
+    ) ?? null;
 
-  /* ---------------------------------------------------------------- */
-  /* Background shape styles                                         */
-  /* ---------------------------------------------------------------- */
+  /* -------------------------------------------------------------- */
+  /* BACKGROUND SHAPE STYLE                                        */
+  /* -------------------------------------------------------------- */
 
   function bgShapeStyle(
     shape: TextLayer["bgShape"],
@@ -660,14 +1258,17 @@ export default function CustomizeFanPage() {
 
       case "arch":
         return {
-          padding: "10px 18px 6px",
-          borderRadius: "999px 999px 6px 6px",
+          padding:
+            "10px 18px 6px",
+          borderRadius:
+            "999px 999px 6px 6px",
         };
 
       case "heart":
         return {
           aspectRatio: "1 / 1",
-          padding: "10px 16px 12px",
+          padding:
+            "10px 16px 12px",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
@@ -698,57 +1299,48 @@ export default function CustomizeFanPage() {
     }
   }
 
-  /* ---------------------------------------------------------------- */
-  /* Render layer                                                     */
-  /* ---------------------------------------------------------------- */
+  /* -------------------------------------------------------------- */
+  /* RENDER LAYER                                                   */
+  /* -------------------------------------------------------------- */
 
   function renderLayer(
     layer: Layer,
     interactive: boolean
   ) {
     const isSelected =
-      interactive && layer.id === selectedId;
+      interactive &&
+      layer.id === selectedId;
 
-    /*
-     * The mask/frame below is always `position:absolute; inset:0` —
-     * i.e. it exactly overlays the fan <img>'s own box (the stage
-     * sizes itself to the image via h-auto), and the mask is drawn at
-     * maskSize 100% 100% instead of "contain". That's what makes the
-     * colored/pattern layer align pixel-for-pixel with the real fan
-     * artwork, including the top corners, instead of being
-     * letterboxed into a smaller guessed region.
-     */
-       const frameStyle: React.CSSProperties = {
-      position: "absolute",
-      inset: 0,
-      outline: isSelected
-        ? `1.5px dashed ${ACCENT}`
-        : "none",
-      outlineOffset: "4px",
-      // The fan artwork includes the rivet + tassel below the blade
-      // itself. Clip that bottom sliver off so color/pattern fills
-      // only stop at the blade, never the handle/tassel area.
-      clipPath: "inset(0% 0% 24% 0%)",
-    };
+    const frameStyle: React.CSSProperties =
+      {
+        position: "absolute",
+        inset: 0,
+        outline: isSelected
+          ? `1.5px dashed ${ACCENT}`
+          : "none",
+        outlineOffset: "4px",
+        clipPath:
+          "inset(0% 0% 24% 0%)",
+      };
 
-    const maskWrapperStyle: React.CSSProperties = {
-      width: "100%",
-      height: "100%",
-      WebkitMaskImage: `url(${FAN_IMG})`,
-      maskImage: `url(${FAN_IMG})`,
-      WebkitMaskSize: "100% 100%",
-      maskSize: "100% 100%",
-      WebkitMaskRepeat: "no-repeat",
-      maskRepeat: "no-repeat",
-      WebkitMaskPosition: "center",
-      maskPosition: "center",
-      position: "relative",
-      isolation: "isolate",
-    };
-
-    /* -------------------------------------------------------------- */
-    /* Fill layer — fixed frame, always fully covers the fan           */
-    /* -------------------------------------------------------------- */
+    const maskWrapperStyle: React.CSSProperties =
+      {
+        width: "100%",
+        height: "100%",
+        WebkitMaskImage: `url(${FAN_IMG})`,
+        maskImage: `url(${FAN_IMG})`,
+        WebkitMaskSize:
+          "100% 100%",
+        maskSize: "100% 100%",
+        WebkitMaskRepeat:
+          "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskPosition:
+          "center",
+        maskPosition: "center",
+        position: "relative",
+        isolation: "isolate",
+      };
 
     if (layer.type === "fill") {
       const background =
@@ -763,12 +1355,17 @@ export default function CustomizeFanPage() {
           key={layer.id}
           onClick={
             interactive
-              ? () => setSelectedId(layer.id)
+              ? () =>
+                  setSelectedId(
+                    layer.id
+                  )
               : undefined
           }
           style={{
             ...frameStyle,
-            cursor: interactive ? "pointer" : "default",
+            cursor: interactive
+              ? "pointer"
+              : "default",
           }}
         >
           <div
@@ -781,15 +1378,20 @@ export default function CustomizeFanPage() {
       );
     }
 
-    /* -------------------------------------------------------------- */
-    /* Pattern layer — fixed frame, photo pans/zooms independently     */
-    /* -------------------------------------------------------------- */
-
     if (layer.type === "pattern") {
-      const zoom = layer.scale;
-      const maxPanPct = (zoom - 1) * 50;
-      const offsetX = ((layer.x - 50) / 50) * maxPanPct;
-      const offsetY = ((layer.y - 50) / 50) * maxPanPct;
+      const zoom =
+        layer.scale;
+
+      const maxPanPct =
+        (zoom - 1) * 50;
+
+      const offsetX =
+        ((layer.x - 50) / 50) *
+        maxPanPct;
+
+      const offsetY =
+        ((layer.y - 50) / 50) *
+        maxPanPct;
 
       return (
         <div
@@ -805,7 +1407,9 @@ export default function CustomizeFanPage() {
           }
           onPointerMove={
             interactive
-              ? gestures.onPointerMove(stageRef.current)
+              ? gestures.onPointerMove(
+                  stageRef.current
+                )
               : undefined
           }
           onPointerUp={
@@ -823,11 +1427,17 @@ export default function CustomizeFanPage() {
           }
           style={{
             ...frameStyle,
-            cursor: interactive ? "grab" : "default",
+            cursor: interactive
+              ? "grab"
+              : "default",
             touchAction: "none",
           }}
         >
-          <div style={maskWrapperStyle}>
+          <div
+            style={
+              maskWrapperStyle
+            }
+          >
             <img
               src={layer.src}
               alt="Your uploaded pattern"
@@ -836,18 +1446,23 @@ export default function CustomizeFanPage() {
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                transform: `translate(${offsetX}%, ${offsetY}%) scale(${zoom})`,
-                transformOrigin: "center center",
+                transform:
+                  `translate(${offsetX}%, ${offsetY}%) scale(${zoom})`,
+                transformOrigin:
+                  "center center",
               }}
             />
 
             {layer.tint && (
               <div
                 style={{
-                  position: "absolute",
+                  position:
+                    "absolute",
                   inset: 0,
-                  backgroundColor: layer.tint,
-                  mixBlendMode: "color",
+                  backgroundColor:
+                    layer.tint,
+                  mixBlendMode:
+                    "color",
                   opacity: 0.85,
                 }}
               />
@@ -857,25 +1472,31 @@ export default function CustomizeFanPage() {
       );
     }
 
-    /* -------------------------------------------------------------- */
-    /* Text layer — freely draggable/pinchable, unchanged              */
-    /* -------------------------------------------------------------- */
+    const commonStyle: React.CSSProperties =
+      {
+        position: "absolute",
+        left: `${layer.x}%`,
+        top: `${layer.y}%`,
+        transform:
+          `translate(-50%, -50%) scale(${layer.scale})`,
+        cursor: interactive
+          ? "grab"
+          : "default",
+        outline: isSelected
+          ? `1.5px dashed ${ACCENT}`
+          : "none",
+        outlineOffset: "4px",
+        touchAction:
+          interactive
+            ? "none"
+            : undefined,
+      };
 
-    const commonStyle: React.CSSProperties = {
-      position: "absolute",
-      left: `${layer.x}%`,
-      top: `${layer.y}%`,
-      transform: `translate(-50%, -50%) scale(${layer.scale})`,
-      cursor: interactive ? "grab" : "default",
-      outline: isSelected
-        ? `1.5px dashed ${ACCENT}`
-        : "none",
-      outlineOffset: "4px",
-      touchAction: interactive ? "none" : undefined,
-    };
+    const hasBg =
+      !!layer.bgColor;
 
-    const hasBg = !!layer.bgColor;
-    const fontDef = getFont(layer.font);
+    const fontDef =
+      getFont(layer.font);
 
     return (
       <div
@@ -890,7 +1511,9 @@ export default function CustomizeFanPage() {
         }
         onPointerMove={
           interactive
-            ? gestures.onPointerMove(stageRef.current)
+            ? gestures.onPointerMove(
+                stageRef.current
+              )
             : undefined
         }
         onPointerUp={
@@ -900,19 +1523,29 @@ export default function CustomizeFanPage() {
         }
         onWheel={
           interactive
-            ? gestures.onWheelZoom(layer.id)
+            ? gestures.onWheelZoom(
+                layer.id
+              )
             : undefined
         }
-        className={fontDef.className}
+        className={
+          fontDef.className
+        }
         style={{
           ...commonStyle,
-          fontSize: layer.fontSize,
+          fontSize:
+            layer.fontSize,
           fontWeight:
-            layer.role === "monogram" ? 700 : 500,
+            layer.role ===
+            "monogram"
+              ? 700
+              : 500,
           color: layer.color,
-          whiteSpace: "nowrap",
+          whiteSpace:
+            "nowrap",
           backgroundColor:
-            layer.bgColor ?? "transparent",
+            layer.bgColor ??
+            "transparent",
           boxShadow: hasBg
             ? "0 1px 4px rgba(0,0,0,0.15)"
             : "none",
@@ -930,22 +1563,20 @@ export default function CustomizeFanPage() {
     );
   }
 
-  /* ---------------------------------------------------------------- */
-  /* JSX                                                              */
-  /* ---------------------------------------------------------------- */
+  /* -------------------------------------------------------------- */
+  /* JSX                                                            */
+  /* -------------------------------------------------------------- */
 
   return (
     <div
-      style={{ backgroundColor: "#FFF4E6" }}
+      style={{
+        backgroundColor:
+          "#FFF4E6",
+      }}
       className="w-full min-h-screen"
     >
-      {/* ============================================================ */}
-      {/* TOP: LIVE EDITOR                                             */}
-      {/* ============================================================ */}
-
       <div className="flex flex-col items-center px-6 py-8">
 
-        {/* Front / Back */}
         <div className="flex gap-2 mb-4">
           {(["front", "back"] as SideId[]).map(
             (id) => (
@@ -965,7 +1596,8 @@ export default function CustomizeFanPage() {
                     activeSide === id
                       ? "#FFF4E6"
                       : ACCENT,
-                  border: `1px solid ${ACCENT}`,
+                  border:
+                    `1px solid ${ACCENT}`,
                 }}
               >
                 {id === "front"
@@ -976,12 +1608,14 @@ export default function CustomizeFanPage() {
           )}
         </div>
 
-        {/* Fan stage */}
         <div
           ref={stageRef}
           className="relative w-full max-w-[300px] md:max-w-[380px] touch-none select-none"
           onClick={(e) => {
-            if (e.target === stageRef.current) {
+            if (
+              e.target ===
+              stageRef.current
+            ) {
               setSelectedId(null);
             }
           }}
@@ -995,51 +1629,66 @@ export default function CustomizeFanPage() {
 
           {layers
             .slice()
-            .sort((a, b) => a.z - b.z)
+            .sort(
+              (a, b) =>
+                a.z - b.z
+            )
             .map((layer) =>
-              renderLayer(layer, true)
+              renderLayer(
+                layer,
+                true
+              )
             )}
         </div>
-
-        {/* ========================================================== */}
-        {/* SELECTED LAYER CONTROLS                                   */}
-        {/* ========================================================== */}
 
         {selectedLayer && (
           <div
             className="mt-4 flex w-full max-w-[320px] flex-col gap-3 rounded-xl px-4 py-3"
             style={{
-              backgroundColor: "#EFE3C4",
+              backgroundColor:
+                "#EFE3C4",
             }}
           >
-            {/* UNDO */}
             <button
-              onClick={gestures.undo}
-              disabled={!gestures.canUndo()}
+              onClick={
+                gestures.undo
+              }
+              disabled={
+                !gestures.canUndo()
+              }
               className="text-left text-xs font-medium underline disabled:opacity-30"
-              style={{ color: ACCENT }}
+              style={{
+                color: ACCENT,
+              }}
             >
               ↺ Undo
             </button>
 
-            {/* TEXT */}
-            {selectedLayer.type === "text" && (
+            {selectedLayer.type ===
+              "text" && (
               <>
                 <input
-                  value={selectedLayer.content}
+                  value={
+                    selectedLayer.content
+                  }
                   onChange={(e) =>
                     updateLayer(
                       selectedLayer.id,
                       {
-                        content: e.target.value,
+                        content:
+                          e.target
+                            .value,
                       }
                     )
                   }
                   className="w-full rounded-lg px-3 py-2 text-sm"
                   style={{
-                    border: `1px solid ${ACCENT}`,
-                    backgroundColor: "#FFFFFF",
-                    color: "#000000",
+                    border:
+                      `1px solid ${ACCENT}`,
+                    backgroundColor:
+                      "#FFFFFF",
+                    color:
+                      "#000000",
                   }}
                   placeholder={
                     selectedLayer.role ===
@@ -1070,7 +1719,9 @@ export default function CustomizeFanPage() {
                     onChange={(f) =>
                       updateLayer(
                         selectedLayer.id,
-                        { font: f }
+                        {
+                          font: f,
+                        }
                       )
                     }
                   />
@@ -1078,88 +1729,6 @@ export default function CustomizeFanPage() {
               </>
             )}
 
-            {/*
-              No more scale slider — every layer (text, fill, pattern)
-              is resized with a two-finger pinch directly on the fan,
-              and moved with a one-finger drag. Pattern layers can
-              never zoom out past "fully covers the fan" so nothing
-              gets cropped without the person choosing to.
-            */}
-
-            {/* PATTERN TINT */}
-            {selectedLayer.type ===
-              "pattern" && (
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-14 text-[11px]"
-                  style={{
-                    color:
-                      "rgba(0,0,0,0.55)",
-                  }}
-                >
-                  Tint
-                </span>
-
-                <div className="flex flex-1 items-center gap-2">
-                  <button
-                    onClick={() =>
-                      updateLayer(
-                        selectedLayer.id,
-                        {
-                          tint: null,
-                        }
-                      )
-                    }
-                    className="h-6 w-6 flex-shrink-0 rounded-full border transition-transform hover:scale-110"
-                    style={{
-                      backgroundColor:
-                        "#FFFFFF",
-                      backgroundImage:
-                        "linear-gradient(45deg, transparent 45%, red 45%, red 55%, transparent 55%)",
-                      borderColor:
-                        selectedLayer.tint ===
-                        null
-                          ? "#000000"
-                          : "rgba(0,0,0,0.3)",
-                      borderWidth:
-                        selectedLayer.tint ===
-                        null
-                          ? 2
-                          : 1,
-                    }}
-                    title="No tint"
-                  />
-
-                  <ColorWheelPicker
-                    value={
-                      selectedLayer.tint ??
-                      ACCENT
-                    }
-                    onChange={(c) =>
-                      updateLayer(
-                        selectedLayer.id,
-                        {
-                          tint: c,
-                        }
-                      )
-                    }
-                  />
-
-                  <span
-                    className="text-[10px]"
-                    style={{
-                      color:
-                        "rgba(0,0,0,0.45)",
-                    }}
-                  >
-                    tap the wheel to pick any
-                    color
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* FILL COLORS */}
             {selectedLayer.type ===
               "fill" && (
               <div className="flex flex-col gap-2">
@@ -1170,7 +1739,8 @@ export default function CustomizeFanPage() {
                       "rgba(0,0,0,0.55)",
                   }}
                 >
-                  {selectedLayer.colors
+                  {selectedLayer
+                    .colors
                     .length === 1
                     ? "Color"
                     : "Colors (blended)"}
@@ -1198,7 +1768,8 @@ export default function CustomizeFanPage() {
 
                         {selectedLayer
                           .colors
-                          .length > 1 && (
+                          .length >
+                          1 && (
                           <button
                             onClick={() =>
                               removeFillColor(
@@ -1213,7 +1784,6 @@ export default function CustomizeFanPage() {
                               color:
                                 "#FFFFFF",
                             }}
-                            title="Remove this color"
                           >
                             ×
                           </button>
@@ -1230,10 +1800,11 @@ export default function CustomizeFanPage() {
                     }
                     className="flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold transition-transform hover:scale-110"
                     style={{
-                      borderColor: ACCENT,
-                      color: ACCENT,
+                      borderColor:
+                        ACCENT,
+                      color:
+                        ACCENT,
                     }}
-                    title="Add another color"
                   >
                     +
                   </button>
@@ -1246,13 +1817,13 @@ export default function CustomizeFanPage() {
                       "rgba(0,0,0,0.45)",
                   }}
                 >
-                  Add more than one color to
-                  blend them together.
+                  Add more than one
+                  color to blend them
+                  together.
                 </span>
               </div>
             )}
 
-            {/* TEXT COLOR + BACKING */}
             {selectedLayer.type ===
               "text" && (
               <>
@@ -1299,7 +1870,8 @@ export default function CustomizeFanPage() {
                         updateLayer(
                           selectedLayer.id,
                           {
-                            bgColor: null,
+                            bgColor:
+                              null,
                           }
                         )
                       }
@@ -1320,7 +1892,6 @@ export default function CustomizeFanPage() {
                             ? 2
                             : 1,
                       }}
-                      title="No backing"
                     />
 
                     <ColorWheelPicker
@@ -1332,7 +1903,8 @@ export default function CustomizeFanPage() {
                         updateLayer(
                           selectedLayer.id,
                           {
-                            bgColor: c,
+                            bgColor:
+                              c,
                           }
                         )
                       }
@@ -1345,12 +1917,12 @@ export default function CustomizeFanPage() {
                           "rgba(0,0,0,0.45)",
                       }}
                     >
-                      any backing color
+                      any backing
+                      color
                     </span>
                   </div>
                 </div>
 
-                {/* BACKING SHAPE */}
                 {selectedLayer.bgColor && (
                   <div className="flex items-center gap-2">
                     <span
@@ -1389,12 +1961,13 @@ export default function CustomizeFanPage() {
                                 s.id
                                   ? "#FFF4E6"
                                   : "rgba(0,0,0,0.6)",
-                              border: `1px solid ${
-                                selectedLayer.bgShape ===
-                                s.id
-                                  ? ACCENT
-                                  : "rgba(0,0,0,0.15)"
-                              }`,
+                              border:
+                                `1px solid ${
+                                  selectedLayer.bgShape ===
+                                  s.id
+                                    ? ACCENT
+                                    : "rgba(0,0,0,0.15)"
+                                }`,
                             }}
                           >
                             {s.label}
@@ -1407,7 +1980,6 @@ export default function CustomizeFanPage() {
               </>
             )}
 
-            {/* BOTH SIDES */}
             <button
               onClick={() =>
                 applyToBothSides(
@@ -1419,10 +1991,10 @@ export default function CustomizeFanPage() {
                 color: ACCENT,
               }}
             >
-              apply this to both sides
+              apply this to both
+              sides
             </button>
 
-            {/* DELETE */}
             <div className="flex justify-end pt-1">
               <button
                 onClick={() =>
@@ -1445,30 +2017,30 @@ export default function CustomizeFanPage() {
         <p
           className="text-center text-[11px] mt-3 max-w-xs"
           style={{
-            color: "rgba(0,0,0,0.45)",
+            color:
+              "rgba(0,0,0,0.45)",
           }}
         >
-          Tap an item below to add it, then use one finger to move it and
-          two fingers to pinch-zoom it into place on the {activeSide}.
+          Tap an item below to add it,
+          then use one finger to move it
+          and two fingers to pinch-zoom it
+          into place on the {activeSide}.
         </p>
       </div>
 
-      {/* ============================================================ */}
-      {/* ASSET PALETTE                                                */}
-      {/* ============================================================ */}
+      {/* ========================================================== */}
+      {/* ASSET PALETTE                                               */}
+      {/* ========================================================== */}
 
       <div className="px-6 md:px-12 py-8 max-w-2xl mx-auto">
 
-        {/* ========================================================== */}
-        {/* BACKGROUND OPTIONS                                         */}
-        {/* ========================================================== */}
-
         {!hasBackground && (
           <>
-            {/* COLOR */}
             <p
               className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-              style={{ color: ACCENT }}
+              style={{
+                color: ACCENT,
+              }}
             >
               Color your fan
             </p>
@@ -1478,8 +2050,10 @@ export default function CustomizeFanPage() {
                 onClick={addFill}
                 className="flex-1 flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
                 style={{
-                  border: `1.5px solid ${ACCENT}`,
-                  backgroundColor: "#EFE3C4",
+                  border:
+                    `1.5px solid ${ACCENT}`,
+                  backgroundColor:
+                    "#EFE3C4",
                 }}
               >
                 <span
@@ -1493,24 +2067,27 @@ export default function CustomizeFanPage() {
                 <span
                   className="text-xs md:text-sm"
                   style={{
-                    color: "rgba(0,0,0,0.62)",
+                    color:
+                      "rgba(0,0,0,0.62)",
                   }}
                 >
-                  Add a solid color or blend
+                  Add a solid color or
+                  blend
                   <br />
-
                   <span className="text-[11px]">
-                    Pick one color, or add more to
-                    blend them.
+                    Pick one color, or
+                    add more to blend
+                    them.
                   </span>
                 </span>
               </button>
             </div>
 
-            {/* PATTERN */}
             <p
               className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-              style={{ color: ACCENT }}
+              style={{
+                color: ACCENT,
+              }}
             >
               Use your own pattern
             </p>
@@ -1521,8 +2098,10 @@ export default function CustomizeFanPage() {
               }
               className="w-full flex items-center gap-3 rounded-xl px-4 py-4 mb-8 text-left transition-colors"
               style={{
-                border: `1.5px dashed ${ACCENT}`,
-                backgroundColor: "#EFE3C4",
+                border:
+                  `1.5px dashed ${ACCENT}`,
+                backgroundColor:
+                  "#EFE3C4",
               }}
             >
               <UploadIcon />
@@ -1530,27 +2109,33 @@ export default function CustomizeFanPage() {
               <span
                 className="text-xs md:text-sm"
                 style={{
-                  color: "rgba(0,0,0,0.62)",
+                  color:
+                    "rgba(0,0,0,0.62)",
                 }}
               >
-                Upload your own photo or pattern
+                Upload your own photo or
+                pattern
                 <br />
-
                 <span className="text-[11px]">
-                  It'll be shaped to fit the fan
-                  automatically — pinch to zoom and
-                  drag to reposition it once it's
-                  added.
+                  It'll be shaped to fit
+                  the fan automatically
+                  — pinch to zoom and
+                  drag to reposition it
+                  once it's added.
                 </span>
               </span>
             </button>
 
             <input
-              ref={patternFileInputRef}
+              ref={
+                patternFileInputRef
+              }
               type="file"
               accept="image/jpeg,image/png"
               className="hidden"
-              onChange={handlePatternUpload}
+              onChange={
+                handlePatternUpload
+              }
             />
           </>
         )}
@@ -1558,17 +2143,22 @@ export default function CustomizeFanPage() {
         {hasBackground && (
           <p
             className="mb-4 text-xs"
-            style={{ color: "rgba(0,0,0,0.5)" }}
+            style={{
+              color:
+                "rgba(0,0,0,0.5)",
+            }}
           >
-            Background added — delete it from the stage above
-            to choose a different type.
+            Background added — delete it
+            from the stage above to choose
+            a different type.
           </p>
         )}
 
-        {/* TEXT */}
         <p
           className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-          style={{ color: ACCENT }}
+          style={{
+            color: ACCENT,
+          }}
         >
           Add text
         </p>
@@ -1580,8 +2170,10 @@ export default function CustomizeFanPage() {
             }
             className="flex-1 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
             style={{
-              backgroundColor: "#FFFFFF",
-              border: `1px solid ${ACCENT}`,
+              backgroundColor:
+                "#FFFFFF",
+              border:
+                `1px solid ${ACCENT}`,
               color: ACCENT,
             }}
           >
@@ -1594,8 +2186,10 @@ export default function CustomizeFanPage() {
             }
             className="flex-1 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
             style={{
-              backgroundColor: "#FFFFFF",
-              border: `1px solid ${ACCENT}`,
+              backgroundColor:
+                "#FFFFFF",
+              border:
+                `1px solid ${ACCENT}`,
               color: ACCENT,
             }}
           >
@@ -1603,7 +2197,6 @@ export default function CustomizeFanPage() {
           </button>
         </div>
 
-        {/* PREVIEW BUTTON */}
         <div className="flex items-center gap-4">
           <button
             onClick={() =>
@@ -1611,7 +2204,8 @@ export default function CustomizeFanPage() {
             }
             className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
             style={{
-              backgroundColor: ACCENT,
+              backgroundColor:
+                ACCENT,
               color: "#FFF4E6",
             }}
           >
@@ -1620,25 +2214,27 @@ export default function CustomizeFanPage() {
 
           <span
             className="text-lg font-semibold"
-            style={{ color: "#000000" }}
+            style={{
+              color: "#000000",
+            }}
           >
             {PRICE} LE
           </span>
         </div>
       </div>
 
-      {/* ============================================================ */}
-      {/* FULL SCREEN PREVIEW                                          */}
-      {/* ============================================================ */}
+      {/* ========================================================== */}
+      {/* FULL SCREEN PREVIEW                                         */}
+      {/* ========================================================== */}
 
       {showPreview && (
         <div
           className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-8 px-6 py-10 overflow-y-auto"
           style={{
-            backgroundColor: "#FFF4E6",
+            backgroundColor:
+              "#FFF4E6",
           }}
         >
-          {/* CLOSE */}
           <button
             onClick={() =>
               setShowPreview(false)
@@ -1652,56 +2248,109 @@ export default function CustomizeFanPage() {
             ✕
           </button>
 
-          {/* FRONT + BACK */}
           <div className="flex flex-col md:flex-row items-center gap-10">
-            {(["front", "back"] as SideId[]).map(
-              (id) => (
-                <div
-                  key={id}
-                  className="flex flex-col items-center gap-2"
+            {(
+              ["front", "back"] as SideId[]
+            ).map((id) => (
+              <div
+                key={id}
+                className="flex flex-col items-center gap-2"
+              >
+                <p
+                  className="text-xs font-semibold uppercase tracking-wide"
+                  style={{
+                    color: ACCENT,
+                  }}
                 >
-                  <p
-                    className="text-xs font-semibold uppercase tracking-wide"
-                    style={{
-                      color: ACCENT,
-                    }}
-                  >
-                    {id === "front"
-                      ? "Front"
-                      : "Back"}
-                  </p>
+                  {id === "front"
+                    ? "Front"
+                    : "Back"}
+                </p>
 
-                  <div className="relative w-full max-w-[240px] md:max-w-[280px]">
-                    <img
-                      src={FAN_IMG}
-                      alt=""
-                      className="w-full h-auto"
-                      draggable={false}
-                    />
+                <div className="relative w-full max-w-[240px] md:max-w-[280px]">
+                  <img
+                    src={FAN_IMG}
+                    alt=""
+                    className="w-full h-auto"
+                    draggable={false}
+                  />
 
-                    {layersBySide[id]
-                      .slice()
-                      .sort(
-                        (a, b) =>
-                          a.z - b.z
+                  {layersBySide[id]
+                    .slice()
+                    .sort(
+                      (a, b) =>
+                        a.z - b.z
+                    )
+                    .map((layer) =>
+                      renderLayer(
+                        layer,
+                        false
                       )
-                      .map((layer) =>
-                        renderLayer(
-                          layer,
-                          false
-                        )
-                      )}
-                  </div>
+                    )}
                 </div>
-              )
-            )}
+              </div>
+            ))}
           </div>
 
-          {/* ======================================================== */}
-          {/* QUANTITY                                                 */}
-          {/* ======================================================== */}
+          <div className="flex w-full max-w-sm flex-col items-center gap-4">
 
-          <div className="flex flex-col items-center gap-4">
+            <div className="flex w-full items-center gap-3">
+              <span
+                className="text-xs font-semibold uppercase tracking-[0.15em]"
+                style={{
+                  color: ACCENT,
+                }}
+              >
+                Tassel
+              </span>
+
+              <span
+                className="h-7 w-7 flex-shrink-0 rounded-full"
+                style={{
+                  backgroundColor:
+                    TASSEL_COLORS.find(
+                      (c) =>
+                        c.id ===
+                        selectedTassel
+                    )!.hex,
+                  border:
+                    "1.5px solid rgba(0,0,0,0.15)",
+                }}
+              />
+
+              <select
+                value={
+                  selectedTassel
+                }
+                onChange={(e) =>
+                  setSelectedTassel(
+                    e.target
+                      .value as TasselColorId
+                  )
+                }
+                className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none"
+                style={{
+                  border:
+                    "1.5px solid rgba(0,0,0,0.15)",
+                  backgroundColor:
+                    "#FFFFFF",
+                  color:
+                    "#000000",
+                }}
+              >
+                {TASSEL_COLORS.map(
+                  (c) => (
+                    <option
+                      key={c.id}
+                      value={c.id}
+                    >
+                      {c.label}
+                    </option>
+                  )
+                )}
+              </select>
+            </div>
+
             <div className="flex items-center gap-4">
               <span
                 className="text-xs font-semibold uppercase tracking-[0.15em]"
@@ -1717,51 +2366,54 @@ export default function CustomizeFanPage() {
                 style={{
                   backgroundColor:
                     "#FFFFFF",
-                  border: `1px solid ${ACCENT}`,
+                  border:
+                    `1px solid ${ACCENT}`,
                 }}
               >
-                {/* MINUS */}
                 <button
                   onClick={() =>
-                    setQuantity((q) =>
-                      Math.max(
-                        1,
-                        q - 1
-                      )
+                    setQuantity(
+                      (q) =>
+                        Math.max(
+                          1,
+                          q - 1
+                        )
                     )
                   }
                   className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
                   style={{
                     backgroundColor:
                       "#EFE3C4",
-                    color: "#000000",
+                    color:
+                      "#000000",
                   }}
                 >
                   −
                 </button>
 
-                {/* NUMBER */}
                 <span
                   className="w-10 text-center text-sm font-semibold"
                   style={{
-                    color: "#000000",
+                    color:
+                      "#000000",
                   }}
                 >
                   {quantity}
                 </span>
 
-                {/* PLUS */}
                 <button
                   onClick={() =>
                     setQuantity(
-                      (q) => q + 1
+                      (q) =>
+                        q + 1
                     )
                   }
                   className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
                   style={{
                     backgroundColor:
                       "#EFE3C4",
-                    color: "#000000",
+                    color:
+                      "#000000",
                   }}
                 >
                   +
@@ -1769,38 +2421,203 @@ export default function CustomizeFanPage() {
               </div>
             </div>
 
-            {/* TOTAL */}
-            <p
-              className="text-lg font-bold"
+            <button
+              onClick={
+                addFanLineToOrder
+              }
+              className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5"
               style={{
+                backgroundColor:
+                  "transparent",
+                borderColor:
+                  ACCENT,
                 color: ACCENT,
               }}
             >
-              {PRICE * quantity} LE
-            </p>
-
-            {/* ADD TO CART */}
-            <button
-              onClick={addFanToCart}
-              className="inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90"
-              style={{
-                backgroundColor: ACCENT,
-                color: "#FFF4E6",
-              }}
-            >
-              Add {quantity}{" "}
-              {quantity === 1
-                ? "Fan"
-                : "Fans"}{" "}
-              to Cart
+              + Add to Order
             </button>
 
-            {/* SUCCESS */}
+            {fanOrderLines.length >
+              0 && (
+              <div className="flex w-full flex-col gap-2">
+                {fanOrderLines.map(
+                  (line) => {
+                    const tassel =
+                      TASSEL_COLORS.find(
+                        (c) =>
+                          c.id ===
+                          line.tasselColor
+                      )!;
+
+                    return (
+                      <div
+                        key={line.id}
+                        className="rounded-2xl p-3"
+                        style={{
+                          backgroundColor:
+                            "#EFE3C4",
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-4 w-4 rounded-full"
+                              style={{
+                                backgroundColor:
+                                  tassel.hex,
+                                border:
+                                  "1px solid rgba(0,0,0,0.15)",
+                              }}
+                            />
+
+                            <span
+                              className="text-sm font-semibold"
+                              style={{
+                                color:
+                                  "#000000",
+                              }}
+                            >
+                              {
+                                tassel.label
+                              }{" "}
+                              Tassel
+                            </span>
+                          </div>
+
+                          <div className="flex flex-shrink-0 items-center gap-2">
+                            <button
+                              onClick={() =>
+                                updateFanLineQuantity(
+                                  line.id,
+                                  line.quantity -
+                                    1
+                                )
+                              }
+                              className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
+                            >
+                              −
+                            </button>
+
+                            <span className="w-5 text-center text-sm font-semibold">
+                              {
+                                line.quantity
+                              }
+                            </span>
+
+                            <button
+                              onClick={() =>
+                                updateFanLineQuantity(
+                                  line.id,
+                                  line.quantity +
+                                    1
+                                )
+                              }
+                              className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
+                            >
+                              +
+                            </button>
+
+                            <span
+                              className="ml-2 min-w-[60px] text-right text-sm font-bold"
+                              style={{
+                                color:
+                                  ACCENT,
+                              }}
+                            >
+                              {PRICE *
+                                line.quantity}{" "}
+                              LE
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="mt-1 text-right">
+                          <button
+                            onClick={() =>
+                              removeFanLine(
+                                line.id
+                              )
+                            }
+                            className="text-xs underline opacity-50 hover:opacity-100"
+                          >
+                            remove
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+                )}
+
+                <div
+                  className="mt-1 flex items-center justify-between rounded-2xl px-5 py-3"
+                  style={{
+                    border:
+                      `1px solid ${ACCENT}`,
+                  }}
+                >
+                  <span
+                    className="text-sm font-semibold"
+                    style={{
+                      color:
+                        "#000000",
+                    }}
+                  >
+                    {fanOrderLines.reduce(
+                      (
+                        sum,
+                        l
+                      ) =>
+                        sum +
+                        l.quantity,
+                      0
+                    )}{" "}
+                    fans total
+                  </span>
+
+                  <span
+                    className="text-lg font-bold"
+                    style={{
+                      color:
+                        ACCENT,
+                    }}
+                  >
+                    {fanOrderLines.reduce(
+                      (
+                        sum,
+                        l
+                      ) =>
+                        sum +
+                        PRICE *
+                          l.quantity,
+                      0
+                    )}{" "}
+                    LE
+                  </span>
+                </div>
+
+                <button
+                  onClick={
+                    addFanToCart
+                  }
+                  className="mt-1 inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90"
+                  style={{
+                    backgroundColor:
+                      ACCENT,
+                    color:
+                      "#FFF4E6",
+                  }}
+                >
+                  Add Order to Cart
+                </button>
+              </div>
+            )}
+
             {addedToCart && (
               <p
                 className="text-xs font-medium"
                 style={{
-                  color: "#6E86C7",
+                  color:
+                    "#6E86C7",
                 }}
               >
                 Added to cart ✓

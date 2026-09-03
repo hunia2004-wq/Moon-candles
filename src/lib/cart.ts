@@ -9,6 +9,15 @@ export type TambourineCustomization = {
   layers: unknown[];
 };
 
+export type FanCustomization = {
+  type: "customized-fan";
+  size: "small";
+  sizeCm: 12;
+  ribbonColor: string;
+  tasselColor?: string;
+  layers: unknown[];
+};
+
 export type CartItem = {
   id: string;
   productId: string | number;
@@ -21,7 +30,7 @@ export type CartItem = {
 
   // Optional customization information.
   // Existing products do not need to have this.
-  customization?: TambourineCustomization;
+  customization?: TambourineCustomization | FanCustomization;
 };
 
 export function getCart(): CartItem[] {

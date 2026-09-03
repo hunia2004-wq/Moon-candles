@@ -22,16 +22,23 @@ export default function CartDrawer() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CartItem[]>([]);
 
-  // Load the cart once on mount, then keep it in sync and open the
-  // drawer whenever anything dispatches "cartUpdated" (every Add to
-  // Cart button across the site already fires this event).
-    useEffect(() => {
+  /* -------------------------------------------------------------- */
+  /* CART SYNC                                                      */
+  /* -------------------------------------------------------------- */
+
+  useEffect(() => {
+    // Initial load
     setItems(getCart());
 
     function handleCartUpdated(e: Event) {
-      setItems(getCart());
+      // Always re-read the actual cart
+      const latestCart = getCart();
 
-      const detail = (e as CustomEvent<{ open?: boolean }>).detail;
+      setItems(latestCart);
+
+      const detail = (
+        e as CustomEvent<{ open?: boolean }>
+      ).detail;
 
       if (detail?.open) {
         setOpen(true);
@@ -43,56 +50,150 @@ export default function CartDrawer() {
       setOpen(true);
     }
 
-    window.addEventListener("cartUpdated", handleCartUpdated);
-    window.addEventListener("openCart", handleOpenCart);
+    function handleStorage(e: StorageEvent) {
+      if (e.key === "cart") {
+        setItems(getCart());
+      }
+    }
+
+    window.addEventListener(
+      "cartUpdated",
+      handleCartUpdated
+    );
+
+    window.addEventListener(
+      "openCart",
+      handleOpenCart
+    );
+
+    // Also stay synchronized if localStorage
+    // changes from another tab/window.
+    window.addEventListener(
+      "storage",
+      handleStorage
+    );
 
     return () => {
-      window.removeEventListener("cartUpdated", handleCartUpdated);
-      window.removeEventListener("openCart", handleOpenCart);
+      window.removeEventListener(
+        "cartUpdated",
+        handleCartUpdated
+      );
+
+      window.removeEventListener(
+        "openCart",
+        handleOpenCart
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleStorage
+      );
     };
   }, []);
 
-  // Lock body scroll while the drawer is open.
+  /* -------------------------------------------------------------- */
+  /* BODY SCROLL                                                    */
+  /* -------------------------------------------------------------- */
+
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
+    document.body.style.overflow = open
+      ? "hidden"
+      : "";
 
     return () => {
       document.body.style.overflow = "";
     };
   }, [open]);
 
+  /* -------------------------------------------------------------- */
+  /* REMOVE ITEM                                                    */
+  /* -------------------------------------------------------------- */
+
+  function handleRemoveItem(id: string) {
+    /*
+     * Update the actual shared cart.
+     */
+    removeCartItem(id);
+
+    /*
+     * Immediately update this drawer too.
+     *
+     * This means the drawer does not depend on
+     * the cartUpdated event to visually remove
+     * the item.
+     */
+    setItems(getCart());
+  }
+
+  /* -------------------------------------------------------------- */
+  /* UPDATE QUANTITY                                                */
+  /* -------------------------------------------------------------- */
+
+  function handleQuantityChange(
+    id: string,
+    quantity: number
+  ) {
+    updateCartItemQuantity(
+      id,
+      quantity
+    );
+
+    /*
+     * Immediately refresh drawer state.
+     */
+    setItems(getCart());
+  }
+
   const total = cartTotal(items);
   const count = cartCount(items);
 
   return (
     <>
-      {/* Backdrop */}
+      {/* ========================================================== */}
+      {/* BACKDROP                                                    */}
+      {/* ========================================================== */}
+
       <div
         onClick={() => setOpen(false)}
-        className="fixed inset-0 z-[998] bg-black/40 transition-opacity duration-300"
+        className="fixed inset-0 z-[1998] bg-black/40 transition-opacity duration-300"
         style={{
           opacity: open ? 1 : 0,
-          pointerEvents: open ? "auto" : "none",
+          pointerEvents: open
+            ? "auto"
+            : "none",
         }}
       />
 
-      {/* Drawer — slides in from the right */}
+      {/* ========================================================== */}
+      {/* DRAWER                                                      */}
+      {/* ========================================================== */}
+
       <div
-        className="fixed right-0 top-0 z-[999] flex h-full w-full max-w-sm flex-col shadow-xl transition-transform duration-300"
+        className="fixed right-0 top-0 z-[1999] flex h-full w-full max-w-sm flex-col shadow-xl transition-transform duration-300"
         style={{
           backgroundColor: CREAM,
-          transform: open ? "translateX(0)" : "translateX(100%)",
+          transform: open
+            ? "translateX(0)"
+            : "translateX(100%)",
         }}
       >
-        {/* Header */}
+        {/* ======================================================== */}
+        {/* HEADER                                                     */}
+        {/* ======================================================== */}
+
         <div
           className="flex items-center justify-between border-b px-5 py-4"
-          style={{ borderColor: "rgba(0,0,0,0.08)" }}
+          style={{
+            borderColor:
+              "rgba(0,0,0,0.08)",
+          }}
         >
           <div className="flex items-center gap-3">
             <h2
               className="text-lg font-bold uppercase tracking-wide"
-              style={{ color: BLACK }}
+              style={{
+                color: BLACK,
+              }}
             >
               Your Cart
             </h2>
@@ -100,53 +201,87 @@ export default function CartDrawer() {
             {items.length > 0 && (
               <span
                 className="rounded-full px-3 py-1 text-xs font-semibold"
-                style={{ backgroundColor: WHITE, color: ACCENT }}
+                style={{
+                  backgroundColor:
+                    WHITE,
+                  color: ACCENT,
+                }}
               >
-                {count} item{count !== 1 ? "s" : ""}
+                {count} item
+                {count !== 1
+                  ? "s"
+                  : ""}
               </span>
             )}
           </div>
 
           <button
-            onClick={() => setOpen(false)}
+            onClick={() =>
+              setOpen(false)
+            }
             aria-label="Close cart"
             className="flex h-8 w-8 items-center justify-center rounded-full transition-opacity hover:opacity-60"
           >
-            <X size={20} style={{ color: BLACK }} />
+            <X
+              size={20}
+              style={{
+                color: BLACK,
+              }}
+            />
           </button>
         </div>
 
-        {/* Items */}
+        {/* ======================================================== */}
+        {/* ITEMS                                                      */}
+        {/* ======================================================== */}
+
         <div className="flex-1 overflow-y-auto px-5">
           {items.length === 0 ? (
             <div className="flex flex-col items-center py-16 text-center">
               <div
                 className="mb-5 flex h-14 w-14 items-center justify-center rounded-full text-xl"
-                style={{ backgroundColor: SAND, color: ACCENT }}
+                style={{
+                  backgroundColor:
+                    SAND,
+                  color: ACCENT,
+                }}
               >
                 ♡
               </div>
 
               <h3
                 className="text-base font-semibold"
-                style={{ color: BLACK }}
+                style={{
+                  color: BLACK,
+                }}
               >
                 Your cart is empty
               </h3>
 
               <p
                 className="mt-2 max-w-[220px] text-sm"
-                style={{ color: "rgba(0,0,0,0.55)" }}
+                style={{
+                  color:
+                    "rgba(0,0,0,0.55)",
+                }}
               >
-                Nothing here yet. Find something you love from our
+                Nothing here yet.
+                Find something you
+                love from our
                 collection.
               </p>
 
               <Link
                 href="/shop"
-                onClick={() => setOpen(false)}
+                onClick={() =>
+                  setOpen(false)
+                }
                 className="mt-6 rounded-full px-7 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97]"
-                style={{ backgroundColor: ACCENT, color: WHITE }}
+                style={{
+                  backgroundColor:
+                    ACCENT,
+                  color: WHITE,
+                }}
               >
                 Continue Shopping
               </Link>
@@ -156,97 +291,161 @@ export default function CartDrawer() {
               <div
                 key={item.id}
                 className="flex gap-4 border-b py-5"
-                style={{ borderColor: "rgba(0,0,0,0.08)" }}
+                style={{
+                  borderColor:
+                    "rgba(0,0,0,0.08)",
+                }}
               >
+                {/* PRODUCT IMAGE */}
+
                 <div
                   className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl"
-                  style={{ backgroundColor: SAND }}
+                  style={{
+                    backgroundColor:
+                      SAND,
+                  }}
                 >
                   {item.image && (
                     <img
                       src={item.image}
-                      alt={item.productName}
+                      alt={
+                        item.productName
+                      }
                       className="h-full w-full object-contain"
                     />
                   )}
                 </div>
 
+                {/* PRODUCT INFO */}
+
                 <div className="flex flex-1 flex-col justify-between">
                   <div>
                     <p
                       className="text-sm font-semibold"
-                      style={{ color: BLACK }}
+                      style={{
+                        color: BLACK,
+                      }}
                     >
-                      {item.productName}
+                      {
+                        item.productName
+                      }
                     </p>
 
-                                        {item.color && (
+                    {item.color && (
                       <p
                         className="mt-0.5 text-[11px]"
-                        style={{ color: "rgba(0,0,0,0.5)" }}
+                        style={{
+                          color:
+                            "rgba(0,0,0,0.5)",
+                        }}
                       >
-                        Color: {item.color}
+                        {item.color}
                       </p>
                     )}
 
                     {item.scent && (
                       <p
                         className="mt-0.5 text-[11px]"
-                        style={{ color: "rgba(0,0,0,0.5)" }}
+                        style={{
+                          color:
+                            "rgba(0,0,0,0.5)",
+                        }}
                       >
-                        Scent: {item.scent}
+                        Scent:{" "}
+                        {item.scent}
                       </p>
                     )}
-
                   </div>
+
+                  {/* QUANTITY + PRICE */}
 
                   <div className="mt-2 flex items-center gap-3">
                     <div
                       className="flex items-center rounded-full border px-1 py-1"
-                      style={{ borderColor: "rgba(0,0,0,0.1)" }}
+                      style={{
+                        borderColor:
+                          "rgba(0,0,0,0.1)",
+                      }}
                     >
                       <button
                         onClick={() =>
-                          updateCartItemQuantity(item.id, item.quantity - 1)
+                          handleQuantityChange(
+                            item.id,
+                            item.quantity -
+                              1
+                          )
                         }
                         className="flex h-6 w-6 items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
                         aria-label="Decrease quantity"
-                        style={{ color: BLACK }}
+                        style={{
+                          color:
+                            BLACK,
+                        }}
                       >
-                        <Minus size={12} />
+                        <Minus
+                          size={12}
+                        />
                       </button>
 
                       <span
                         className="w-6 text-center text-xs font-semibold"
-                        style={{ color: BLACK }}
+                        style={{
+                          color:
+                            BLACK,
+                        }}
                       >
-                        {item.quantity}
+                        {
+                          item.quantity
+                        }
                       </span>
 
                       <button
                         onClick={() =>
-                          updateCartItemQuantity(item.id, item.quantity + 1)
+                          handleQuantityChange(
+                            item.id,
+                            item.quantity +
+                              1
+                          )
                         }
                         className="flex h-6 w-6 items-center justify-center rounded-full transition-all hover:scale-110 active:scale-95"
                         aria-label="Increase quantity"
-                        style={{ color: BLACK }}
+                        style={{
+                          color:
+                            BLACK,
+                        }}
                       >
-                        <Plus size={12} />
+                        <Plus
+                          size={12}
+                        />
                       </button>
                     </div>
 
                     <span
                       className="ml-auto text-sm font-bold"
-                      style={{ color: ACCENT }}
+                      style={{
+                        color:
+                          ACCENT,
+                      }}
                     >
-                      {item.price * item.quantity} EGP
+                      {item.price *
+                        item.quantity}{" "}
+                      EGP
                     </span>
                   </div>
 
+                  {/* REMOVE */}
+
                   <button
-                    onClick={() => removeCartItem(item.id)}
+                    onClick={() =>
+                      handleRemoveItem(
+                        item.id
+                      )
+                    }
                     className="mt-1 self-start text-[11px] underline transition-opacity hover:opacity-60"
-                    style={{ color: "rgba(0,0,0,0.45)" }}
+                    style={{
+                      color:
+                        "rgba(0,0,0,0.45)",
+                    }}
                   >
                     remove
                   </button>
@@ -256,48 +455,101 @@ export default function CartDrawer() {
           )}
         </div>
 
-        {/* Order summary */}
+        {/* ======================================================== */}
+        {/* ORDER SUMMARY                                              */}
+        {/* ======================================================== */}
+
         {items.length > 0 && (
           <div
             className="border-t px-5 py-5"
-            style={{ borderColor: "rgba(0,0,0,0.08)" }}
+            style={{
+              borderColor:
+                "rgba(0,0,0,0.08)",
+            }}
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm" style={{ color: "rgba(0,0,0,0.6)" }}>
-                {count} item{count !== 1 ? "s" : ""}
+              <span
+                className="text-sm"
+                style={{
+                  color:
+                    "rgba(0,0,0,0.6)",
+                }}
+              >
+                {count} item
+                {count !== 1
+                  ? "s"
+                  : ""}
               </span>
 
-              <span className="text-sm font-semibold" style={{ color: BLACK }}>
+              <span
+                className="text-sm font-semibold"
+                style={{
+                  color: BLACK,
+                }}
+              >
                 {total} EGP
               </span>
             </div>
 
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-sm" style={{ color: "rgba(0,0,0,0.6)" }}>
+              <span
+                className="text-sm"
+                style={{
+                  color:
+                    "rgba(0,0,0,0.6)",
+                }}
+              >
                 Shipping
               </span>
 
-              <span className="text-xs" style={{ color: "rgba(0,0,0,0.5)" }}>
+              <span
+                className="text-xs"
+                style={{
+                  color:
+                    "rgba(0,0,0,0.5)",
+                }}
+              >
                 Calculated at delivery
               </span>
             </div>
 
             <div
               className="my-4 h-px"
-              style={{ backgroundColor: "rgba(0,0,0,0.08)" }}
+              style={{
+                backgroundColor:
+                  "rgba(0,0,0,0.08)",
+              }}
             />
 
             <div className="mb-4 flex items-center justify-between">
-              <span className="text-base font-bold" style={{ color: BLACK }}>
+              <span
+                className="text-base font-bold"
+                style={{
+                  color: BLACK,
+                }}
+              >
                 Total
               </span>
 
-              <span className="text-xl font-bold" style={{ color: ACCENT }}>
+              <span
+                className="text-xl font-bold"
+                style={{
+                  color: ACCENT,
+                }}
+              >
                 {total} EGP
               </span>
-                        </div>
+            </div>
 
-                        <a href="/checkout" className="block w-full rounded-full px-6 py-3.5 text-center text-sm font-semibold shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]" style={{ backgroundColor: ACCENT, color: WHITE }}>
+            <a
+              href="/checkout"
+              className="block w-full rounded-full px-6 py-3.5 text-center text-sm font-semibold shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]"
+              style={{
+                backgroundColor:
+                  ACCENT,
+                color: WHITE,
+              }}
+            >
               Proceed to Checkout
             </a>
           </div>

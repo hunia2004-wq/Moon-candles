@@ -5,6 +5,7 @@ import Header from "./components/Header";
 import FloatingMoon from "./components/FloatingMoon";
 import { ActiveCandleProvider } from "./components/ActiveCandleContext";
 import Footer from "./components/Footer";
+import CartDrawer from "./components/CartDrawer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,9 +36,10 @@ export default function RootLayout({
         className="min-h-full flex flex-col"
         style={{ backgroundColor: "#efe3c4" }}
       >
-        <ActiveCandleProvider>
+               <ActiveCandleProvider>
           <Header />
           <FloatingMoon />
+          <CartDrawer />
           <div className="flex-1 flex flex-col">{children}</div>
         </ActiveCandleProvider>
 
