@@ -28,11 +28,18 @@ export type CartItem = {
   color: string | null;
   image: string;
 
+  // Bloom Wand specific — its style ("With Photo", etc.) and, when
+  // that style is chosen, the front/back photos the customer
+  // uploaded. Optional so every other product's cart items are
+  // unaffected.
+  option?: string | null;
+  photoUrlFront?: string | null;
+  photoUrlBack?: string | null;
+
   // Optional customization information.
   // Existing products do not need to have this.
-  customization?: TambourineCustomization | FanCustomization;
+  customization?: TambourineCustomization;
 };
-
 export function getCart(): CartItem[] {
   if (typeof window === "undefined") return [];
 

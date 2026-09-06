@@ -109,19 +109,8 @@ export default function CartDrawer() {
   /* REMOVE ITEM                                                    */
   /* -------------------------------------------------------------- */
 
-  function handleRemoveItem(id: string) {
-    /*
-     * Update the actual shared cart.
-     */
+   function handleRemoveItem(id: string) {
     removeCartItem(id);
-
-    /*
-     * Immediately update this drawer too.
-     *
-     * This means the drawer does not depend on
-     * the cartUpdated event to visually remove
-     * the item.
-     */
     setItems(getCart());
   }
 

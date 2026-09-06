@@ -16,6 +16,7 @@ type OrderLine = {
   price: number;
   quantity: number;
   image: string;
+  inCart?: boolean;
 };
 
 type GalleryItem = {
@@ -1019,13 +1020,15 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                   product.price
                 ),
 
-              quantity:
+               quantity:
                 Number(
                   item.quantity
                 ) || 1,
 
               image:
                 item.image ?? "",
+
+              inCart: true,
             };
           }
         );
@@ -1040,23 +1043,42 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     isTwoColorProduct,
     isQuackAndKiss,
   ]);
-      useEffect(() => {
+     useEffect(() => {
     if (productName !== "Tambourine") return;
 
     function syncTambourineOrderWithCart() {
       const cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
       setOrderLines((prev) =>
-        prev.map((line) => {
-          const cartMatch = cart.find((item: any) => item.id === line.id);
-          return cartMatch
-            ? { ...line, quantity: cartMatch.quantity }
-            : line;
-        })
+        prev
+          .map((line) => {
+            // Draft lines (staged with "+ Add to Order" but not yet
+            // committed via "Add Order to Cart") aren't in the cart
+            // yet — leave them untouched rather than treating their
+            // absence as "removed".
+            if (!line.inCart) {
+              return line;
+            }
+
+            const cartMatch = cart.find((item: any) => item.id === line.id);
+
+            // The line was committed to the cart before, but is no
+            // longer there (removed from the drawer/cart page) —
+            // drop it from this page too instead of leaving a stale
+            // row behind.
+            if (!cartMatch) {
+              return null;
+            }
+
+            return { ...line, quantity: cartMatch.quantity };
+          })
+          .filter((line): line is OrderLine => line !== null)
       );
     }
 
     window.addEventListener("cartUpdated", syncTambourineOrderWithCart);
+
+    syncTambourineOrderWithCart();
 
     return () => {
       window.removeEventListener("cartUpdated", syncTambourineOrderWithCart);
@@ -1705,15 +1727,16 @@ const [plainQuantity, setPlainQuantity] = useState(1);
         return updated;
       }
 
-      return [
+       return [
         ...prev,
         {
           id: lineId,
-          colorName: `${productColor} · ${ribbon.label} Ribbon`,
+          colorName: `Plain · ${productColor} · ${ribbon.label} Ribbon`,
           scentName: null,
           price: Number(displayPrice),
           quantity: plainQuantity,
           image: gallery[0] ?? "",
+          inCart: false,
         },
       ];
     });
@@ -1747,7 +1770,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     removeCartItem(lineId);
   }
 
-  function addTambourineOrderToCart() {
+ function addTambourineOrderToCart() {
     if (!orderLines.length) return;
 
     // Write each stacked size+ribbon combo through the shared helper
@@ -1770,7 +1793,12 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     // Don't clear orderLines — they're now the real cart lines for
     // this product, so keep them visible here too (matches how the
     // regular Add to Cart flow leaves "Your Order" showing).
+    setOrderLines((prev) =>
+      prev.map((line) => ({ ...line, inCart: true }))
+    );
   }
+
+  
 
   function updateNormalLineQuantity(
     lineId: string,
@@ -3094,10 +3122,21 @@ const [plainQuantity, setPlainQuantity] = useState(1);
 {/* ==================================================
     TAMBOURINE PLAIN — STACKABLE ORDER (size + ribbon)
     ================================================== */}
-
 {!customizeOnly && productName === "Tambourine" && (
   <>
-    <div className="mt-6">
+    <div
+      className="mt-6 flex items-center gap-2 rounded-full px-4 py-2 w-fit"
+      style={{ backgroundColor: `${accent}1A` }}
+    >
+      <span
+        className="text-[10px] font-bold uppercase tracking-[0.15em]"
+        style={{ color: accent }}
+      >
+        Plain Tambourine
+      </span>
+    </div>
+
+    <div className="mt-4">
       <p
         className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
         style={{ color: accent }}

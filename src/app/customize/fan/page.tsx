@@ -90,6 +90,7 @@ type FanOrderLine = {
   id: string;
   tasselColor: TasselColorId;
   quantity: number;
+  inCart: boolean;
 };
 
 /* ------------------------------------------------------------------ */
@@ -479,8 +480,7 @@ export default function CustomizeFanPage() {
   const patternFileInputRef =
     useRef<HTMLInputElement>(null);
 
-  const committedLines =
-    useRef<Set<string>>(new Set());
+  
 
   const cartSnapshotRef =
     useRef<string>("");
@@ -514,7 +514,7 @@ export default function CustomizeFanPage() {
   /* -------------------------------------------------------------- */
 
   useEffect(() => {
-    function syncFanOrderWithCart() {
+           function syncFanOrderWithCart() {
       const cart = getCart();
 
       const cartFanLines = cart.filter(
@@ -538,45 +538,32 @@ export default function CustomizeFanPage() {
         cartSnapshotRef.current = "";
       }
 
-      setFanOrderLines((prev) => {
-        const next: FanOrderLine[] = [];
-
-        for (const line of prev) {
-          if (
-            committedLines.current.has(
-              line.id
-            )
-          ) {
-            const cartItem =
-              cartById.get(line.id);
-
-            if (!cartItem) {
-              continue;
+      // Every line marked inCart is kept in sync with the cart's own
+      // quantity, and dropped the moment it's no longer in the cart.
+      // This reads directly off the cart — no separate ref to fall out
+      // of sync.
+      setFanOrderLines((prev) =>
+        prev
+          .map((line) => {
+            if (!line.inCart) {
+              return line;
             }
 
-            next.push({
+            const cartItem = cartById.get(line.id);
+
+            if (!cartItem) {
+              return null;
+            }
+
+            return {
               ...line,
-              quantity:
-                cartItem.quantity,
-            });
-
-            continue;
-          }
-
-          next.push(line);
-        }
-
-        return next;
-      });
-
-      committedLines.current.forEach(
-        (id) => {
-          if (!cartById.has(id)) {
-            committedLines.current.delete(
-              id
-            );
-          }
-        }
+              quantity: cartItem.quantity,
+            };
+          })
+          .filter(
+            (line): line is FanOrderLine =>
+              line !== null
+          )
       );
     }
 
@@ -672,11 +659,12 @@ export default function CustomizeFanPage() {
             return null;
           }
 
-          return {
+                   return {
             id: item.id,
             tasselColor:
               customization.tasselColor,
             quantity: item.quantity,
+            inCart: true,
           };
         })
         .filter(
@@ -692,12 +680,6 @@ export default function CustomizeFanPage() {
     ) {
       return;
     }
-
-    existingFanLines.forEach((line) => {
-      committedLines.current.add(
-        line.id
-      );
-    });
 
     setFanOrderLines((prev) => {
       const existingIds =
@@ -1038,13 +1020,14 @@ export default function CustomizeFanPage() {
         return updated;
       }
 
-      return [
+            return [
         ...prev,
         {
           id: lineId,
           tasselColor:
             selectedTassel,
           quantity,
+          inCart: false,
         },
       ];
     });
@@ -1071,6 +1054,10 @@ export default function CustomizeFanPage() {
         newQuantity
       );
 
+       const existingLine = fanOrderLines.find(
+      (l) => l.id === lineId
+    );
+
     setFanOrderLines(
       (prev) =>
         prev.map((line) =>
@@ -1084,11 +1071,7 @@ export default function CustomizeFanPage() {
         )
     );
 
-    if (
-      committedLines.current.has(
-        lineId
-      )
-    ) {
+    if (existingLine?.inCart) {
       updateCartItemQuantity(
         lineId,
         safeQuantity
@@ -1111,11 +1094,7 @@ export default function CustomizeFanPage() {
         )
     );
 
-    removeCartItem(lineId);
-
-    committedLines.current.delete(
-      lineId
-    );
+       removeCartItem(lineId);
   }
 
   /* -------------------------------------------------------------- */
@@ -1138,11 +1117,7 @@ export default function CustomizeFanPage() {
               line.tasselColor
           )!.label;
 
-        committedLines.current.add(
-          line.id
-        );
-
-        const existing =
+          const existing =
           currentCart.find(
             (item) =>
               item.id ===
@@ -1184,8 +1159,17 @@ export default function CustomizeFanPage() {
       }
     );
 
+            setFanOrderLines((prev) =>
+      prev.map((line) => ({
+        ...line,
+        inCart: true,
+      }))
+    );
+
     cartSnapshotRef.current =
       JSON.stringify(getCart());
+
+    window.dispatchEvent(new Event("openCart"));
 
     setAddedToCart(true);
 
@@ -2436,7 +2420,7 @@ export default function CustomizeFanPage() {
             >
               + Add to Order
             </button>
-
+           
             {fanOrderLines.length >
               0 && (
               <div className="flex w-full flex-col gap-2">

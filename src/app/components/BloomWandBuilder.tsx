@@ -8,6 +8,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { Product } from "@/lib/supabase/types";
+import { addToCart, updateCartItemQuantity, removeCartItem } from "@/lib/cart";
 
 type OrderLine = {
   id: string;
@@ -16,12 +17,8 @@ type OrderLine = {
   price: number;
   quantity: number;
   image: string;
-  photoUrl?: string;
-};
-
-type UploadedPhoto = {
-  id: string;
-  url: string;
+  photoUrlFront?: string;
+  photoUrlBack?: string;
 };
 
 const ACCENT = "#6E86C7";
@@ -83,9 +80,12 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
-  const [selectedColorIndex, setSelectedColorIndex] =
+    const [selectedColorIndex, setSelectedColorIndex] =
     useState(0);
 
+ // (removed — no longer needed now that the "With Photo" gallery
+  // always shows the generic examples plus the color's own real
+  // photo appended after them, instead of switching between the two)
   const [selectedOptionIndex, setSelectedOptionIndex] =
     useState(0);
 
@@ -94,13 +94,13 @@ export default function BloomWandBuilder({
 
   const [quantity, setQuantity] = useState(1);
 
-  const [orderLines, setOrderLines] =
+    const [orderLines, setOrderLines] =
     useState<OrderLine[]>([]);
 
-  const [uploadedPhotos, setUploadedPhotos] =
-    useState<UploadedPhoto[]>([]);
+  const [frontPhotoUrl, setFrontPhotoUrl] =
+    useState<string | null>(null);
 
-  const [selectedPhotoId, setSelectedPhotoId] =
+  const [backPhotoUrl, setBackPhotoUrl] =
     useState<string | null>(null);
 
   const imageScrollRef =
@@ -109,9 +109,18 @@ export default function BloomWandBuilder({
   const imageRefs =
     useRef<(HTMLDivElement | null)[]>([]);
 
-  const fileInputRef =
+  const frontFileInputRef =
     useRef<HTMLInputElement>(null);
 
+  const backFileInputRef =
+    useRef<HTMLInputElement>(null);
+
+  // Tracks which staged order lines have actually been written to
+  // the real cart via "Add Order to Cart" — lets the sync effect
+  // below tell "not committed yet" apart from "was committed, then
+  // removed from the drawer" (only the latter should disappear from
+  // this page).
+  const committedLineIds = useRef<Set<string>>(new Set());
   const colors = product.colors ?? [];
 
   const selectedColor =
@@ -132,8 +141,37 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
+     // IMPORTANT: this never reads FROM selectedOption when
+  // selectedOption is "With Photo" — every color's "With Photo"
+  // option shares the exact same 3 generic placeholder image_urls,
+  // so that check always returned true regardless of color.
+  //
+  // The real photo appended after the 3 generic examples comes from,
+  // in order: the color's own top-level image (White/Green have
+  // this), or — for every other color — that color's "Without Photo"
+  // option image, which already exists for all 8 colors and is the
+  // same real solid-color photo used for the color swatches. This is
+  // what makes Orange (and Pink/Purple/Red/Yellow/Blue) show a real
+  // photo after scrolling, not just White/Green.
+  const withoutPhotoOption = selectedColor?.options?.find(
+    (o) => o.name === "Without Photo"
+  );
+
+  const colorOwnImages = selectedColor?.image_urls?.length
+    ? selectedColor.image_urls
+    : selectedColor?.image_url
+    ? [selectedColor.image_url]
+    : withoutPhotoOption?.image_urls?.length
+    ? withoutPhotoOption.image_urls
+    : withoutPhotoOption?.image_url
+    ? [withoutPhotoOption.image_url]
+    : [];
+
+  const colorHasOwnImage = colorOwnImages.length > 0;
   const gallery = isWithPhoto
-    ? BLOOM_WAND_WITH_PHOTO_IMAGES
+    ? colorHasOwnImage
+      ? [...BLOOM_WAND_WITH_PHOTO_IMAGES, ...colorOwnImages]
+      : BLOOM_WAND_WITH_PHOTO_IMAGES
     : selectedOption?.image_urls?.length
     ? selectedOption.image_urls
     : selectedOption?.image_url
@@ -144,10 +182,90 @@ export default function BloomWandBuilder({
     ? [selectedColor.image_url]
     : product.image_urls ?? [];
 
-  const previewImage =
+    const previewImage =
     gallery[selectedImageIndex] ??
     gallery[0] ??
     "";
+
+  /*
+   * ============================================================
+   * TWO-WAY SYNC WITH CART
+   * ============================================================
+   */
+
+    useEffect(() => {
+    function syncOrderWithCart() {
+      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+      const cartIds = new Set(cart.map((item: any) => item.id));
+
+      // Snapshot committedLineIds into a plain, frozen Set BEFORE
+      // touching the live ref, so the updater below always sees a
+      // consistent picture even if this handler is re-entered or
+      // deferred.
+      const committedSnapshot = new Set(committedLineIds.current);
+
+      setOrderLines((prev) =>
+        prev
+          .filter(
+            (line) =>
+              cartIds.has(line.id) || !committedSnapshot.has(line.id)
+          )
+          .map((line) => {
+            const cartMatch = cart.find((item: any) => item.id === line.id);
+            return cartMatch
+              ? { ...line, quantity: cartMatch.quantity }
+              : line;
+          })
+      );
+
+      committedSnapshot.forEach((id) => {
+        if (!cartIds.has(id)) {
+          committedLineIds.current.delete(id);
+        }
+      });
+    }
+
+    window.addEventListener("cartUpdated", syncOrderWithCart);
+
+    return () => {
+      window.removeEventListener("cartUpdated", syncOrderWithCart);
+    };
+  }, []);
+
+  // Rehydrate staged lines + committed tracking from the real cart on
+  // mount, so navigating away and back (or any remount) doesn't lose
+  // track of which lines are already in the cart.
+  useEffect(() => {
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+    const existingLines: OrderLine[] = cart
+      .filter((item: any) => item.productId === product.id)
+      .map((item: any) => ({
+        id: item.id,
+        colorName: item.color ?? "",
+        optionName: item.option ?? "",
+        price: Number(item.price) || 0,
+        quantity: Number(item.quantity) || 1,
+        image: item.image ?? "",
+        photoUrlFront: item.photoUrlFront ?? undefined,
+        photoUrlBack: item.photoUrlBack ?? undefined,
+      }));
+
+    if (existingLines.length > 0) {
+      setOrderLines((prev) => {
+        const existingIds = new Set(prev.map((l) => l.id));
+        return [
+          ...prev,
+          ...existingLines.filter((l) => !existingIds.has(l.id)),
+        ];
+      });
+
+      existingLines.forEach((line) => {
+        committedLineIds.current.add(line.id);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /*
    * ============================================================
@@ -177,7 +295,7 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
-  function handleColorChange(index: number) {
+    function handleColorChange(index: number) {
     const currentOptionName =
       selectedColor?.options?.[
         selectedOptionIndex
@@ -210,7 +328,7 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
-  function handleOptionChange(index: number) {
+ function handleOptionChange(index: number) {
     setSelectedOptionIndex(index);
     setSelectedImageIndex(0);
     imageRefs.current = [];
@@ -401,49 +519,38 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
-  function handlePhotosChange(
+    function handleFrontPhotoChange(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
-    const files = e.target.files;
+    const file = e.target.files?.[0];
 
-    if (!files) {
+    if (!file) {
       return;
     }
 
-    const newPhotos: UploadedPhoto[] =
-      Array.from(files).map(
-        (file) => ({
-          id: `${Date.now()}-${Math.random()}`,
-          url: URL.createObjectURL(
-            file
-          ),
-        })
-      );
-
-    setUploadedPhotos((prev) => [
-      ...prev,
-      ...newPhotos,
-    ]);
-
-    if (
-      !selectedPhotoId &&
-      newPhotos.length > 0
-    ) {
-      setSelectedPhotoId(
-        newPhotos[0].id
-      );
-    }
-
+    setFrontPhotoUrl(URL.createObjectURL(file));
     e.target.value = "";
   }
 
+  function handleBackPhotoChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    setBackPhotoUrl(URL.createObjectURL(file));
+    e.target.value = "";
+  }
   /*
    * ============================================================
    * ADD TO ORDER
    * ============================================================
    */
 
-  function addLine() {
+    function addLine() {
     if (
       !selectedColor ||
       !selectedOption
@@ -451,16 +558,9 @@ export default function BloomWandBuilder({
       return;
     }
 
-    const chosenPhoto =
-      uploadedPhotos.find(
-        (photo) =>
-          photo.id ===
-          selectedPhotoId
-      );
-
     if (
       isWithPhoto &&
-      !chosenPhoto
+      (!frontPhotoUrl || !backPhotoUrl)
     ) {
       return;
     }
@@ -483,23 +583,28 @@ export default function BloomWandBuilder({
           selectedColor.image_url ??
           selectedOption.image_url ??
           previewImage,
-        photoUrl:
+        photoUrlFront:
           isWithPhoto
-            ? chosenPhoto?.url
+            ? frontPhotoUrl ?? undefined
+            : undefined,
+        photoUrlBack:
+          isWithPhoto
+            ? backPhotoUrl ?? undefined
             : undefined,
       },
     ]);
 
     setQuantity(1);
+    setFrontPhotoUrl(null);
+    setBackPhotoUrl(null);
   }
-
   /*
    * ============================================================
    * ORDER QUANTITY
    * ============================================================
    */
 
-  function updateLineQuantity(
+    function updateLineQuantity(
     lineId: string,
     newQuantity: number
   ) {
@@ -508,17 +613,20 @@ export default function BloomWandBuilder({
       return;
     }
 
+    const safeQuantity = Math.max(1, newQuantity);
+
     setOrderLines((prev) =>
       prev.map((line) =>
         line.id === lineId
-          ? {
-              ...line,
-              quantity:
-                newQuantity,
-            }
+          ? { ...line, quantity: safeQuantity }
           : line
       )
     );
+
+    // No-op if this line hasn't been committed via "Add Order to
+    // Cart" yet (still just staged locally) — otherwise keeps the
+    // real cart in sync, quietly, without popping the drawer open.
+    updateCartItemQuantity(lineId, safeQuantity);
   }
 
   function removeLine(id: string) {
@@ -528,28 +636,9 @@ export default function BloomWandBuilder({
           line.id !== id
       )
     );
-  }
 
-  /*
-   * ============================================================
-   * APPLY PHOTO TO ALL
-   * ============================================================
-   */
-
-  function applyPhotoToAll(
-    photoUrl: string
-  ) {
-    setOrderLines((prev) =>
-      prev.map((line) =>
-        line.optionName ===
-        "With Photo"
-          ? {
-              ...line,
-              photoUrl,
-            }
-          : line
-      )
-    );
+    removeCartItem(id);
+    committedLineIds.current.delete(id);
   }
 
   /*
@@ -580,66 +669,51 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
+     function setCartLineExact(line: OrderLine) {
+    // Do the "remove any existing entry, then add fresh" as ONE
+    // atomic localStorage write + ONE dispatch, instead of two
+    // separate calls (removeCartItem then addToCart). Two separate
+    // calls meant the item was briefly, genuinely absent from the
+    // cart in between them — and since this line was often already
+    // flagged as committed from a PREVIOUS "Add Order to Cart"
+    // press, the sync effect's cartUpdated listener would see that
+    // brief real absence and permanently drop the line from
+    // orderLines, before the second call ever put it back. That's
+    // what caused items to vanish from this page until a refresh.
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const withoutLine = cart.filter((item: any) => item.id !== line.id);
+
+    withoutLine.push({
+      id: line.id,
+      productId: product.id,
+      productName,
+      price: line.price,
+      quantity: line.quantity,
+      scent: null,
+      color: line.colorName,
+      option: line.optionName,
+      image: line.image,
+      photoUrlFront: line.photoUrlFront ?? null,
+      photoUrlBack: line.photoUrlBack ?? null,
+    });
+
+    localStorage.setItem("cart", JSON.stringify(withoutLine));
+
+    window.dispatchEvent(
+      new CustomEvent("cartUpdated", { detail: { open: true } })
+    );
+  }
+
   function handleAddToCart() {
     if (!orderLines.length) {
       return;
     }
 
-    try {
-      const existingCart =
-        JSON.parse(
-          localStorage.getItem(
-            "cart"
-          ) || "[]"
-        );
-
-      const newItems =
-        orderLines.map(
-          (line) => ({
-            id: line.id,
-            productId:
-              product.id,
-            productName,
-            price: line.price,
-            quantity:
-              line.quantity,
-            color:
-              line.colorName,
-            option:
-              line.optionName,
-            scent: null,
-            image:
-              line.image,
-            photoUrl:
-              line.photoUrl,
-          })
-        );
-
-      const updatedCart = [
-        ...existingCart,
-        ...newItems,
-      ];
-
-      localStorage.setItem(
-        "cart",
-        JSON.stringify(
-          updatedCart
-        )
-      );
-
-      window.dispatchEvent(
-        new Event("cartUpdated")
-      );
-
-      router.push("/cart");
-    } catch (error) {
-      console.error(
-        "Failed to add Bloom Wand to cart:",
-        error
-      );
-    }
+    orderLines.forEach((line) => {
+      setCartLineExact(line);
+      committedLineIds.current.add(line.id);
+    });
   }
-
   /*
    * ============================================================
    * RENDER
@@ -1108,150 +1182,123 @@ export default function BloomWandBuilder({
                 </div>
               )}
 
-            {/* WITH PHOTO */}
+                       {/* WITH PHOTO — front + back */}
 
             {isWithPhoto && (
               <div className="mt-5">
 
-                <div className="mb-2 flex items-center justify-between">
-                  <p
-                    className="text-[10px] font-bold uppercase tracking-[0.2em]"
-                    style={{
-                      color:
-                        ACCENT,
-                    }}
-                  >
-                    Your Photo
-                  </p>
-
-                  {uploadedPhotos.length >
-                    0 && (
-                    <span className="text-[10px] font-medium opacity-50">
-                      {
-                        uploadedPhotos.length
-                      }{" "}
-                      uploaded
-                    </span>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    fileInputRef.current?.click()
-                  }
-                  className="w-full rounded-2xl border px-5 py-4 text-left text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5"
-                  style={{
-                    backgroundColor:
-                      "transparent",
-                    borderColor:
-                      ACCENT,
-                    color:
-                      "#000000",
-                  }}
+                                <p
+                  className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+                  style={{ color: ACCENT }}
                 >
-                  <div className="flex items-center justify-between">
-                    <span>
-                      Upload a photo
+                  Your Photos
+                </p>
+{selectedColor && (
+                  <div className="mb-3 flex items-center gap-2">
+                    <img
+                      src={
+                        selectedColor.image_url ??
+                        selectedColor.image_urls?.[0] ??
+                        selectedColor.options?.find(
+                          (o) => o.name === "Without Photo"
+                        )?.image_url ??
+                        previewImage
+                      }
+                      alt={selectedColor.name}
+                      className="h-12 w-12 rounded-xl object-contain"
+                      style={{ backgroundColor: "#F7EEDC" }}
+                    />
+                    <span className="text-xs opacity-60">
+                      {selectedColor.name} wand
                     </span>
-
-                    <span
-                      className="text-xs"
-                      style={{
-                        color:
-                          ACCENT,
-                      }}
-                    >
-                      JPG / PNG
-                    </span>
-                  </div>
-                </button>
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  multiple
-                  className="hidden"
-                  onChange={
-                    handlePhotosChange
-                  }
-                />
-
-                {/* UPLOADED PHOTOS */}
-
-                {uploadedPhotos.length >
-                  0 && (
-                  <div className="mt-3 rounded-2xl p-3">
-                    <div className="flex flex-wrap gap-3">
-                      {uploadedPhotos.map(
-                        (
-                          photo
-                        ) => {
-                          const selected =
-                            photo.id ===
-                            selectedPhotoId;
-
-                          return (
-                            <div
-                              key={
-                                photo.id
-                              }
-                              className="flex flex-col items-center gap-1"
-                            >
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSelectedPhotoId(
-                                    photo.id
-                                  )
-                                }
-                                className="h-16 w-16 overflow-hidden rounded-xl border-2 transition-all duration-200 hover:scale-105 active:scale-95"
-                                style={{
-                                  borderColor:
-                                    selected
-                                      ? ACCENT
-                                      : "transparent",
-                                  boxShadow:
-                                    selected
-                                      ? `0 0 0 2px ${ACCENT}25`
-                                      : "none",
-                                }}
-                              >
-                                <img
-                                  src={
-                                    photo.url
-                                  }
-                                  alt="Uploaded photo"
-                                  className="h-full w-full object-cover"
-                                />
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  applyPhotoToAll(
-                                    photo.url
-                                  )
-                                }
-                                className="text-[10px] font-medium underline transition-opacity hover:opacity-70"
-                                style={{
-                                  color:
-                                    ACCENT,
-                                }}
-                              >
-                                apply to all
-                              </button>
-                            </div>
-                          );
-                        }
-                      )}
-                    </div>
                   </div>
                 )}
+
+                <div className="grid grid-cols-2 gap-3">
+
+                  {/* FRONT */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        frontFileInputRef.current?.click()
+                      }
+                      className="w-full rounded-2xl border px-4 py-4 text-left text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5"
+                      style={{
+                        backgroundColor: "transparent",
+                        borderColor: ACCENT,
+                        color: "#000000",
+                      }}
+                    >
+                      Front photo
+                    </button>
+
+                    <input
+                      ref={frontFileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      className="hidden"
+                      onChange={handleFrontPhotoChange}
+                    />
+
+                    {frontPhotoUrl && (
+                      <div className="mt-2 flex justify-center">
+                        <img
+                          src={frontPhotoUrl}
+                          alt="Front photo"
+                          className="h-16 w-16 rounded-xl object-cover"
+                          style={{ border: `1px solid ${ACCENT}` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* BACK */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        backFileInputRef.current?.click()
+                      }
+                      className="w-full rounded-2xl border px-4 py-4 text-left text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5"
+                      style={{
+                        backgroundColor: "transparent",
+                        borderColor: ACCENT,
+                        color: "#000000",
+                      }}
+                    >
+                      Back photo
+                    </button>
+
+                    <input
+                      ref={backFileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png"
+                      className="hidden"
+                      onChange={handleBackPhotoChange}
+                    />
+
+                    {backPhotoUrl && (
+                      <div className="mt-2 flex justify-center">
+                        <img
+                          src={backPhotoUrl}
+                          alt="Back photo"
+                          className="h-16 w-16 rounded-xl object-cover"
+                          style={{ border: `1px solid ${ACCENT}` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <p
+                  className="mt-2 text-[10px]"
+                  style={{ color: "rgba(0,0,0,0.45)" }}
+                >
+                  Both a front and back photo are required for this style.
+                </p>
               </div>
             )}
-
             {/* QUANTITY */}
 
             <div className="mt-5">
@@ -1308,11 +1355,10 @@ export default function BloomWandBuilder({
             <button
               type="button"
               onClick={addLine}
-              disabled={
+                            disabled={
                 !selectedOption ||
                 (isWithPhoto &&
-                  uploadedPhotos.length ===
-                    0)
+                  (!frontPhotoUrl || !backPhotoUrl))
               }
               className="mt-6 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
               style={{
@@ -1368,100 +1414,84 @@ export default function BloomWandBuilder({
                             SAND,
                         }}
                       >
-                        <div className="flex items-center justify-between gap-3">
+                                                                      <div className="flex items-start gap-3">
 
-                          {/* LEFT */}
-
-                          <div className="flex min-w-0 items-center gap-3">
-
+                          <div className="flex flex-shrink-0 gap-1">
                             {line.image && (
                               <img
-                                src={
-                                  line.image
-                                }
-                                alt=""
-                                className="h-12 w-12 flex-shrink-0 rounded-xl object-contain"
-                                style={{
-                                  backgroundColor:
-                                    "#F7EEDC",
-                                }}
+                                src={line.image}
+                                alt="Wand color"
+                                className="h-12 w-12 rounded-xl object-contain"
+                                style={{ backgroundColor: "#F7EEDC" }}
                               />
                             )}
 
-                            {line.photoUrl && (
+                            {line.photoUrlFront && (
                               <img
-                                src={
-                                  line.photoUrl
-                                }
-                                alt="Selected photo"
-                                className="h-12 w-12 flex-shrink-0 rounded-xl object-cover"
+                                src={line.photoUrlFront}
+                                alt="Front photo"
+                                className="h-12 w-12 rounded-xl object-cover"
                               />
                             )}
 
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold">
-                                {
-                                  line.colorName
-                                }
-                              </p>
-
-                              <p className="mt-1 text-xs opacity-55">
-                                {
-                                  line.optionName
-                                }
-                              </p>
-                            </div>
+                            {line.photoUrlBack && (
+                              <img
+                                src={line.photoUrlBack}
+                                alt="Back photo"
+                                className="h-12 w-12 rounded-xl object-cover"
+                              />
+                            )}
                           </div>
 
-                          {/* RIGHT */}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold">
+                              {line.colorName}
+                            </p>
 
-                          <div className="flex flex-shrink-0 items-center gap-2">
+                            <p className="mt-1 text-xs opacity-55">
+                              {line.optionName}
+                            </p>
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateLineQuantity(
-                                  line.id,
-                                  line.quantity -
-                                    1
-                                )
-                              }
-                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
-                            >
-                              −
-                            </button>
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateLineQuantity(
+                                      line.id,
+                                      line.quantity - 1
+                                    )
+                                  }
+                                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                                >
+                                  −
+                                </button>
 
-                            <span className="w-5 text-center text-sm font-semibold">
-                              {
-                                line.quantity
-                              }
-                            </span>
+                                <span className="w-5 text-center text-sm font-semibold">
+                                  {line.quantity}
+                                </span>
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateLineQuantity(
-                                  line.id,
-                                  line.quantity +
-                                    1
-                                )
-                              }
-                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
-                            >
-                              +
-                            </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateLineQuantity(
+                                      line.id,
+                                      line.quantity + 1
+                                    )
+                                  }
+                                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
+                                >
+                                  +
+                                </button>
+                              </div>
 
-                            <span
-                              className="ml-2 min-w-[70px] text-right text-sm font-bold"
-                              style={{
-                                color:
-                                  ACCENT,
-                              }}
-                            >
-                              {line.price *
-                                line.quantity}{" "}
-                              EGP
-                            </span>
+                              <span
+                                className="text-sm font-bold"
+                                style={{ color: ACCENT }}
+                              >
+                                {line.price * line.quantity} EGP
+                              </span>
+                            </div>
                           </div>
                         </div>
 

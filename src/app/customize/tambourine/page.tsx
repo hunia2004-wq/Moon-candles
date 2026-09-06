@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import {
   Great_Vibes,
@@ -19,6 +19,12 @@ import {
   Permanent_Marker,
 } from "next/font/google";
 import { useLayerGestures } from "../../components/useLayerGestures";
+import {
+  addToCart,
+  getCart,
+  updateCartItemQuantity,
+  removeCartItem,
+} from "@/lib/cart";
 
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: ["400"] });
 const dancingScript = Dancing_Script({ subsets: ["latin"], weight: ["700"] });
@@ -172,8 +178,24 @@ type FillLayer = BaseLayer & {
 
 type Layer = TextLayer | PatternLayer | FillLayer;
 
+// One line per size+ribbon combo the person has built. inCart tracks
+// whether this exact line currently exists in the shared cart — it's
+// read directly off the cart on every sync, never a separate tracker
+// that could fall out of sync with reality.
+type TambourineOrderLine = {
+  id: string;
+  size: SizeId;
+  ribbonColor: RibbonColorId;
+  quantity: number;
+  inCart: boolean;
+};
+
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function tambourineLineId(size: SizeId, ribbonColor: RibbonColorId) {
+  return `custom-tambourine-${size}-${ribbonColor}`;
 }
 
 function ColorWheelPicker({
@@ -254,6 +276,7 @@ function FontPicker({
 
             return (
               <button
+                type="button"
                 key={f.id}
                 onClick={() => onChange(f.id)}
                 className={`${f.className} flex items-center justify-center rounded-lg px-1 py-2 transition-all duration-150 hover:scale-[1.05] active:scale-[0.95]`}
@@ -296,7 +319,7 @@ export default function CustomizeTambourinePage() {
     RIBBON_COLORS[0].id
   );
 
-const [designMode, setDesignMode] = useState<
+ const [designMode, setDesignMode] = useState<
   "upload" | "build" | null
 >(null);
 
@@ -304,9 +327,13 @@ const [designMode, setDesignMode] = useState<
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
+  const [orderQuantity, setOrderQuantity] = useState(1);
+  const [orderLines, setOrderLines] = useState<TambourineOrderLine[]>([]);
+
   const stageRef = useRef<HTMLDivElement>(null);
   const nextZ = useRef(1);
   const patternFileInputRef = useRef<HTMLInputElement>(null);
+  const cartSnapshotRef = useRef<string>("");
 
   // Third arg: whenever a layer is pressed (drag start / pinch start),
   // it becomes the selected layer again — this is what lets you tap a
@@ -326,6 +353,141 @@ const [designMode, setDesignMode] = useState<
   const hasBackground = layers.some(
     (l) => l.type === "fill" || l.type === "pattern"
   );
+
+  /* -------------------------------------------------------------- */
+  /* CART <-> ORDER LINE SYNC                                        */
+  /* -------------------------------------------------------------- */
+
+  useEffect(() => {
+    function syncOrderWithCart() {
+      const cart = getCart();
+
+      const cartLines = cart.filter(
+        (item) =>
+          item.productId === "custom-tambourine" &&
+          item.customization?.type === "customized-tambourine"
+      );
+
+      const cartById = new Map(
+        cartLines.map((item) => [item.id, item])
+      );
+
+      try {
+        cartSnapshotRef.current = JSON.stringify(cart);
+      } catch {
+        cartSnapshotRef.current = "";
+      }
+
+      // Every line marked inCart is kept in sync with the cart's own
+      // quantity, and dropped the moment it's no longer in the cart.
+      // Draft lines (not yet added) are left untouched. This reads
+      // directly off the cart — no separate tracker to fall out of
+      // sync with reality.
+      setOrderLines((prev) =>
+        prev
+          .map((line) => {
+            if (!line.inCart) {
+              return line;
+            }
+
+            const cartItem = cartById.get(line.id);
+
+            if (!cartItem) {
+              return null;
+            }
+
+            return {
+              ...line,
+              quantity: cartItem.quantity,
+            };
+          })
+          .filter(
+            (line): line is TambourineOrderLine => line !== null
+          )
+      );
+    }
+
+    function handleCartUpdated() {
+      syncOrderWithCart();
+    }
+
+    function handleStorage(event: StorageEvent) {
+      if (event.key === "cart") {
+        syncOrderWithCart();
+      }
+    }
+
+    window.addEventListener("cartUpdated", handleCartUpdated);
+    window.addEventListener("storage", handleStorage);
+
+    syncOrderWithCart();
+
+    // Fallback in case an event is ever missed — cheap 150ms poll that
+    // only does work when the cart has actually changed.
+    const pollInterval = window.setInterval(() => {
+      let currentSnapshot = "";
+
+      try {
+        currentSnapshot = JSON.stringify(getCart());
+      } catch {
+        currentSnapshot = "";
+      }
+
+      if (currentSnapshot !== cartSnapshotRef.current) {
+        syncOrderWithCart();
+      }
+    }, 150);
+
+    return () => {
+      window.removeEventListener("cartUpdated", handleCartUpdated);
+      window.removeEventListener("storage", handleStorage);
+      window.clearInterval(pollInterval);
+    };
+  }, []);
+
+  /* -------------------------------------------------------------- */
+  /* REHYDRATE ORDER LINES FROM CART ON MOUNT                        */
+  /* -------------------------------------------------------------- */
+
+  useEffect(() => {
+    const cart = getCart();
+
+    const existingLines: TambourineOrderLine[] = cart
+      .filter(
+        (item) =>
+          item.productId === "custom-tambourine" &&
+          item.customization?.type === "customized-tambourine"
+      )
+      .map((item) => {
+        const customization = item.customization;
+
+        if (!customization || customization.type !== "customized-tambourine") {
+          return null;
+        }
+
+        return {
+          id: item.id,
+          size: customization.size,
+          ribbonColor: customization.ribbonColor as RibbonColorId,
+          quantity: item.quantity,
+          inCart: true,
+        };
+      })
+      .filter((line): line is TambourineOrderLine => line !== null);
+
+    if (existingLines.length === 0) {
+      return;
+    }
+
+    setOrderLines((prev) => {
+      const existingIds = new Set(prev.map((line) => line.id));
+
+      return [
+        ...prev,
+        ...existingLines.filter((line) => !existingIds.has(line.id)),
+      ];
+    });
+  }, []);
 
   function addMessage() {
     const id = makeId();
@@ -496,6 +658,127 @@ const [designMode, setDesignMode] = useState<
 
   const selectedLayer =
     layers.find((l) => l.id === selectedId) ?? null;
+
+  /* -------------------------------------------------------------- */
+  /* ORDER LINE ACTIONS                                              */
+  /* -------------------------------------------------------------- */
+
+  function addTambourineLineToOrder() {
+    const lineId = tambourineLineId(size, ribbonColor);
+
+    setOrderLines((prev) => {
+      const existingIndex = prev.findIndex((line) => line.id === lineId);
+
+      if (existingIndex !== -1) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: updated[existingIndex].quantity + orderQuantity,
+        };
+        return updated;
+      }
+
+      return [
+        ...prev,
+        {
+          id: lineId,
+          size,
+          ribbonColor,
+          quantity: orderQuantity,
+          inCart: false,
+        },
+      ];
+    });
+
+    setOrderQuantity(1);
+  }
+
+  function updateTambourineLineQuantity(
+    lineId: string,
+    newQuantity: number
+  ) {
+    if (newQuantity <= 0) {
+      removeTambourineLine(lineId);
+      return;
+    }
+
+    const safeQuantity = Math.max(1, newQuantity);
+    const existingLine = orderLines.find((l) => l.id === lineId);
+
+    setOrderLines((prev) =>
+      prev.map((line) =>
+        line.id === lineId ? { ...line, quantity: safeQuantity } : line
+      )
+    );
+
+    if (existingLine?.inCart) {
+      updateCartItemQuantity(lineId, safeQuantity);
+    }
+  }
+
+  function removeTambourineLine(lineId: string) {
+    setOrderLines((prev) => prev.filter((line) => line.id !== lineId));
+    removeCartItem(lineId);
+  }
+
+  function addTambourineOrderToCart() {
+    if (!orderLines.length) return;
+
+    const currentCart = getCart();
+
+    orderLines.forEach((line) => {
+      const lineSize = SIZES.find((s) => s.id === line.size)!;
+
+      const existing = currentCart.find((item) => item.id === line.id);
+
+      if (existing) {
+        updateCartItemQuantity(line.id, line.quantity);
+        return;
+      }
+
+      addToCart({
+        id: line.id,
+        productId: "custom-tambourine",
+        productName: "Tambourine",
+        price: lineSize.price,
+        quantity: line.quantity,
+        scent: null,
+        color: `${lineSize.label} · ${
+          RIBBON_COLORS.find((c) => c.id === line.ribbonColor)!.label
+        } Ribbon`,
+        image: lineSize.img,
+        customization: {
+          type: "customized-tambourine",
+          size: line.size,
+          sizeCm: lineSize.cm,
+          ribbonColor: line.ribbonColor,
+          layers,
+        },
+      });
+    });
+
+    setOrderLines((prev) =>
+      prev.map((line) => ({
+        ...line,
+        inCart: true,
+      }))
+    );
+
+    cartSnapshotRef.current = JSON.stringify(getCart());
+
+    window.dispatchEvent(new Event("openCart"));
+  }
+
+  const totalQuantity = orderLines.reduce(
+    (sum, line) => sum + line.quantity,
+    0
+  );
+
+  const totalOrderPrice = orderLines.reduce(
+    (sum, line) =>
+      sum + SIZES.find((s) => s.id === line.size)!.price * line.quantity,
+    0
+  );
 
   function bgShapeStyle(
     shape: TextLayer["bgShape"],
@@ -864,66 +1147,12 @@ const [designMode, setDesignMode] = useState<
               </>
             )}
 
-            {selectedLayer.type === "pattern" && (
-              <div className="flex items-center gap-2">
-                <span
-                  className="w-14 text-[11px]"
-                  style={{
-                    color: "rgba(0,0,0,0.55)",
-                  }}
-                >
-                  Tint
-                </span>
-
-                <div className="flex flex-1 items-center gap-2">
-                  <button
-                    onClick={() =>
-                      updateLayer(
-                        selectedLayer.id,
-                        { tint: null }
-                      )
-                    }
-                    className="h-6 w-6 flex-shrink-0 rounded-full border transition-transform hover:scale-110"
-                    style={{
-                      backgroundColor: "#FFFFFF",
-                      backgroundImage:
-                        "linear-gradient(45deg, transparent 45%, red 45%, red 55%, transparent 55%)",
-                      borderColor:
-                        selectedLayer.tint === null
-                          ? "#000000"
-                          : "rgba(0,0,0,0.3)",
-                      borderWidth:
-                        selectedLayer.tint === null
-                          ? 2
-                          : 1,
-                    }}
-                    title="No tint"
-                  />
-
-                  <ColorWheelPicker
-                    value={
-                      selectedLayer.tint ?? ACCENT
-                    }
-                    onChange={(c) =>
-                      updateLayer(
-                        selectedLayer.id,
-                        { tint: c }
-                      )
-                    }
-                  />
-
-                  <span
-                    className="text-[10px]"
-                    style={{
-                      color: "rgba(0,0,0,0.45)",
-                    }}
-                  >
-                    tap the wheel to pick any color · pinch the photo
-                    to zoom &amp; move it
-                  </span>
-                </div>
-              </div>
-            )}
+            {/*
+              Tint control for pattern layers has been removed — the
+              only actions on an uploaded pattern now are Undo
+              (below, which removes the layer entirely once there's
+              nothing left to undo) and delete.
+            */}
 
             {selectedLayer.type === "fill" && (
               <div className="flex flex-col gap-2">
@@ -958,6 +1187,7 @@ const [designMode, setDesignMode] = useState<
                       {selectedLayer.colors.length >
                         1 && (
                         <button
+                          type="button"
                           onClick={() =>
                             removeFillColor(
                               selectedLayer.id,
@@ -979,6 +1209,7 @@ const [designMode, setDesignMode] = useState<
                   ))}
 
                   <button
+                    type="button"
                     onClick={() =>
                       addFillColor(
                         selectedLayer.id
@@ -1042,6 +1273,7 @@ const [designMode, setDesignMode] = useState<
 
                   <div className="flex flex-1 items-center gap-2">
                     <button
+                      type="button"
                       onClick={() =>
                         updateLayer(
                           selectedLayer.id,
@@ -1105,6 +1337,7 @@ const [designMode, setDesignMode] = useState<
                     <div className="flex flex-1 flex-wrap gap-1.5">
                       {BG_SHAPES.map((s) => (
                         <button
+                          type="button"
                           key={s.id}
                           onClick={() =>
                             updateLayer(
@@ -1143,28 +1376,53 @@ const [designMode, setDesignMode] = useState<
               </>
             )}
 
-            <div className="flex items-center justify-between pt-1">
-              <button
-                onClick={gestures.undo}
-                disabled={!gestures.canUndo()}
-                className="text-xs font-medium underline disabled:opacity-30"
-                style={{ color: ACCENT }}
-              >
-                ↺ Undo
-              </button>
+            {selectedLayer.type === "pattern" ? (
+              // Patterns only get Delete — no Undo button here.
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    removeLayer(selectedLayer.id)
+                  }
+                  className="text-[11px] font-medium underline"
+                  style={{
+                    color: "rgba(0,0,0,0.5)",
+                  }}
+                >
+                  delete
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (gestures.canUndo()) {
+                      gestures.undo();
+                    } else {
+                      removeLayer(selectedLayer.id);
+                    }
+                  }}
+                  className="text-xs font-medium underline"
+                  style={{ color: ACCENT }}
+                >
+                  ↺ Undo
+                </button>
 
-              <button
-                onClick={() =>
-                  removeLayer(selectedLayer.id)
-                }
-                className="text-[11px] font-medium underline"
-                style={{
-                  color: "rgba(0,0,0,0.5)",
-                }}
-              >
-                delete
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    removeLayer(selectedLayer.id)
+                  }
+                  className="text-[11px] font-medium underline"
+                  style={{
+                    color: "rgba(0,0,0,0.5)",
+                  }}
+                >
+                  delete
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -1215,6 +1473,7 @@ const [designMode, setDesignMode] = useState<
         <div className="grid grid-cols-2 gap-3 mb-8">
           {SIZES.map((s) => (
             <button
+              type="button"
               key={s.id}
               onClick={() => setSize(s.id)}
               className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-5 transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:shadow-md"
@@ -1263,62 +1522,22 @@ const [designMode, setDesignMode] = useState<
           ))}
         </div>
 
+        {/*
+          Ribbon color selection has moved to the preview step (see
+          below), matching the Fan customizer's Tassel flow — this
+          lets the person stack multiple ribbon colors and quantities
+          on the same design without leaving preview.
+        */}
+
         <StepLabel
           n={2}
-          title="Choose your ribbon color"
-        />
-
-        <div className="mb-8 flex items-center gap-3">
-          <span
-            className="h-8 w-8 flex-shrink-0 rounded-full"
-            style={{
-              backgroundColor:
-                RIBBON_COLORS.find(
-                  (c) => c.id === ribbonColor
-                )!.hex,
-              border:
-                "1.5px solid rgba(0,0,0,0.15)",
-              boxShadow:
-                ribbonColor === "gold"
-                  ? "inset 0 0 6px rgba(255,255,255,0.6)"
-                  : undefined,
-            }}
-          />
-
-          <select
-            value={ribbonColor}
-            onChange={(e) =>
-              setRibbonColor(
-                e.target.value as RibbonColorId
-              )
-            }
-            className="flex-1 rounded-xl px-3 py-3 text-sm outline-none"
-            style={{
-              border:
-                "1.5px solid rgba(0,0,0,0.15)",
-              backgroundColor: "#FFFFFF",
-              color: "#000000",
-            }}
-          >
-            {RIBBON_COLORS.map((c) => (
-              <option
-                key={c.id}
-                value={c.id}
-              >
-                {c.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <StepLabel
-          n={3}
           title="Design the drum face (optional)"
         />
 
         {designMode === null ? (
           <div className="grid grid-cols-2 gap-3 mb-8">
             <button
+              type="button"
               onClick={() =>
                 setDesignMode("upload")
               }
@@ -1349,6 +1568,7 @@ const [designMode, setDesignMode] = useState<
             </button>
 
             <button
+              type="button"
               onClick={() =>
                 setDesignMode("build")
               }
@@ -1387,6 +1607,7 @@ const [designMode, setDesignMode] = useState<
               never both original cards again.
             */}
             <button
+              type="button"
               onClick={() =>
                 setDesignMode(
                   designMode === "upload" ? "build" : "upload"
@@ -1405,6 +1626,7 @@ const [designMode, setDesignMode] = useState<
                 {!hasBackground && (
                   <div className="flex gap-3 mb-4">
                     <button
+                      type="button"
                       onClick={() =>
                         patternFileInputRef.current?.click()
                       }
@@ -1473,6 +1695,7 @@ const [designMode, setDesignMode] = useState<
                       </p>
 
                       <button
+                        type="button"
                         onClick={addFill}
                         className="w-full flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
                         style={{
@@ -1516,6 +1739,7 @@ const [designMode, setDesignMode] = useState<
                       </p>
 
                       <button
+                        type="button"
                         onClick={() =>
                           patternFileInputRef.current?.click()
                         }
@@ -1578,6 +1802,7 @@ const [designMode, setDesignMode] = useState<
                   </p>
 
                   <button
+                    type="button"
                     onClick={addMessage}
                     className="w-full rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 hover:scale-[1.01] active:scale-[0.98]"
                     style={{
@@ -1596,6 +1821,7 @@ const [designMode, setDesignMode] = useState<
 
         <div className="flex items-center gap-4 mt-8">
           <button
+            type="button"
             onClick={() => setShowPreview(true)}
             className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
             style={{
@@ -1623,6 +1849,7 @@ const [designMode, setDesignMode] = useState<
           }}
         >
           <button
+            type="button"
             onClick={() => setShowPreview(false)}
             className="absolute top-6 right-6 text-2xl transition-all duration-150 hover:scale-110 active:scale-90 hover:opacity-70"
             style={{ color: "#000000" }}
@@ -1657,26 +1884,233 @@ const [designMode, setDesignMode] = useState<
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              console.log(
-                "Tambourine order:",
-                {
-                  size,
-                  ribbonColor,
-                  layers,
-                  price: selectedSize.price,
+          <div className="flex w-full max-w-sm flex-col items-center gap-4">
+
+            {/* RIBBON COLOR — moved here from the main customize page,
+                same stackable-order pattern as the Fan's Tassel picker */}
+            <div className="flex w-full items-center gap-3">
+              <span
+                className="text-xs font-semibold uppercase tracking-[0.15em]"
+                style={{ color: ACCENT }}
+              >
+                Ribbon
+              </span>
+
+              <span
+                className="h-7 w-7 flex-shrink-0 rounded-full"
+                style={{
+                  backgroundColor: RIBBON_COLORS.find(
+                    (c) => c.id === ribbonColor
+                  )!.hex,
+                  border: "1.5px solid rgba(0,0,0,0.15)",
+                  boxShadow:
+                    ribbonColor === "gold"
+                      ? "inset 0 0 6px rgba(255,255,255,0.6)"
+                      : undefined,
+                }}
+              />
+
+              <select
+                value={ribbonColor}
+                onChange={(e) =>
+                  setRibbonColor(e.target.value as RibbonColorId)
                 }
-              );
-            }}
-            className="inline-flex items-center justify-center gap-2 px-10 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
-            style={{
-              backgroundColor: ACCENT,
-              color: "#FFF4E6",
-            }}
-          >
-            Checkout — {selectedSize.price} LE
-          </button>
+                className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none"
+                style={{
+                  border: "1.5px solid rgba(0,0,0,0.15)",
+                  backgroundColor: "#FFFFFF",
+                  color: "#000000",
+                }}
+              >
+                {RIBBON_COLORS.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <span
+                className="text-xs font-semibold uppercase tracking-[0.15em]"
+                style={{ color: ACCENT }}
+              >
+                Quantity
+              </span>
+
+              <div
+                className="flex items-center rounded-full px-1 py-1"
+                style={{
+                  backgroundColor: "#FFFFFF",
+                  border: `1px solid ${ACCENT}`,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOrderQuantity((q) => Math.max(1, q - 1))
+                  }
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
+                  style={{
+                    backgroundColor: "#EFE3C4",
+                    color: "#000000",
+                  }}
+                >
+                  −
+                </button>
+
+                <span
+                  className="w-10 text-center text-sm font-semibold"
+                  style={{ color: "#000000" }}
+                >
+                  {orderQuantity}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setOrderQuantity((q) => q + 1)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
+                  style={{
+                    backgroundColor: "#EFE3C4",
+                    color: "#000000",
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={addTambourineLineToOrder}
+              className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5"
+              style={{
+                backgroundColor: "transparent",
+                borderColor: ACCENT,
+                color: ACCENT,
+              }}
+            >
+              + Add to Order
+            </button>
+
+            {orderLines.length > 0 && (
+              <div className="flex w-full flex-col gap-2">
+                {orderLines.map((line) => {
+                  const lineSize = SIZES.find((s) => s.id === line.size)!;
+                  const ribbon = RIBBON_COLORS.find(
+                    (c) => c.id === line.ribbonColor
+                  )!;
+
+                  return (
+                    <div
+                      key={line.id}
+                      className="rounded-2xl p-3"
+                      style={{ backgroundColor: "#EFE3C4" }}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="h-4 w-4 rounded-full"
+                            style={{
+                              backgroundColor: ribbon.hex,
+                              border: "1px solid rgba(0,0,0,0.15)",
+                            }}
+                          />
+
+                          <span
+                            className="text-sm font-semibold"
+                            style={{ color: "#000000" }}
+                          >
+                            {lineSize.label} · {ribbon.label} Ribbon
+                          </span>
+                        </div>
+
+                        <div className="flex flex-shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateTambourineLineQuantity(
+                                line.id,
+                                line.quantity - 1
+                              )
+                            }
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
+                          >
+                            −
+                          </button>
+
+                          <span className="w-5 text-center text-sm font-semibold">
+                            {line.quantity}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              updateTambourineLineQuantity(
+                                line.id,
+                                line.quantity + 1
+                              )
+                            }
+                            className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
+                          >
+                            +
+                          </button>
+
+                          <span
+                            className="ml-2 min-w-[60px] text-right text-sm font-bold"
+                            style={{ color: ACCENT }}
+                          >
+                            {lineSize.price * line.quantity} LE
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-1 text-right">
+                        <button
+                          type="button"
+                          onClick={() => removeTambourineLine(line.id)}
+                          className="text-xs underline opacity-50 hover:opacity-100"
+                        >
+                          remove
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div
+                  className="mt-1 flex items-center justify-between rounded-2xl px-5 py-3"
+                  style={{ border: `1px solid ${ACCENT}` }}
+                >
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: "#000000" }}
+                  >
+                    {totalQuantity} tambourine{totalQuantity !== 1 ? "s" : ""} total
+                  </span>
+
+                  <span
+                    className="text-lg font-bold"
+                    style={{ color: ACCENT }}
+                  >
+                    {totalOrderPrice} LE
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addTambourineOrderToCart}
+                  className="mt-1 inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90"
+                  style={{
+                    backgroundColor: ACCENT,
+                    color: "#FFF4E6",
+                  }}
+                >
+                  Add Order to Cart
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
