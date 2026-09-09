@@ -308,18 +308,19 @@ export default function CustomizeMiniPage() {
     );
   }
 
-  function removeCombo(id: string) {
-    setCombos((prev) => {
-      const combo = prev.find((c) => c.id === id);
+function removeCombo(id: string) {
+    // Same fix as addComboOrderToCart — find the combo and, if it
+    // needs a cart write, do that BEFORE calling setCombos, not
+    // inside its updater.
+    const combo = combos.find((c) => c.id === id);
 
-      // Removing is a deliberate, final action — unlike quantity/scent
-      // tweaks it takes effect immediately rather than waiting on Update.
-      if (combo?.committed) {
-        syncComboToCart({ ...combo, quantity: 0, scents: [] });
-      }
+    // Removing is a deliberate, final action — unlike quantity/scent
+    // tweaks it takes effect immediately rather than waiting on Update.
+    if (combo?.committed) {
+      syncComboToCart({ ...combo, quantity: 0, scents: [] });
+    }
 
-      return prev.filter((c) => c.id !== id);
-    });
+    setCombos((prev) => prev.filter((c) => c.id !== id));
   }
 
   /**
@@ -327,36 +328,48 @@ export default function CustomizeMiniPage() {
    * on the page afterward — they just flip to "committed" and become
    * synced with their cart lines instead of disappearing.
    */
-  function addComboOrderToCart() {
+function addComboOrderToCart() {
     const hasPending = combos.some((c) => !c.committed);
     if (!hasPending) return;
 
-    setCombos((prev) => {
-      const committed = prev.filter((c) => c.committed);
-      const stillPending = prev.filter((c) => !c.committed);
+    // Compute the new combo list FIRST, as a plain value — no cart
+    // writes here. syncComboToCart (which dispatches "cartUpdated")
+    // used to run inside the setCombos updater itself; React can
+    // invoke that updater during its own render/commit work, and the
+    // synchronous dispatch was triggering CartDrawer's setState in
+    // the middle of that — hence "Cannot update a component
+    // (CartDrawer) while rendering a different component
+    // (CustomizeMiniPage)". Doing the cart writes as a separate step
+    // after setCombos avoids that entirely.
+    const committed = combos.filter((c) => c.committed);
+    const stillPending = combos.filter((c) => !c.committed);
 
-      const byStableId = new Map<string, ColorCombo>();
-      committed.forEach((c) => byStableId.set(c.id, c));
+    const byStableId = new Map<string, ColorCombo>();
+    committed.forEach((c) => byStableId.set(c.id, c));
 
-      stillPending.forEach((pending) => {
-        const stableId = comboKeyId(pending.colorA, pending.colorB);
-        const existing = byStableId.get(stableId);
+    const toSync: ColorCombo[] = [];
 
-        const merged: ColorCombo = existing
-          ? {
-              ...existing,
-              quantity: existing.quantity + pending.quantity,
-              scents: [...existing.scents, ...pending.scents],
-            }
-          : { ...pending, id: stableId, committed: true };
+    stillPending.forEach((pending) => {
+      const stableId = comboKeyId(pending.colorA, pending.colorB);
+      const existing = byStableId.get(stableId);
 
-        byStableId.set(stableId, merged);
-        syncComboToCart(merged);
-        byStableId.set(stableId, { ...merged, synced: true });
-      });
+      const merged: ColorCombo = existing
+        ? {
+            ...existing,
+            quantity: existing.quantity + pending.quantity,
+            scents: [...existing.scents, ...pending.scents],
+          }
+        : { ...pending, id: stableId, committed: true };
 
-      return Array.from(byStableId.values());
+      byStableId.set(stableId, { ...merged, synced: true });
+      toSync.push(merged);
     });
+
+    setCombos(Array.from(byStableId.values()));
+
+    // Now do the actual cart writes, after state has already been
+    // scheduled — not while it's being computed.
+    toSync.forEach((combo) => syncComboToCart(combo));
   }
 
   const totalQuantity = combos.reduce((sum, c) => sum + c.quantity, 0);

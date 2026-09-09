@@ -1085,39 +1085,78 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     };
   }, [productName]);
 
-  useEffect(() => {
+useEffect(() => {
     if (!isTwoColorProduct) return;
 
     function syncNoorWithCart() {
       const cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
-      const whiteItem = cart.find(
-        (item: any) => item.id === `${product.id}-white`
-      );
+      const whiteId = `${product.id}-white`;
+      const grayId = `${product.id}-gray`;
 
-      const grayItem = cart.find(
-        (item: any) => item.id === `${product.id}-gray`
-      );
+      const whiteItem = cart.find((item: any) => item.id === whiteId);
+      const grayItem = cart.find((item: any) => item.id === grayId);
 
-      if (whiteItem) {
-        setNoorWhiteQuantity(Number(whiteItem.quantity) || 1);
-      }
+       // Reflect removal, not just quantity changes — but only for
+      // lines that were actually committed to the cart. A still-draft
+      // selection (button pressed, "Add to Cart" not yet pressed)
+      // never had a real cart entry, so its absence doesn't mean it
+      // was removed — deselecting it here would wipe the person's
+      // in-progress choice every time any cartUpdated event fires.
+      setOrderLines((currentLines) => {
+        const whiteLine = currentLines.find(
+          (l) => l.id === whiteId
+        );
+        const grayLine = currentLines.find((l) => l.id === grayId);
 
-      if (grayItem) {
-        setNoorGrayQuantity(Number(grayItem.quantity) || 1);
-      }
+        if (whiteItem) {
+          setSelectedNoorWhite(true);
+          setNoorWhiteQuantity(Number(whiteItem.quantity) || 1);
+        } else if (whiteLine?.inCart) {
+          setSelectedNoorWhite(false);
+          setNoorWhiteQuantity(1);
+        }
+
+        if (grayItem) {
+          setSelectedNoorGray(true);
+          setNoorGrayQuantity(Number(grayItem.quantity) || 1);
+        } else if (grayLine?.inCart) {
+          setSelectedNoorGray(false);
+          setNoorGrayQuantity(1);
+        }
+
+        return currentLines;
+      });
 
       setOrderLines((prev) =>
-        prev.map((line) => {
-          const cartMatch = cart.find((item: any) => item.id === line.id);
-          return cartMatch
-            ? { ...line, quantity: cartMatch.quantity }
-            : line;
-        })
+        prev
+          .filter((line) => {
+            // Only Noor's own two lines are governed by this effect —
+            // leave any other product's lines untouched.
+            if (line.id !== whiteId && line.id !== grayId) return true;
+
+            // Draft lines (staged but never actually committed via
+            // "Add to Cart") were never in the real cart to begin
+            // with — their "absence" isn't a removal, so leave them
+            // alone instead of dropping them the moment any
+            // cartUpdated event fires (e.g. from the +/- counter
+            // calling updateCartItemQuantity as a harmless no-op).
+            if (!line.inCart) return true;
+
+            return line.id === whiteId ? !!whiteItem : !!grayItem;
+          })
+          .map((line) => {
+            const cartMatch = cart.find((item: any) => item.id === line.id);
+            return cartMatch
+              ? { ...line, quantity: cartMatch.quantity }
+              : line;
+          })
       );
     }
 
     window.addEventListener("cartUpdated", syncNoorWithCart);
+
+    syncNoorWithCart();
 
     return () => {
       window.removeEventListener("cartUpdated", syncNoorWithCart);
@@ -1361,15 +1400,26 @@ const [plainQuantity, setPlainQuantity] = useState(1);
         image: gallery[0] ?? "",
       });
     }
+
+    setOrderLines((prev) =>
+      prev.map((line) =>
+        line.id === `${product.id}-white` || line.id === `${product.id}-gray`
+          ? { ...line, inCart: true }
+          : line
+      )
+    );
   }
-   function removeNoorColor(color: "White" | "Gray") {
+  function removeNoorColor(color: "White" | "Gray") {
     const id = `${product.id}-${color.toLowerCase()}`;
+    const isCommitted = orderLines.find((line) => line.id === id)?.inCart;
 
     setOrderLines((prev) => prev.filter((line) => line.id !== id));
 
-    // Safe even if this color was never actually committed to the
-    // cart yet — removeCartItem is a no-op if the id isn't there.
-    removeCartItem(id);
+    // Only touch the real cart if this line was actually committed —
+    // same reasoning as updateNoorQuantity above.
+    if (isCommitted) {
+      removeCartItem(id);
+    }
 
     if (color === "White") {
       setSelectedNoorWhite(false);
@@ -1400,16 +1450,25 @@ const [plainQuantity, setPlainQuantity] = useState(1);
       setNoorGrayQuantity(safeQuantity);
     }
 
+     const isCommitted = orderLines.find((line) => line.id === id)?.inCart;
+
     setOrderLines((prev) =>
       prev.map((line) =>
         line.id === id ? { ...line, quantity: safeQuantity } : line
       )
     );
 
-    // No-op if this color hasn't been committed via "Add to Cart"
-    // yet (still just staged locally) — otherwise keeps the real
-    // cart in sync, quietly, without popping the drawer open.
-    updateCartItemQuantity(id, safeQuantity);
+    // Only write to the real cart (and let its "cartUpdated" dispatch
+    // fire) if this color was actually committed via "Add to Cart".
+    // Calling updateCartItemQuantity for a line that was never really
+    // added does nothing to the cart itself, but setCart() ALWAYS
+    // dispatches "cartUpdated" regardless — and syncNoorWithCart
+    // would then see "not found in cart" and wrongly treat that as
+    // "removed", wiping the draft selection. This guard is what was
+    // missing.
+    if (isCommitted) {
+      updateCartItemQuantity(id, safeQuantity);
+    }
   }
   
 
@@ -2553,7 +2612,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                           setSelectedNoorWhite(true);
                           setNoorWhiteQuantity(1);
 
-                          setOrderLines((prev) => [
+                         setOrderLines((prev) => [
                             ...prev,
                             {
                               id: `${product.id}-white`,
@@ -2562,6 +2621,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                               price: Number(displayPrice),
                               quantity: 1,
                               image: gallery[0] ?? "",
+                              inCart: false,
                             },
                           ]);
                         }
@@ -2599,6 +2659,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                               price: Number(displayPrice),
                               quantity: 1,
                               image: gallery[0] ?? "",
+                              inCart: false,
                             },
                           ]);
                         }

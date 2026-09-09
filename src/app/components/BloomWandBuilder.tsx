@@ -80,13 +80,13 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
-    const [selectedColorIndex, setSelectedColorIndex] =
+     const [selectedColorIndex, setSelectedColorIndex] =
     useState(0);
 
- // (removed — no longer needed now that the "With Photo" gallery
-  // always shows the generic examples plus the color's own real
-  // photo appended after them, instead of switching between the two)
-  const [selectedOptionIndex, setSelectedOptionIndex] =
+  // Pressing "With Photo" itself should show the 3 generic example
+  // photos by default; only AFTER that, picking a specific color
+  // switches the gallery to that color's own real photo instead.
+   const [selectedOptionIndex, setSelectedOptionIndex] =
     useState(0);
 
   const [selectedImageIndex, setSelectedImageIndex] =
@@ -167,10 +167,10 @@ export default function BloomWandBuilder({
     ? [withoutPhotoOption.image_url]
     : [];
 
-  const colorHasOwnImage = colorOwnImages.length > 0;
+const colorHasOwnImage = colorOwnImages.length > 0;
   const gallery = isWithPhoto
     ? colorHasOwnImage
-      ? [...BLOOM_WAND_WITH_PHOTO_IMAGES, ...colorOwnImages]
+      ? [...colorOwnImages, ...BLOOM_WAND_WITH_PHOTO_IMAGES]
       : BLOOM_WAND_WITH_PHOTO_IMAGES
     : selectedOption?.image_urls?.length
     ? selectedOption.image_urls
@@ -295,13 +295,13 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
-    function handleColorChange(index: number) {
+   function handleColorChange(index: number) {
     const currentOptionName =
       selectedColor?.options?.[
         selectedOptionIndex
       ]?.name;
 
-    setSelectedColorIndex(index);
+     setSelectedColorIndex(index);
 
     const newOptionIndex =
       colors[index]?.options?.findIndex(
@@ -328,7 +328,7 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
- function handleOptionChange(index: number) {
+function handleOptionChange(index: number) {
     setSelectedOptionIndex(index);
     setSelectedImageIndex(0);
     imageRefs.current = [];
@@ -579,10 +579,8 @@ export default function BloomWandBuilder({
               0
           ),
         quantity,
-        image:
-          selectedColor.image_url ??
-          selectedOption.image_url ??
-          previewImage,
+                image:
+          colorOwnImages[0] ?? previewImage,
         photoUrlFront:
           isWithPhoto
             ? frontPhotoUrl ?? undefined
