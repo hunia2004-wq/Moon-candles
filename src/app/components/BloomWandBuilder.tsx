@@ -120,7 +120,8 @@ export default function BloomWandBuilder({
   // below tell "not committed yet" apart from "was committed, then
   // removed from the drawer" (only the latter should disappear from
   // this page).
-  const committedLineIds = useRef<Set<string>>(new Set());
+    const committedLineIds = useRef<Set<string>>(new Set());
+  const scrollSyncing = useRef(false);
   const colors = product.colors ?? [];
 
   const selectedColor =
@@ -153,7 +154,7 @@ export default function BloomWandBuilder({
   // same real solid-color photo used for the color swatches. This is
   // what makes Orange (and Pink/Purple/Red/Yellow/Blue) show a real
   // photo after scrolling, not just White/Green.
-  const withoutPhotoOption = selectedColor?.options?.find(
+    const withoutPhotoOption = selectedColor?.options?.find(
     (o) => o.name === "Without Photo"
   );
 
@@ -167,22 +168,43 @@ export default function BloomWandBuilder({
     ? [withoutPhotoOption.image_url]
     : [];
 
-const colorHasOwnImage = colorOwnImages.length > 0;
-  const gallery = isWithPhoto
-    ? colorHasOwnImage
-      ? [...colorOwnImages, ...BLOOM_WAND_WITH_PHOTO_IMAGES]
-      : BLOOM_WAND_WITH_PHOTO_IMAGES
-    : selectedOption?.image_urls?.length
-    ? selectedOption.image_urls
-    : selectedOption?.image_url
-    ? [selectedOption.image_url]
-    : selectedColor?.image_urls?.length
-    ? selectedColor.image_urls
-    : selectedColor?.image_url
-    ? [selectedColor.image_url]
-    : product.image_urls ?? [];
+  const colorHasOwnImage = colorOwnImages.length > 0;
 
-    const previewImage =
+  // When "Without Photo" is selected, the main gallery scrolls
+  // through EVERY color's own photo in one swipeable strip (same
+  // pattern as Marble Moon on the product page) — each entry
+  // remembers which color it belongs to, so scrolling (or tapping a
+  // swatch) keeps the selected color in sync with whichever photo is
+  // centered. "With Photo" keeps its existing per-color + placeholder
+  // behavior, since spanning colors doesn't apply there.
+  type GalleryItem = { url: string; colorIndex: number };
+
+  const galleryItems: GalleryItem[] = !isWithPhoto
+    ? colors.flatMap((color, colorIndex) => {
+        const matchingOption =
+          color.options?.find((o) => o.name === selectedOption?.name) ??
+          color.options?.[0];
+
+        const urls = matchingOption?.image_urls?.length
+          ? matchingOption.image_urls
+          : matchingOption?.image_url
+          ? [matchingOption.image_url]
+          : color.image_urls?.length
+          ? color.image_urls
+          : color.image_url
+          ? [color.image_url]
+          : [];
+
+        return urls.map((url) => ({ url, colorIndex }));
+      })
+    : (colorHasOwnImage
+        ? [...colorOwnImages, ...BLOOM_WAND_WITH_PHOTO_IMAGES]
+        : BLOOM_WAND_WITH_PHOTO_IMAGES
+      ).map((url) => ({ url, colorIndex: selectedColorIndex }));
+
+  const gallery = galleryItems.map((item) => item.url);
+
+  const previewImage =
     gallery[selectedImageIndex] ??
     gallery[0] ??
     "";
@@ -273,7 +295,15 @@ const colorHasOwnImage = colorOwnImages.length > 0;
    * ============================================================
    */
 
-  useEffect(() => {
+    useEffect(() => {
+    if (scrollSyncing.current) {
+      // This color change came FROM scrolling or a swatch tap that
+      // already scrolled to the right spot — don't fight it by
+      // resetting the scroll position back to the start.
+      scrollSyncing.current = false;
+      return;
+    }
+
     setSelectedImageIndex(0);
 
     imageRefs.current = [];
@@ -295,11 +325,15 @@ const colorHasOwnImage = colorOwnImages.length > 0;
    * ============================================================
    */
 
-   function handleColorChange(index: number) {
+      function handleColorChange(index: number) {
     const currentOptionName =
       selectedColor?.options?.[
         selectedOptionIndex
       ]?.name;
+
+    if (!isWithPhoto) {
+      scrollSyncing.current = true;
+    }
 
      setSelectedColorIndex(index);
 
@@ -318,9 +352,22 @@ const colorHasOwnImage = colorOwnImages.length > 0;
       setSelectedOptionIndex(0);
     }
 
-    setSelectedImageIndex(0);
-    imageRefs.current = [];
+    if (isWithPhoto) {
+      setSelectedImageIndex(0);
+      imageRefs.current = [];
+    } else {
+      const targetIndex = galleryItems.findIndex(
+        (item) => item.colorIndex === index
+      );
+
+      if (targetIndex >= 0) {
+        requestAnimationFrame(() => {
+          scrollToImage(targetIndex);
+        });
+      }
+    }
   }
+ 
 
   /*
    * ============================================================
@@ -389,9 +436,34 @@ function handleOptionChange(index: number) {
       behavior: "smooth",
     });
 
-    setSelectedImageIndex(
+        setSelectedImageIndex(
       safeIndex
     );
+
+    if (!isWithPhoto) {
+      const targetColorIndex = galleryItems[safeIndex]?.colorIndex;
+
+      if (
+        targetColorIndex !== undefined &&
+        targetColorIndex !== selectedColorIndex
+      ) {
+        scrollSyncing.current = true;
+
+        const currentOptionName = selectedOption?.name;
+
+        setSelectedColorIndex(targetColorIndex);
+
+        const newOptionIndex = colors[targetColorIndex]?.options?.findIndex(
+          (option) => option.name === currentOptionName
+        );
+
+        setSelectedOptionIndex(
+          newOptionIndex !== undefined && newOptionIndex >= 0
+            ? newOptionIndex
+            : 0
+        );
+      }
+    }
   }
 
   function handleGalleryScroll() {
@@ -436,9 +508,34 @@ function handleOptionChange(index: number) {
       }
     );
 
-    setSelectedImageIndex(
+        setSelectedImageIndex(
       closestIndex
     );
+
+    if (!isWithPhoto) {
+      const targetColorIndex = galleryItems[closestIndex]?.colorIndex;
+
+      if (
+        targetColorIndex !== undefined &&
+        targetColorIndex !== selectedColorIndex
+      ) {
+        scrollSyncing.current = true;
+
+        const currentOptionName = selectedOption?.name;
+
+        setSelectedColorIndex(targetColorIndex);
+
+        const newOptionIndex = colors[targetColorIndex]?.options?.findIndex(
+          (option) => option.name === currentOptionName
+        );
+
+        setSelectedOptionIndex(
+          newOptionIndex !== undefined && newOptionIndex >= 0
+            ? newOptionIndex
+            : 0
+        );
+      }
+    }
   }
 
   function nextImage() {
@@ -824,7 +921,7 @@ function handleOptionChange(index: number) {
                   </div>
                 )}
 
-                {gallery.length >
+                                {gallery.length >
                   1 && (
                   <>
                     <button
@@ -833,14 +930,15 @@ function handleOptionChange(index: number) {
                         previousImage
                       }
                       aria-label="Previous image"
-                      className="absolute left-1 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-[#EFE3C4]/90 backdrop-blur transition-all hover:-translate-x-1 md:flex"
+                      className="absolute left-3 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full shadow-lg transition-all duration-150 hover:scale-110 active:scale-95 md:flex"
                       style={{
-                        borderColor:
-                          SAND_BORDER,
+                        backgroundColor: ACCENT,
                       }}
                     >
                       <ChevronLeft
-                        size={19}
+                        size={20}
+                        color={CREAM}
+                        strokeWidth={2.5}
                       />
                     </button>
 
@@ -850,14 +948,15 @@ function handleOptionChange(index: number) {
                         nextImage
                       }
                       aria-label="Next image"
-                      className="absolute right-1 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-[#EFE3C4]/90 backdrop-blur transition-all hover:translate-x-1 md:flex"
+                      className="absolute right-3 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full shadow-lg transition-all duration-150 hover:scale-110 active:scale-95 md:flex"
                       style={{
-                        borderColor:
-                          SAND_BORDER,
+                        backgroundColor: ACCENT,
                       }}
                     >
                       <ChevronRight
-                        size={19}
+                        size={20}
+                        color={CREAM}
+                        strokeWidth={2.5}
                       />
                     </button>
                   </>
