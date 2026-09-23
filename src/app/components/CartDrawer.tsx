@@ -320,7 +320,7 @@ export default function CartDrawer() {
                       }
                     </p>
 
-                    {item.color && (
+                                   {item.color && (
                       <p
                         className="mt-0.5 text-[11px]"
                         style={{
@@ -332,18 +332,15 @@ export default function CartDrawer() {
                       </p>
                     )}
 
-                    {item.scent && (
-                      <p
-                        className="mt-0.5 text-[11px]"
-                        style={{
-                          color:
-                            "rgba(0,0,0,0.5)",
-                        }}
-                      >
-                        Scent:{" "}
-                        {item.scent}
-                      </p>
-                    )}
+                                        <p
+                      className="mt-0.5 text-[11px]"
+                      style={{
+                        color:
+                          "rgba(0,0,0,0.5)",
+                      }}
+                    >
+                      {item.scent ?? "Unscented"}
+                    </p>
                   </div>
 
                   {/* QUANTITY + PRICE */}

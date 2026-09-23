@@ -10,7 +10,8 @@ const GIVEAWAY_NAMES = [
   "Tambourine",
   "Fan",
   "Bloom Wand",
-  "fan"
+  "Forever Clasp",
+  "Pocket Hearts",
 ];
 
 export default async function Giveaways() {

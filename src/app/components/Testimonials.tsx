@@ -27,65 +27,59 @@ const REVIEWS: Review[] = [
     stars: 5,
     quote:
       "Hello, I just wanted to thank you so so much for the candle. That's my second order so far and the quality is beyond premium. Both fragrances are really distinguishable and unique! Definitely won't be my last order",
-  },
-  {
-    stars: 5,
-    quote:
-      "BTW, the candles I got last time were absolutely incredible. Everyone who walked into my room couldn't believe the scent was from a candle. They thought I had used an air freshener. Bgd thank you touhfa",
+    name: "Jomana",
   },
   {
     stars: 5,
     quote:
       "I received the candle today and it is more than amazing, seriously!!! Looks and smells amazingggg!! Thank youuu",
-  },
-  {
-    stars: 5,
-    quote:
-      "I have the MATCHA candle ahla candle fel donia tohfa and it smells so gooood",
+    name: "Karma",
   },
   {
     stars: 5,
     quote:
       "Thank you so much, I really love the packaging and everything. I'm really glad that I got to deal with such an amazing business.",
+    name: "Huda",
   },
- 
   {
     stars: 5,
     quote:
       "Hii, el order wesell w mazbout 100%! Well hagaa tohfaaaa. Not the last time AKIDDD!!! Thank youuu",
+    name: "Dahlia",
   },
   {
     stars: 5,
     quote:
       "Your candles are so good that now we officially need you to make us a body butter too. Like why should only the room smell amazing? We deserve to smell just as good. Ana mestanya kda kda",
+    name: "Tasneem",
   },
   {
     stars: 5,
     quote: "Thank you for your help and respect begad. Keep going on the same attitude.",
-  },
-  {
-    stars: 5,
-    quote:
-      "Wesltny mn youmha we shaghltaha we kant tohfa w bayna re7etha",
+    name: "Nouran",
   },
   {
     stars: 5,
     quote: "Just received my order and am really happy about it",
+    name: "Dina",
   },
   {
     stars: 5,
     quote:
       "Habibty, teslam edk bgd tohfaaaa. Smells so so good begad. Both smells awesome. Rabna yewf2k",
-  },
-  {
-    stars: 5,
-    quote:
-      "شكرا حبيبتي استلمت الاوردر و ريحة الكاندل خطيرة دا غير شكلها طبعا",
+    name: "Sagda",
   },
   {
     stars: 5,
     quote:
       "Waslo bgd to7faaaa. Dol fo2 el too7faaa bgd wlhahy 5teraaa",
+    name: "Shahd",
+  },
+{
+    stars: 5,
+    quote:
+      "BTW, the candles I got last time were absolutely incredible. Everyone who walked into my room couldn't believe the scent was from a candle. They thought I had used an air freshener. Bgd thank you touhfa",
+    name: "Tasnim",
   },
 ];
 

@@ -24,13 +24,15 @@ type GalleryItem = {
   colorName: string | null;
   colorIndex: number;
 };
-
 const GIVEAWAY_NAMES = [
   "Mini Candles",
   "Quack and Kiss",
   "Tambourine",
   "Fan",
   "Bloom Wand",
+  "Forever Clasp",
+  "Pocket Hearts",
+  "Rustic Warmth",
 ];
 
 const CUSTOMIZE_ROUTES: Record<string, string> = {
@@ -56,7 +58,7 @@ const TWO_COLOR_PRODUCTS = [
 // Cart button (unlike Fan/Mini Candles, which are customize-only). It
 // also should NOT combine both sizes' photos into one shared gallery —
 // each size's gallery should show only that size's own photos.
-const PLAIN_SELLABLE_GIVEAWAY_NAMES = ["Tambourine"];
+const PLAIN_SELLABLE_GIVEAWAY_NAMES = ["Tambourine", "Forever Clasp", "Pocket Hearts", "Rustic Warmth"];
 
 /*
  * ============================================================
@@ -70,6 +72,10 @@ const COLOR_SCROLL_PRODUCTS = [
   "Marble Moon",
   "Dimple Moon",
   "Iced Latte",
+  "Forever Clasp",
+  "Pocket Hearts",
+  "Rustic Warmth",
+  "Jar Candle",
 ];
 
 // These simple, single-variant candles skip the on-page "Your Order"
@@ -83,6 +89,9 @@ const NO_ORDER_COUNTER_NAMES = [
   "Crystal Glow",
   "Shell",
   "Melt Balm",
+  "Forever Clasp",
+  "Pocket Hearts",
+  "Rustic Warmth",
 ];
 const RIBBON_COLORS = [
   { id: "light-pink", label: "Light Pink", hex: "#F5C6D6" },
@@ -753,6 +762,14 @@ const [plainQuantity, setPlainQuantity] = useState(1);
         galleryColorIndex !==
           selectedColorIndex
       ) {
+        // Mark this as a scroll-originated color change (same as
+        // handleGalleryScroll already does) — otherwise the "reset
+        // gallery on color change" effect thinks this is a fresh
+        // manual pick and snaps scroll position back to 0 right
+        // after we just smooth-scrolled forward, causing the
+        // next-then-snap-back flicker on the arrow buttons/dots.
+        scrollSyncing.current = true;
+
         setSelectedColorIndex(
           galleryColorIndex
         );
@@ -1711,10 +1728,32 @@ useEffect(() => {
    * ============================================================
    */
 
-   function addRegularProductToCart() {
+  function addRegularProductToCart() {
     const productColor = selectedColor?.name ?? productName;
-    const productScent = selectedScent ?? null;
+
+    // Force scent to null whenever "Unscented" is the currently
+    // selected Style option — regardless of whatever's left sitting
+    // in selectedScent state from initialization or a prior pick.
+    const isUnscentedSelected =
+      hasOptions && selectedOption?.name === "Unscented";
+
+    const productScent = isUnscentedSelected
+      ? null
+      : selectedScent ?? null;
+
     const lineId = createLineId(productColor, productScent);
+
+    // For color-scroll products (Marble Moon, Forever Clasp, etc.)
+    // `gallery` spans every color in one swipeable array, so
+    // gallery[0] is always the FIRST color's photo — not necessarily
+    // the one actually selected. Prefer the selected option/color's
+    // own image first, and only fall back to the gallery for
+    // products where gallery genuinely is scoped to one color.
+    const lineImage =
+      selectedOption?.image_url ??
+      selectedColor?.image_url ??
+      gallery[0] ??
+      "";
 
     // Single source of truth for cart writes — addToCart() already
     // finds a line with this exact id and increments its quantity by
@@ -1728,7 +1767,7 @@ useEffect(() => {
       quantity: 1,
       scent: productScent,
       color: productColor,
-      image: gallery[0] ?? "",
+      image: lineImage,
     });
 
     setOrderLines((prev) => {
@@ -1753,10 +1792,11 @@ useEffect(() => {
           scentName: productScent,
           price: Number(displayPrice),
           quantity: 1,
-          image: gallery[0] ?? "",
+          image: lineImage,
         },
       ];
     });
+  
   }
 
   /*
@@ -2020,46 +2060,50 @@ useEffect(() => {
                     No image available
                   </div>
                 )}
-
-                {gallery.length > 1 && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={
-                        previousImage
-                      }
-                      aria-label="Previous image"
-                      className="absolute left-1 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-[#EFE3C4]/90 backdrop-blur transition-all hover:-translate-x-1 md:flex"
-                      style={{
-                        borderColor:
-                          "#D8C9B0",
-                      }}
-                    >
-                      <ChevronLeft
-                        size={19}
-                      />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={
-                        nextImage
-                      }
-                      aria-label="Next image"
-                      className="absolute right-1 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border bg-[#EFE3C4]/90 backdrop-blur transition-all hover:translate-x-1 md:flex"
-                      style={{
-                        borderColor:
-                          "#D8C9B0",
-                      }}
-                    >
-                      <ChevronRight
-                        size={19}
-                      />
-                    </button>
-                  </>
-                )}
               </div>
+
+              {/*
+                Prev/Next arrows live OUTSIDE imageScrollRef (the
+                scrolling container) so they're siblings of it inside
+                the non-scrolling outer wrapper instead. They used to
+                be positioned absolute INSIDE the scroll container
+                itself — since that container also has position:
+                relative, the buttons' absolute positioning was
+                anchored to the scrollable CONTENT, not the visible
+                viewport, so they scrolled away with the images and
+                only looked correct on the very first photo.
+              */}
+              {gallery.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={previousImage}
+                    aria-label="Previous image"
+                    className="absolute left-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 shadow-lg backdrop-blur transition-all duration-200 hover:scale-110 hover:shadow-xl active:scale-95"
+                    style={{
+                      border: "1px solid rgba(0,0,0,0.06)",
+                      color: accent,
+                    }}
+                  >
+                    <ChevronLeft size={20} strokeWidth={2.2} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={nextImage}
+                    aria-label="Next image"
+                    className="absolute right-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 shadow-lg backdrop-blur transition-all duration-200 hover:scale-110 hover:shadow-xl active:scale-95"
+                    style={{
+                      border: "1px solid rgba(0,0,0,0.06)",
+                      color: accent,
+                    }}
+                  >
+                    <ChevronRight size={20} strokeWidth={2.2} />
+                  </button>
+                </>
+              )}
             </div>
+       =
 
             {/* ==================================================
                 ACTIVE COLOR
@@ -2090,14 +2134,16 @@ useEffect(() => {
 
             <div className="mt-3 flex flex-col items-center text-center">
 
-              <p
-                className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em]"
-                style={{
-                  color: accent,
-                }}
-              >
-                Handpoured With Love
-              </p>
+                            {productName !== "Rustic Warmth" && (
+                <p
+                  className="mb-1 text-[9px] font-bold uppercase tracking-[0.22em]"
+                  style={{
+                    color: accent,
+                  }}
+                >
+                  Handpoured With Love
+                </p>
+              )}
 
               <h1
                 className="max-w-xl px-3 text-3xl font-bold uppercase leading-[1.1] tracking-wide md:text-5xl"
@@ -2405,79 +2451,7 @@ useEffect(() => {
   </div>
 )}
 
-            {/* ==================================================
-                OPTIONS
-                ================================================== */}
-
-            {/* ==================================================
-                OPTIONS
-                ================================================== */}
-
-            {hasOptions &&
-              !isTwoColorProduct && (
-                <div className="mt-5">
-
-                  <p
-                    className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
-                    style={{
-                      color:
-                        accent,
-                    }}
-                  >
-                    Style
-                  </p>
-
-                  <div className="flex flex-wrap gap-2">
-                    {selectedColor!.options!.map(
-                      (
-                        option,
-                        index
-                      ) => {
-                        const isSelected =
-                          index ===
-                          selectedOptionIndex;
-
-                        return (
-                                                    <button
-                            key={`${option.name}-${index}`}
-                            type="button"
-                            onClick={() => {
-                              setSelectedOptionIndex(
-                                index
-                              );
-
-                              setSelectedImageIndex(
-                                0
-                              );
-
-                              imageRefs.current =
-                                [];
-                            }}
-                            className="rounded-full border px-5 py-2.5 text-xs font-semibold uppercase tracking-wide transition-all duration-200 hover:-translate-y-0.5"
-                            style={{
-                              backgroundColor:
-                                isSelected
-                                  ? accent
-                                  : "transparent",
-                              color:
-                                isSelected
-                                  ? "#FFF4E6"
-                                  : "#000000",
-                              borderColor:
-                                accent,
-                            }}
-                          >
-                            {
-                              option.name
-                            }
-                          </button>
-                        );
-                      }
-                    )}
-                  </div>
-                </div>
-              )}
-          </section>
+                      </section>
 
           {/* ================================================== */}
           {/* RIGHT */}
@@ -2485,7 +2459,7 @@ useEffect(() => {
 
           <section className="flex flex-col lg:pt-6">
 
-            {product.description && (
+                        {product.description && (
               <p
                 className="mt-1 max-w-lg text-sm leading-7"
                 style={{
@@ -2500,11 +2474,54 @@ useEffect(() => {
             )}
 
             {/* ==================================================
+                OPTIONS (STYLE — Unscented / Scented, etc.)
+                ================================================== */}
+
+            {hasOptions && !isTwoColorProduct && (
+              <div className="mt-5">
+                <p
+                  className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+                  style={{ color: accent }}
+                >
+                  Style
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  {selectedColor!.options!.map((option, index) => {
+                    const isSelected = index === selectedOptionIndex;
+
+                    return (
+                      <button
+                        key={`${option.name}-${index}`}
+                        type="button"
+                        onClick={() => {
+                          setSelectedOptionIndex(index);
+                          setSelectedImageIndex(0);
+                          imageRefs.current = [];
+                        }}
+                        className="rounded-full border px-5 py-2.5 text-xs font-semibold uppercase tracking-wide transition-all duration-200 hover:-translate-y-0.5"
+                        style={{
+                          backgroundColor: isSelected
+                            ? accent
+                            : "transparent",
+                          color: isSelected ? "#FFF4E6" : "#000000",
+                          borderColor: accent,
+                        }}
+                      >
+                        {option.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ==================================================
                 SCENT
                 ================================================== */}
 
-                     {!customizeOnly &&
-  !isGiveaway &&
+                          {!customizeOnly &&
+  (!isGiveaway || selectedOption?.name === "Scented") &&
   !isQuackAndKiss &&
   !isTwoColorProduct && (
                 <div className="mt-5">

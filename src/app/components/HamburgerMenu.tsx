@@ -12,6 +12,7 @@ const SHOP_ITEMS = [
   { name: "Crystal Glow", slug: "TEST-CRYSTAL" },
   { name: "Melt Balm", slug: "melt-balm" },
   { name: "Shell", slug: "shell" },
+  { name: "Jar Candle", slug: "jar-candle" },
 ];
 
 const GIVEAWAY_ITEMS = [
@@ -20,6 +21,9 @@ const GIVEAWAY_ITEMS = [
   { name: "Tambourine", slug: "Tambourine" },
   { name: "Fan", slug: "fan" },
   { name: "Bloom Wand", slug: "bloom-wand" },
+  { name: "Forever Clasp", slug: "forever-clasp" },
+  { name: "Pocket Hearts", slug: "Pocket Hearts" },
+  { name: "Rustic Warmth", slug: "rustic-warmth" },
 ];
 
 export default function HamburgerMenu() {

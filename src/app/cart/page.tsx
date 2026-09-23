@@ -182,27 +182,24 @@ export default function CartPage() {
                       </div>
 
                       {/* Color / scent — full width, one line each */}
-                      {(item.color || item.scent) && (
-                        <div className="flex flex-col gap-0.5">
-                          {item.color && (
-                            <p
-                              className="whitespace-nowrap text-[11px]"
-                              style={{ color: "rgba(0,0,0,0.5)" }}
-                            >
-                              Color: {item.color}
-                            </p>
-                          )}
+                                            {/* Color / scent — full width, one line each */}
+                      <div className="flex flex-col gap-0.5">
+                        {item.color && (
+                          <p
+                            className="whitespace-nowrap text-[11px]"
+                            style={{ color: "rgba(0,0,0,0.5)" }}
+                          >
+                            Color: {item.color}
+                          </p>
+                        )}
 
-                          {item.scent && (
-                            <p
-                              className="whitespace-nowrap text-[11px]"
-                              style={{ color: "rgba(0,0,0,0.5)" }}
-                            >
-                              Scent: {item.scent}
-                            </p>
-                          )}
-                        </div>
-                      )}
+                        <p
+                          className="whitespace-nowrap text-[11px]"
+                          style={{ color: "rgba(0,0,0,0.5)" }}
+                        >
+                          {item.scent ?? "Unscented"}
+                        </p>
+                      </div>
 
                       {/* Quantity + price, on their own row */}
                       <div className="flex items-center justify-between">

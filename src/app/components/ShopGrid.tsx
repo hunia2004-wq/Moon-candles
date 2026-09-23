@@ -16,6 +16,13 @@ const GIVEAWAY_NAMES = [
   "Bloom Wand",
   "fan"
 ];
+// These products don't have one fixed price — show a range instead of
+// product.price. Matched case-insensitively against product.name.
+const PRICE_RANGE_OVERRIDES: Record<string, string> = {
+  "forever clasp": "85-95 EGP",
+  "pocket hearts": "40-50 EGP",
+  "rustic warmth": "65-75 EGP",
+};
 export default function ShopGrid({ products, accent = "#657A55" }: { products: Product[]; accent?: string }) {
   const searchParams = useSearchParams();
   const targetProduct = searchParams.get("product");
@@ -80,8 +87,8 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
                 {product.name}
               </p>
               <p className="text-sm font-medium" style={{ color: accent }}>
-                {product.price} EGP
-              </p>
+  {PRICE_RANGE_OVERRIDES[product.name.toLowerCase()] ?? `${product.price} EGP`}
+</p>
             </div>
           </Link>
         );
