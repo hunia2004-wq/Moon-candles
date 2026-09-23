@@ -11,11 +11,9 @@ export type TambourineCustomization = {
 
 export type FanCustomization = {
   type: "customized-fan";
-  size: "small";
-  sizeCm: 12;
-  ribbonColor: string;
+  tasselLabel: string;
   tasselColor: string;
-  layers: unknown[];
+  layersBySide: unknown;
 };
 
 export type CartItem = {

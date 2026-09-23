@@ -480,8 +480,6 @@ export default function CustomizeFanPage() {
   const patternFileInputRef =
     useRef<HTMLInputElement>(null);
 
-  
-
   const cartSnapshotRef =
     useRef<string>("");
 
@@ -510,11 +508,11 @@ export default function CustomizeFanPage() {
   );
 
   /* -------------------------------------------------------------- */
-  /* CART -> PREVIEW SYNCHRONIZATION                               */
+  /* CART -> PREVIEW SYNCHRONIZATION                                */
   /* -------------------------------------------------------------- */
 
   useEffect(() => {
-           function syncFanOrderWithCart() {
+    function syncFanOrderWithCart() {
       const cart = getCart();
 
       const cartFanLines = cart.filter(
@@ -538,10 +536,6 @@ export default function CustomizeFanPage() {
         cartSnapshotRef.current = "";
       }
 
-      // Every line marked inCart is kept in sync with the cart's own
-      // quantity, and dropped the moment it's no longer in the cart.
-      // This reads directly off the cart — no separate ref to fall out
-      // of sync.
       setFanOrderLines((prev) =>
         prev
           .map((line) => {
@@ -634,11 +628,6 @@ export default function CustomizeFanPage() {
   useEffect(() => {
     const cart = getCart();
 
-    /*
-     * IMPORTANT:
-     * We narrow customization to customized-fan
-     * before accessing tasselColor.
-     */
     const existingFanLines: FanOrderLine[] =
       cart
         .filter(
@@ -659,7 +648,7 @@ export default function CustomizeFanPage() {
             return null;
           }
 
-                   return {
+          return {
             id: item.id,
             tasselColor:
               customization.tasselColor,
@@ -725,6 +714,7 @@ export default function CustomizeFanPage() {
     role: "monogram" | "message"
   ) {
     const id = makeId();
+    const z = nextZ.current++;
 
     setLayers((prev) => [
       ...prev,
@@ -732,1911 +722,248 @@ export default function CustomizeFanPage() {
         id,
         type: "text",
         role,
-        content:
-          role === "monogram"
-            ? "Y & J"
-            : "Your message",
-        fontSize:
-          role === "monogram"
-            ? 20
-            : 13,
-        font:
-          role === "monogram"
-            ? "playfair"
-            : "poppins",
+        content: role === "monogram" ? "H & M" : "Your Special Day",
+        fontSize: role === "monogram" ? 36 : 24,
+        font: "vibes",
         color: "#000000",
-        bgColor: "#FFFFFF",
+        bgColor: null,
         bgShape: "rectangle",
-        x: 50,
-        y:
-          role === "monogram"
-            ? 42
-            : 70,
+        x: 0,
+        y: role === "monogram" ? -30 : 30,
         scale: 1,
         rotation: 0,
-        z: nextZ.current++,
+        z,
       },
     ]);
 
     setSelectedId(id);
   }
 
-  /* -------------------------------------------------------------- */
-  /* ADD FILL                                                       */
-  /* -------------------------------------------------------------- */
-
-  function addFill() {
+  function addPattern(src: string) {
     const id = makeId();
+    const z = nextZ.current++;
 
     setLayers((prev) => [
-      ...prev,
-      {
-        id,
-        type: "fill",
-        colors: [ACCENT],
-        x: 50,
-        y: 50,
-        scale: 1,
-        rotation: 0,
-        z: 0,
-      },
-    ]);
-
-    setSelectedId(id);
-  }
-
-  /* -------------------------------------------------------------- */
-  /* UPLOAD PATTERN                                                 */
-  /* -------------------------------------------------------------- */
-
-  function handlePatternUpload(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const file =
-      e.target.files?.[0];
-
-    if (!file) return;
-
-    if (
-      file.size >
-      8 * 1024 * 1024
-    ) {
-      alert(
-        "Please choose an image under 8MB."
-      );
-      return;
-    }
-
-    const url =
-      URL.createObjectURL(file);
-
-    const id = makeId();
-
-    setLayers((prev) => [
-      ...prev,
+      ...prev.filter((l) => l.type !== "pattern" && l.type !== "fill"),
       {
         id,
         type: "pattern",
-        src: url,
+        src,
         tint: null,
-        x: 50,
-        y: 50,
+        x: 0,
+        y: 0,
         scale: 1,
         rotation: 0,
-        z: 0,
+        z,
       },
     ]);
 
     setSelectedId(id);
-
-    e.target.value = "";
   }
 
-  /* -------------------------------------------------------------- */
-  /* APPLY TO BOTH SIDES                                            */
-  /* -------------------------------------------------------------- */
+  function addSolidFill(colors: string[]) {
+    const id = makeId();
+    const z = nextZ.current++;
 
-  function applyToBothSides(
-    layer: Layer
-  ) {
-    const copy = {
-      ...layer,
-      id: makeId(),
-      z:
-        layer.type === "text"
-          ? nextZ.current++
-          : 0,
-    } as Layer;
+    setLayers((prev) => [
+      ...prev.filter((l) => l.type !== "pattern" && l.type !== "fill"),
+      {
+        id,
+        type: "fill",
+        colors,
+        x: 0,
+        y: 0,
+        scale: 1,
+        rotation: 0,
+        z,
+      },
+    ]);
 
-    setLayersBySide((prev) => ({
-      ...prev,
-      [otherSide]:
-        layer.type === "text"
-          ? [
-              ...prev[otherSide],
-              copy,
-            ]
-          : [
-              ...prev[otherSide].filter(
-                (l) =>
-                  l.type !== layer.type
-              ),
-              copy,
-            ],
-    }));
+    setSelectedId(id);
   }
 
-  /* -------------------------------------------------------------- */
-  /* UPDATE LAYER                                                   */
-  /* -------------------------------------------------------------- */
+  function handleAddToCart() {
+    const currentTassel = TASSEL_COLORS.find(
+      (t) => t.id === selectedTassel
+    ) ?? TASSEL_COLORS[0];
 
-  function updateLayer(
-    id: string,
-    patch: Partial<Layer>
-  ) {
-    setLayers((prev) =>
-      prev.map((l) =>
-        l.id === id
-          ? ({
-              ...l,
-              ...patch,
-            } as Layer)
-          : l
-      )
-    );
-  }
+    const newItemId = makeId();
 
-  /* -------------------------------------------------------------- */
-  /* REMOVE LAYER                                                   */
-  /* -------------------------------------------------------------- */
-
-  function removeLayer(id: string) {
-    setLayers((prev) =>
-      prev.filter(
-        (l) => l.id !== id
-      )
-    );
-
-    if (selectedId === id) {
-      setSelectedId(null);
-    }
-  }
-
-  /* -------------------------------------------------------------- */
-  /* FILL COLORS                                                    */
-  /* -------------------------------------------------------------- */
-
-  function addFillColor(id: string) {
-    setLayers((prev) =>
-      prev.map((l) =>
-        l.id === id &&
-        l.type === "fill"
-          ? {
-              ...l,
-              colors: [
-                ...l.colors,
-                "#FFFFFF",
-              ],
-            }
-          : l
-      )
-    );
-  }
-
-  function updateFillColor(
-    id: string,
-    index: number,
-    color: string
-  ) {
-    setLayers((prev) =>
-      prev.map((l) => {
-        if (
-          l.id !== id ||
-          l.type !== "fill"
-        ) {
-          return l;
-        }
-
-        const colors = [
-          ...l.colors,
-        ];
-
-        colors[index] = color;
-
-        return {
-          ...l,
-          colors,
-        };
-      })
-    );
-  }
-
-  function removeFillColor(
-    id: string,
-    index: number
-  ) {
-    setLayers((prev) =>
-      prev.map((l) => {
-        if (
-          l.id !== id ||
-          l.type !== "fill"
-        ) {
-          return l;
-        }
-
-        if (
-          l.colors.length <= 1
-        ) {
-          return l;
-        }
-
-        return {
-          ...l,
-          colors:
-            l.colors.filter(
-              (_, i) =>
-                i !== index
-            ),
-        };
-      })
-    );
-  }
-
-  /* -------------------------------------------------------------- */
-  /* ADD FAN LINE TO PREVIEW ORDER                                  */
-  /* -------------------------------------------------------------- */
-
-  function addFanLineToOrder() {
-    const lineId =
-      `fan-${selectedTassel}`;
-
-    setFanOrderLines((prev) => {
-      const existingIndex =
-        prev.findIndex(
-          (line) =>
-            line.id === lineId
-        );
-
-      if (
-        existingIndex !== -1
-      ) {
-        const updated = [
-          ...prev,
-        ];
-
-        updated[
-          existingIndex
-        ] = {
-          ...updated[
-            existingIndex
-          ],
-          quantity:
-            updated[
-              existingIndex
-            ].quantity +
-            quantity,
-        };
-
-        return updated;
-      }
-
-            return [
-        ...prev,
-        {
-          id: lineId,
-          tasselColor:
-            selectedTassel,
-          quantity,
-          inCart: false,
-        },
-      ];
+    addToCart({
+  id: newItemId,
+  productId: "fan",
+  productName: "Customized Hand Fan",
+  price: PRICE,
+  quantity,
+  scent: null,
+  color: null,
+  image: FAN_IMG,
+      customization: {
+        type: "customized-fan",
+        tasselColor: selectedTassel,
+        tasselLabel: currentTassel.label,
+        layersBySide,
+      },
     });
 
-    setQuantity(1);
-  }
-
-  /* -------------------------------------------------------------- */
-  /* UPDATE FAN LINE QUANTITY                                       */
-  /* -------------------------------------------------------------- */
-
-  function updateFanLineQuantity(
-    lineId: string,
-    newQuantity: number
-  ) {
-    if (newQuantity <= 0) {
-      removeFanLine(lineId);
-      return;
-    }
-
-    const safeQuantity =
-      Math.max(
-        1,
-        newQuantity
-      );
-
-       const existingLine = fanOrderLines.find(
-      (l) => l.id === lineId
-    );
-
-    setFanOrderLines(
-      (prev) =>
-        prev.map((line) =>
-          line.id === lineId
-            ? {
-                ...line,
-                quantity:
-                  safeQuantity,
-              }
-            : line
-        )
-    );
-
-    if (existingLine?.inCart) {
-      updateCartItemQuantity(
-        lineId,
-        safeQuantity
-      );
-    }
-  }
-
-  /* -------------------------------------------------------------- */
-  /* REMOVE FAN LINE                                                */
-  /* -------------------------------------------------------------- */
-
-  function removeFanLine(
-    lineId: string
-  ) {
-    setFanOrderLines(
-      (prev) =>
-        prev.filter(
-          (line) =>
-            line.id !== lineId
-        )
-    );
-
-       removeCartItem(lineId);
-  }
-
-  /* -------------------------------------------------------------- */
-  /* COMMIT FAN ORDER TO CART                                       */
-  /* -------------------------------------------------------------- */
-
-  function addFanToCart() {
-    if (!fanOrderLines.length) {
-      return;
-    }
-
-    const currentCart = getCart();
-
-    fanOrderLines.forEach(
-      (line) => {
-        const tasselLabel =
-          TASSEL_COLORS.find(
-            (c) =>
-              c.id ===
-              line.tasselColor
-          )!.label;
-
-          const existing =
-          currentCart.find(
-            (item) =>
-              item.id ===
-              line.id
-          );
-
-        if (existing) {
-          updateCartItemQuantity(
-            line.id,
-            line.quantity
-          );
-
-          return;
-        }
-
-        addToCart({
-          id: line.id,
-          productId: "fan",
-          productName: "Fan",
-          price: PRICE,
-          quantity: line.quantity,
-          scent: null,
-          color:
-            `${tasselLabel} Tassel`,
-          image: FAN_IMG,
-          customization: {
-            type: "customized-fan",
-            size: "small",
-            sizeCm: 12,
-            ribbonColor: "",
-            tasselColor:
-              line.tasselColor,
-            layers: [
-              ...layersBySide.front,
-              ...layersBySide.back,
-            ],
-          },
-        });
-      }
-    );
-
-            setFanOrderLines((prev) =>
-      prev.map((line) => ({
-        ...line,
+    setFanOrderLines((prev) => [
+      ...prev,
+      {
+        id: newItemId,
+        tasselColor: selectedTassel,
+        quantity,
         inCart: true,
-      }))
-    );
-
-    cartSnapshotRef.current =
-      JSON.stringify(getCart());
-
-    window.dispatchEvent(new Event("openCart"));
+      },
+    ]);
 
     setAddedToCart(true);
-
-    setQuantity(1);
-
-    setTimeout(() => {
-      setAddedToCart(false);
-    }, 2000);
+    setTimeout(() => setAddedToCart(false), 2500);
   }
 
-  const selectedLayer =
-    layers.find(
-      (l) =>
-        l.id === selectedId
-    ) ?? null;
-
-  /* -------------------------------------------------------------- */
-  /* BACKGROUND SHAPE STYLE                                        */
-  /* -------------------------------------------------------------- */
-
-  function bgShapeStyle(
-    shape: TextLayer["bgShape"],
-    hasContent: boolean
-  ): React.CSSProperties {
-    if (!hasContent) {
-      return {};
-    }
-
-    switch (shape) {
-      case "circle":
-        return {
-          borderRadius: "50%",
-          aspectRatio: "1 / 1",
-          padding: "18px 14px",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-        };
-
-      case "pill":
-        return {
-          borderRadius: 999,
-          padding: "6px 16px",
-        };
-
-      case "ribbon":
-        return {
-          padding: "6px 22px",
-          clipPath:
-            "polygon(6% 0%, 94% 0%, 100% 50%, 94% 100%, 6% 100%, 0% 50%)",
-        };
-
-      case "diamond":
-        return {
-          aspectRatio: "1 / 1",
-          padding: "22px 20px",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          clipPath:
-            "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
-        };
-
-      case "hexagon":
-        return {
-          padding: "14px 22px",
-          clipPath:
-            "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)",
-        };
-
-      case "arch":
-        return {
-          padding:
-            "10px 18px 6px",
-          borderRadius:
-            "999px 999px 6px 6px",
-        };
-
-      case "heart":
-        return {
-          aspectRatio: "1 / 1",
-          padding:
-            "10px 16px 12px",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          clipPath:
-            "polygon(50.0% 23.9%, 50.2% 22.2%, 51.5% 17.5%, 54.7% 11.3%, 60.2% 5.2%, 67.7% 1.0%, 76.5% 0.0%, 85.4% 2.7%, 93.0% 8.7%, 98.2% 17.3%, 100.0% 27.3%, 98.2% 37.7%, 93.0% 47.7%, 85.4% 57.2%, 76.5% 66.0%, 67.7% 74.4%, 60.2% 82.3%, 54.7% 89.3%, 51.5% 95.0%, 50.2% 98.7%, 50.0% 100.0%, 49.8% 98.7%, 48.5% 95.0%, 45.3% 89.3%, 39.8% 82.3%, 32.3% 74.4%, 23.5% 66.0%, 14.6% 57.2%, 7.0% 47.7%, 1.8% 37.7%, 0.0% 27.3%, 1.8% 17.3%, 7.0% 8.7%, 14.6% 2.7%, 23.5% 0.0%, 32.3% 1.0%, 39.8% 5.2%, 45.3% 11.3%, 48.5% 17.5%, 49.8% 22.2%)",
-        };
-
-      case "octagon":
-        return {
-          padding: "12px 16px",
-          clipPath:
-            "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)",
-        };
-
-      case "cloud":
-        return {
-          padding: "16px 20px",
-          borderRadius:
-            "40% 60% 55% 45% / 55% 45% 55% 45%",
-        };
-
-      case "rectangle":
-      default:
-        return {
-          borderRadius: 8,
-          padding: "4px 10px",
-        };
-    }
-  }
-
-  /* -------------------------------------------------------------- */
-  /* RENDER LAYER                                                   */
-  /* -------------------------------------------------------------- */
-
-  function renderLayer(
-    layer: Layer,
-    interactive: boolean
-  ) {
-    const isSelected =
-      interactive &&
-      layer.id === selectedId;
-
-    const frameStyle: React.CSSProperties =
-      {
-        position: "absolute",
-        inset: 0,
-        outline: isSelected
-          ? `1.5px dashed ${ACCENT}`
-          : "none",
-        outlineOffset: "4px",
-        clipPath:
-          "inset(0% 0% 24% 0%)",
-      };
-
-    const maskWrapperStyle: React.CSSProperties =
-      {
-        width: "100%",
-        height: "100%",
-        WebkitMaskImage: `url(${FAN_IMG})`,
-        maskImage: `url(${FAN_IMG})`,
-        WebkitMaskSize:
-          "100% 100%",
-        maskSize: "100% 100%",
-        WebkitMaskRepeat:
-          "no-repeat",
-        maskRepeat: "no-repeat",
-        WebkitMaskPosition:
-          "center",
-        maskPosition: "center",
-        position: "relative",
-        isolation: "isolate",
-      };
-
-    if (layer.type === "fill") {
-      const background =
-        layer.colors.length === 1
-          ? layer.colors[0]
-          : `linear-gradient(135deg, ${layer.colors.join(
-              ", "
-            )})`;
-
-      return (
-        <div
-          key={layer.id}
-          onClick={
-            interactive
-              ? () =>
-                  setSelectedId(
-                    layer.id
-                  )
-              : undefined
-          }
-          style={{
-            ...frameStyle,
-            cursor: interactive
-              ? "pointer"
-              : "default",
-          }}
-        >
-          <div
-            style={{
-              ...maskWrapperStyle,
-              background,
-            }}
-          />
+  return (
+    <div className="mx-auto flex min-h-screen max-w-7xl flex-col bg-[#FDFBF7] px-4 py-6">
+      <header className="mb-6 flex items-center justify-between border-b pb-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-neutral-900">
+            Design Your Custom Hand Fan
+          </h1>
+          <p className="text-sm text-neutral-500">
+            Personalize both sides with text, patterns, or solid fills.
+          </p>
         </div>
-      );
-    }
 
-    if (layer.type === "pattern") {
-      const zoom =
-        layer.scale;
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActiveSide(activeSide === "front" ? "back" : "front")}
+            className="rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm transition hover:bg-neutral-50"
+          >
+            Editing: <span className="capitalize text-[#DE4B33]">{activeSide}</span> (Switch to {otherSide})
+          </button>
+        </div>
+      </header>
 
-      const maxPanPct =
-        (zoom - 1) * 50;
-
-      const offsetX =
-        ((layer.x - 50) / 50) *
-        maxPanPct;
-
-      const offsetY =
-        ((layer.y - 50) / 50) *
-        maxPanPct;
-
-      return (
-        <div
-          key={layer.id}
-          onPointerDown={
-            interactive
-              ? gestures.onPointerDown(
-                  layer.id,
-                  stageRef.current,
-                  PATTERN_SCALE_OPTS
-                )
-              : undefined
-          }
-          onPointerMove={
-            interactive
-              ? gestures.onPointerMove(
-                  stageRef.current
-                )
-              : undefined
-          }
-          onPointerUp={
-            interactive
-              ? gestures.onPointerUp
-              : undefined
-          }
-          onWheel={
-            interactive
-              ? gestures.onWheelZoom(
-                  layer.id,
-                  PATTERN_SCALE_OPTS
-                )
-              : undefined
-          }
-          style={{
-            ...frameStyle,
-            cursor: interactive
-              ? "grab"
-              : "default",
-            touchAction: "none",
-          }}
-        >
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        {/* Preview / Stage Canvas Area */}
+        <div className="flex flex-col items-center justify-center lg:col-span-7">
           <div
-            style={
-              maskWrapperStyle
-            }
+            ref={stageRef}
+            className="relative flex h-[500px] w-full max-w-[420px] items-center justify-center overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-inner"
           >
             <img
-              src={layer.src}
-              alt="Your uploaded pattern"
-              draggable={false}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                transform:
-                  `translate(${offsetX}%, ${offsetY}%) scale(${zoom})`,
-                transformOrigin:
-                  "center center",
-              }}
+              src={FAN_IMG}
+              alt="Custom Fan Base"
+              className="pointer-events-none absolute inset-0 h-full w-full object-contain p-6"
             />
-
-            {layer.tint && (
-              <div
-                style={{
-                  position:
-                    "absolute",
-                  inset: 0,
-                  backgroundColor:
-                    layer.tint,
-                  mixBlendMode:
-                    "color",
-                  opacity: 0.85,
-                }}
-              />
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    const commonStyle: React.CSSProperties =
-      {
-        position: "absolute",
-        left: `${layer.x}%`,
-        top: `${layer.y}%`,
-        transform:
-          `translate(-50%, -50%) scale(${layer.scale})`,
-        cursor: interactive
-          ? "grab"
-          : "default",
-        outline: isSelected
-          ? `1.5px dashed ${ACCENT}`
-          : "none",
-        outlineOffset: "4px",
-        touchAction:
-          interactive
-            ? "none"
-            : undefined,
-      };
-
-    const hasBg =
-      !!layer.bgColor;
-
-    const fontDef =
-      getFont(layer.font);
-
-    return (
-      <div
-        key={layer.id}
-        onPointerDown={
-          interactive
-            ? gestures.onPointerDown(
-                layer.id,
-                stageRef.current
-              )
-            : undefined
-        }
-        onPointerMove={
-          interactive
-            ? gestures.onPointerMove(
-                stageRef.current
-              )
-            : undefined
-        }
-        onPointerUp={
-          interactive
-            ? gestures.onPointerUp
-            : undefined
-        }
-        onWheel={
-          interactive
-            ? gestures.onWheelZoom(
-                layer.id
-              )
-            : undefined
-        }
-        className={
-          fontDef.className
-        }
-        style={{
-          ...commonStyle,
-          fontSize:
-            layer.fontSize,
-          fontWeight:
-            layer.role ===
-            "monogram"
-              ? 700
-              : 500,
-          color: layer.color,
-          whiteSpace:
-            "nowrap",
-          backgroundColor:
-            layer.bgColor ??
-            "transparent",
-          boxShadow: hasBg
-            ? "0 1px 4px rgba(0,0,0,0.15)"
-            : "none",
-          textShadow: hasBg
-            ? "none"
-            : "0 1px 2px rgba(255,255,255,0.6)",
-          ...bgShapeStyle(
-            layer.bgShape,
-            hasBg
-          ),
-        }}
-      >
-        {layer.content}
-      </div>
-    );
-  }
-
-  /* -------------------------------------------------------------- */
-  /* JSX                                                            */
-  /* -------------------------------------------------------------- */
-
-  return (
-    <div
-      style={{
-        backgroundColor:
-          "#FFF4E6",
-      }}
-      className="w-full min-h-screen"
-    >
-      <div className="flex flex-col items-center px-6 py-8">
-
-        <div className="flex gap-2 mb-4">
-          {(["front", "back"] as SideId[]).map(
-            (id) => (
-              <button
-                key={id}
-                onClick={() => {
-                  setActiveSide(id);
-                  setSelectedId(null);
-                }}
-                className="rounded-full px-5 py-2 text-xs font-semibold uppercase tracking-wide transition-all duration-150 hover:scale-[1.03] active:scale-[0.97]"
-                style={{
-                  backgroundColor:
-                    activeSide === id
-                      ? ACCENT
-                      : "#FFFFFF",
-                  color:
-                    activeSide === id
-                      ? "#FFF4E6"
-                      : ACCENT,
-                  border:
-                    `1px solid ${ACCENT}`,
-                }}
-              >
-                {id === "front"
-                  ? "Front"
-                  : "Back"}
-              </button>
-            )
-          )}
-        </div>
-
-        <div
-          ref={stageRef}
-          className="relative w-full max-w-[300px] md:max-w-[380px] touch-none select-none"
-          onClick={(e) => {
-            if (
-              e.target ===
-              stageRef.current
-            ) {
-              setSelectedId(null);
-            }
-          }}
-        >
-          <img
-            src={FAN_IMG}
-            alt={`Fan — ${activeSide}`}
-            className="w-full h-auto pointer-events-none"
-            draggable={false}
-          />
-
-          {layers
-            .slice()
-            .sort(
-              (a, b) =>
-                a.z - b.z
-            )
-            .map((layer) =>
-              renderLayer(
-                layer,
-                true
-              )
-            )}
-        </div>
-
-        {selectedLayer && (
-          <div
-            className="mt-4 flex w-full max-w-[320px] flex-col gap-3 rounded-xl px-4 py-3"
-            style={{
-              backgroundColor:
-                "#EFE3C4",
-            }}
-          >
-            <button
-              onClick={
-                gestures.undo
-              }
-              disabled={
-                !gestures.canUndo()
-              }
-              className="text-left text-xs font-medium underline disabled:opacity-30"
-              style={{
-                color: ACCENT,
-              }}
-            >
-              ↺ Undo
-            </button>
-
-            {selectedLayer.type ===
-              "text" && (
-              <>
-                <input
-                  value={
-                    selectedLayer.content
-                  }
-                  onChange={(e) =>
-                    updateLayer(
-                      selectedLayer.id,
-                      {
-                        content:
-                          e.target
-                            .value,
-                      }
-                    )
-                  }
-                  className="w-full rounded-lg px-3 py-2 text-sm"
-                  style={{
-                    border:
-                      `1px solid ${ACCENT}`,
-                    backgroundColor:
-                      "#FFFFFF",
-                    color:
-                      "#000000",
-                  }}
-                  placeholder={
-                    selectedLayer.role ===
-                    "monogram"
-                      ? "Your initials"
-                      : "Your message"
-                  }
-                />
-
-                <div>
-                  <span
-                    className="mb-1.5 block text-[11px] font-medium"
-                    style={{
-                      color:
-                        "rgba(0,0,0,0.55)",
-                    }}
-                  >
-                    Font
-                  </span>
-
-                  <FontPicker
-                    value={
-                      selectedLayer.font
-                    }
-                    previewText={
-                      selectedLayer.content
-                    }
-                    onChange={(f) =>
-                      updateLayer(
-                        selectedLayer.id,
-                        {
-                          font: f,
-                        }
-                      )
-                    }
-                  />
-                </div>
-              </>
-            )}
-
-            {selectedLayer.type ===
-              "fill" && (
-              <div className="flex flex-col gap-2">
-                <span
-                  className="text-[11px]"
-                  style={{
-                    color:
-                      "rgba(0,0,0,0.55)",
-                  }}
-                >
-                  {selectedLayer
-                    .colors
-                    .length === 1
-                    ? "Color"
-                    : "Colors (blended)"}
-                </span>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  {selectedLayer.colors.map(
-                    (c, i) => (
-                      <div
-                        key={i}
-                        className="relative"
-                      >
-                        <ColorWheelPicker
-                          value={c}
-                          onChange={(
-                            newC
-                          ) =>
-                            updateFillColor(
-                              selectedLayer.id,
-                              i,
-                              newC
-                            )
-                          }
-                        />
-
-                        {selectedLayer
-                          .colors
-                          .length >
-                          1 && (
-                          <button
-                            onClick={() =>
-                              removeFillColor(
-                                selectedLayer.id,
-                                i
-                              )
-                            }
-                            className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
-                            style={{
-                              backgroundColor:
-                                "#000000",
-                              color:
-                                "#FFFFFF",
-                            }}
-                          >
-                            ×
-                          </button>
-                        )}
-                      </div>
-                    )
-                  )}
-
-                  <button
-                    onClick={() =>
-                      addFillColor(
-                        selectedLayer.id
-                      )
-                    }
-                    className="flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold transition-transform hover:scale-110"
-                    style={{
-                      borderColor:
-                        ACCENT,
-                      color:
-                        ACCENT,
-                    }}
-                  >
-                    +
-                  </button>
-                </div>
-
-                <span
-                  className="text-[10px]"
-                  style={{
-                    color:
-                      "rgba(0,0,0,0.45)",
-                  }}
-                >
-                  Add more than one
-                  color to blend them
-                  together.
-                </span>
-              </div>
-            )}
-
-            {selectedLayer.type ===
-              "text" && (
-              <>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-14 text-[11px]"
-                    style={{
-                      color:
-                        "rgba(0,0,0,0.55)",
-                    }}
-                  >
-                    Color
-                  </span>
-
-                  <ColorWheelPicker
-                    value={
-                      selectedLayer.color
-                    }
-                    onChange={(c) =>
-                      updateLayer(
-                        selectedLayer.id,
-                        {
-                          color: c,
-                        }
-                      )
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-14 text-[11px]"
-                    style={{
-                      color:
-                        "rgba(0,0,0,0.55)",
-                    }}
-                  >
-                    Backing
-                  </span>
-
-                  <div className="flex flex-1 items-center gap-2">
-                    <button
-                      onClick={() =>
-                        updateLayer(
-                          selectedLayer.id,
-                          {
-                            bgColor:
-                              null,
-                          }
-                        )
-                      }
-                      className="h-6 w-6 flex-shrink-0 rounded-full border transition-transform hover:scale-110"
-                      style={{
-                        backgroundColor:
-                          "#FFFFFF",
-                        backgroundImage:
-                          "linear-gradient(45deg, transparent 45%, red 45%, red 55%, transparent 55%)",
-                        borderColor:
-                          selectedLayer.bgColor ===
-                          null
-                            ? "#000000"
-                            : "rgba(0,0,0,0.3)",
-                        borderWidth:
-                          selectedLayer.bgColor ===
-                          null
-                            ? 2
-                            : 1,
-                      }}
-                    />
-
-                    <ColorWheelPicker
-                      value={
-                        selectedLayer.bgColor ??
-                        "#FFFFFF"
-                      }
-                      onChange={(c) =>
-                        updateLayer(
-                          selectedLayer.id,
-                          {
-                            bgColor:
-                              c,
-                          }
-                        )
-                      }
-                    />
-
-                    <span
-                      className="text-[10px]"
-                      style={{
-                        color:
-                          "rgba(0,0,0,0.45)",
-                      }}
-                    >
-                      any backing
-                      color
-                    </span>
-                  </div>
-                </div>
-
-                {selectedLayer.bgColor && (
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="w-14 text-[11px]"
-                      style={{
-                        color:
-                          "rgba(0,0,0,0.55)",
-                      }}
-                    >
-                      Shape
-                    </span>
-
-                    <div className="flex flex-1 flex-wrap gap-1.5">
-                      {BG_SHAPES.map(
-                        (s) => (
-                          <button
-                            key={s.id}
-                            onClick={() =>
-                              updateLayer(
-                                selectedLayer.id,
-                                {
-                                  bgShape:
-                                    s.id,
-                                }
-                              )
-                            }
-                            className="rounded-md px-2.5 py-1 text-[11px] transition-all"
-                            style={{
-                              backgroundColor:
-                                selectedLayer.bgShape ===
-                                s.id
-                                  ? ACCENT
-                                  : "#FFFFFF",
-                              color:
-                                selectedLayer.bgShape ===
-                                s.id
-                                  ? "#FFF4E6"
-                                  : "rgba(0,0,0,0.6)",
-                              border:
-                                `1px solid ${
-                                  selectedLayer.bgShape ===
-                                  s.id
-                                    ? ACCENT
-                                    : "rgba(0,0,0,0.15)"
-                                }`,
-                            }}
-                          >
-                            {s.label}
-                          </button>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            <button
-              onClick={() =>
-                applyToBothSides(
-                  selectedLayer
-                )
-              }
-              className="text-[11px] font-medium underline text-left transition-all duration-150 hover:scale-[1.03] active:scale-[0.95] hover:opacity-70"
-              style={{
-                color: ACCENT,
-              }}
-            >
-              apply this to both
-              sides
-            </button>
-
-            <div className="flex justify-end pt-1">
-              <button
-                onClick={() =>
-                  removeLayer(
-                    selectedLayer.id
-                  )
-                }
-                className="text-[11px] font-medium underline"
-                style={{
-                  color:
-                    "rgba(0,0,0,0.5)",
-                }}
-              >
-                delete
-              </button>
-            </div>
-          </div>
-        )}
-
-        <p
-          className="text-center text-[11px] mt-3 max-w-xs"
-          style={{
-            color:
-              "rgba(0,0,0,0.45)",
-          }}
-        >
-          Tap an item below to add it,
-          then use one finger to move it
-          and two fingers to pinch-zoom it
-          into place on the {activeSide}.
-        </p>
-      </div>
-
-      {/* ========================================================== */}
-      {/* ASSET PALETTE                                               */}
-      {/* ========================================================== */}
-
-      <div className="px-6 md:px-12 py-8 max-w-2xl mx-auto">
-
-        {!hasBackground && (
-          <>
-            <p
-              className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-              style={{
-                color: ACCENT,
-              }}
-            >
-              Color your fan
-            </p>
-
-            <div className="flex gap-3 mb-8">
-              <button
-                onClick={addFill}
-                className="flex-1 flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
-                style={{
-                  border:
-                    `1.5px solid ${ACCENT}`,
-                  backgroundColor:
-                    "#EFE3C4",
-                }}
-              >
-                <span
-                  className="h-6 w-6 flex-shrink-0 rounded-full"
-                  style={{
-                    background:
-                      "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
-                  }}
-                />
-
-                <span
-                  className="text-xs md:text-sm"
-                  style={{
-                    color:
-                      "rgba(0,0,0,0.62)",
-                  }}
-                >
-                  Add a solid color or
-                  blend
-                  <br />
-                  <span className="text-[11px]">
-                    Pick one color, or
-                    add more to blend
-                    them.
-                  </span>
-                </span>
-              </button>
-            </div>
-
-            <p
-              className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-              style={{
-                color: ACCENT,
-              }}
-            >
-              Use your own pattern
-            </p>
-
-            <button
-              onClick={() =>
-                patternFileInputRef.current?.click()
-              }
-              className="w-full flex items-center gap-3 rounded-xl px-4 py-4 mb-8 text-left transition-colors"
-              style={{
-                border:
-                  `1.5px dashed ${ACCENT}`,
-                backgroundColor:
-                  "#EFE3C4",
-              }}
-            >
-              <UploadIcon />
-
-              <span
-                className="text-xs md:text-sm"
-                style={{
-                  color:
-                    "rgba(0,0,0,0.62)",
-                }}
-              >
-                Upload your own photo or
-                pattern
-                <br />
-                <span className="text-[11px]">
-                  It'll be shaped to fit
-                  the fan automatically
-                  — pinch to zoom and
-                  drag to reposition it
-                  once it's added.
-                </span>
-              </span>
-            </button>
-
-            <input
-              ref={
-                patternFileInputRef
-              }
-              type="file"
-              accept="image/jpeg,image/png"
-              className="hidden"
-              onChange={
-                handlePatternUpload
-              }
-            />
-          </>
-        )}
-
-        {hasBackground && (
-          <p
-            className="mb-4 text-xs"
-            style={{
-              color:
-                "rgba(0,0,0,0.5)",
-            }}
-          >
-            Background added — delete it
-            from the stage above to choose
-            a different type.
-          </p>
-        )}
-
-        <p
-          className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-          style={{
-            color: ACCENT,
-          }}
-        >
-          Add text
-        </p>
-
-        <div className="flex gap-3 mb-10">
-          <button
-            onClick={() =>
-              addText("monogram")
-            }
-            className="flex-1 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
-            style={{
-              backgroundColor:
-                "#FFFFFF",
-              border:
-                `1px solid ${ACCENT}`,
-              color: ACCENT,
-            }}
-          >
-            + Monogram / Names
-          </button>
-
-          <button
-            onClick={() =>
-              addText("message")
-            }
-            className="flex-1 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 hover:scale-[1.02] active:scale-[0.98]"
-            style={{
-              backgroundColor:
-                "#FFFFFF",
-              border:
-                `1px solid ${ACCENT}`,
-              color: ACCENT,
-            }}
-          >
-            + Message
-          </button>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() =>
-              setShowPreview(true)
-            }
-            className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
-            style={{
-              backgroundColor:
-                ACCENT,
-              color: "#FFF4E6",
-            }}
-          >
-            Preview my fan
-          </button>
-
-          <span
-            className="text-lg font-semibold"
-            style={{
-              color: "#000000",
-            }}
-          >
-            {PRICE} LE
-          </span>
-        </div>
-      </div>
-
-      {/* ========================================================== */}
-      {/* FULL SCREEN PREVIEW                                         */}
-      {/* ========================================================== */}
-
-      {showPreview && (
-        <div
-          className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-8 px-6 py-10 overflow-y-auto"
-          style={{
-            backgroundColor:
-              "#FFF4E6",
-          }}
-        >
-          <button
-            onClick={() =>
-              setShowPreview(false)
-            }
-            className="absolute top-6 right-6 text-2xl transition-all duration-150 hover:scale-110 active:scale-90 hover:opacity-70"
-            style={{
-              color: "#000000",
-            }}
-            aria-label="Close"
-          >
-            ✕
-          </button>
-
-          <div className="flex flex-col md:flex-row items-center gap-10">
-            {(
-              ["front", "back"] as SideId[]
-            ).map((id) => (
-              <div
-                key={id}
-                className="flex flex-col items-center gap-2"
-              >
-                <p
-                  className="text-xs font-semibold uppercase tracking-wide"
-                  style={{
-                    color: ACCENT,
-                  }}
-                >
-                  {id === "front"
-                    ? "Front"
-                    : "Back"}
-                </p>
-
-                <div className="relative w-full max-w-[240px] md:max-w-[280px]">
-                  <img
-                    src={FAN_IMG}
-                    alt=""
-                    className="w-full h-auto"
-                    draggable={false}
-                  />
-
-                  {layersBySide[id]
-                    .slice()
-                    .sort(
-                      (a, b) =>
-                        a.z - b.z
-                    )
-                    .map((layer) =>
-                      renderLayer(
-                        layer,
-                        false
-                      )
-                    )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="flex w-full max-w-sm flex-col items-center gap-4">
-
-            <div className="flex w-full items-center gap-3">
-              <span
-                className="text-xs font-semibold uppercase tracking-[0.15em]"
-                style={{
-                  color: ACCENT,
-                }}
-              >
-                Tassel
-              </span>
-
-              <span
-                className="h-7 w-7 flex-shrink-0 rounded-full"
-                style={{
-                  backgroundColor:
-                    TASSEL_COLORS.find(
-                      (c) =>
-                        c.id ===
-                        selectedTassel
-                    )!.hex,
-                  border:
-                    "1.5px solid rgba(0,0,0,0.15)",
-                }}
-              />
-
-              <select
-                value={
-                  selectedTassel
-                }
-                onChange={(e) =>
-                  setSelectedTassel(
-                    e.target
-                      .value as TasselColorId
-                  )
-                }
-                className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none"
-                style={{
-                  border:
-                    "1.5px solid rgba(0,0,0,0.15)",
-                  backgroundColor:
-                    "#FFFFFF",
-                  color:
-                    "#000000",
-                }}
-              >
-                {TASSEL_COLORS.map(
-                  (c) => (
-                    <option
-                      key={c.id}
-                      value={c.id}
-                    >
-                      {c.label}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <span
-                className="text-xs font-semibold uppercase tracking-[0.15em]"
-                style={{
-                  color: ACCENT,
-                }}
-              >
-                Quantity
-              </span>
-
-              <div
-                className="flex items-center rounded-full px-1 py-1"
-                style={{
-                  backgroundColor:
-                    "#FFFFFF",
-                  border:
-                    `1px solid ${ACCENT}`,
-                }}
-              >
-                <button
-                  onClick={() =>
-                    setQuantity(
-                      (q) =>
-                        Math.max(
-                          1,
-                          q - 1
-                        )
-                    )
-                  }
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
-                  style={{
-                    backgroundColor:
-                      "#EFE3C4",
-                    color:
-                      "#000000",
-                  }}
-                >
-                  −
-                </button>
-
-                <span
-                  className="w-10 text-center text-sm font-semibold"
-                  style={{
-                    color:
-                      "#000000",
-                  }}
-                >
-                  {quantity}
-                </span>
-
-                <button
-                  onClick={() =>
-                    setQuantity(
-                      (q) =>
-                        q + 1
-                    )
-                  }
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
-                  style={{
-                    backgroundColor:
-                      "#EFE3C4",
-                    color:
-                      "#000000",
-                  }}
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            <button
-              onClick={
-                addFanLineToOrder
-              }
-              className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5"
-              style={{
-                backgroundColor:
-                  "transparent",
-                borderColor:
-                  ACCENT,
-                color: ACCENT,
-              }}
-            >
-              + Add to Order
-            </button>
-           
-            {fanOrderLines.length >
-              0 && (
-              <div className="flex w-full flex-col gap-2">
-                {fanOrderLines.map(
-                  (line) => {
-                    const tassel =
-                      TASSEL_COLORS.find(
-                        (c) =>
-                          c.id ===
-                          line.tasselColor
-                      )!;
-
-                    return (
-                      <div
-                        key={line.id}
-                        className="rounded-2xl p-3"
-                        style={{
-                          backgroundColor:
-                            "#EFE3C4",
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="h-4 w-4 rounded-full"
-                              style={{
-                                backgroundColor:
-                                  tassel.hex,
-                                border:
-                                  "1px solid rgba(0,0,0,0.15)",
-                              }}
-                            />
-
-                            <span
-                              className="text-sm font-semibold"
-                              style={{
-                                color:
-                                  "#000000",
-                              }}
-                            >
-                              {
-                                tassel.label
-                              }{" "}
-                              Tassel
-                            </span>
-                          </div>
-
-                          <div className="flex flex-shrink-0 items-center gap-2">
-                            <button
-                              onClick={() =>
-                                updateFanLineQuantity(
-                                  line.id,
-                                  line.quantity -
-                                    1
-                                )
-                              }
-                              className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
-                            >
-                              −
-                            </button>
-
-                            <span className="w-5 text-center text-sm font-semibold">
-                              {
-                                line.quantity
-                              }
-                            </span>
-
-                            <button
-                              onClick={() =>
-                                updateFanLineQuantity(
-                                  line.id,
-                                  line.quantity +
-                                    1
-                                )
-                              }
-                              className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
-                            >
-                              +
-                            </button>
-
-                            <span
-                              className="ml-2 min-w-[60px] text-right text-sm font-bold"
-                              style={{
-                                color:
-                                  ACCENT,
-                              }}
-                            >
-                              {PRICE *
-                                line.quantity}{" "}
-                              LE
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="mt-1 text-right">
-                          <button
-                            onClick={() =>
-                              removeFanLine(
-                                line.id
-                              )
-                            }
-                            className="text-xs underline opacity-50 hover:opacity-100"
-                          >
-                            remove
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-                )}
-
+            
+            {/* Active Layers Render Container */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              {layers.map((layer) => (
                 <div
-                  className="mt-1 flex items-center justify-between rounded-2xl px-5 py-3"
+                  key={layer.id}
+                  onClick={() => setSelectedId(layer.id)}
+                  className={`absolute cursor-pointer transition-transform ${
+                    selectedId === layer.id ? "ring-2 ring-[#DE4B33] ring-offset-2" : ""
+                  }`}
                   style={{
-                    border:
-                      `1px solid ${ACCENT}`,
+                    transform: `translate(${layer.x}px, ${layer.y}px) scale(${layer.scale}) rotate(${layer.rotation}deg)`,
+                    zIndex: layer.z,
                   }}
                 >
-                  <span
-                    className="text-sm font-semibold"
-                    style={{
-                      color:
-                        "#000000",
-                    }}
-                  >
-                    {fanOrderLines.reduce(
-                      (
-                        sum,
-                        l
-                      ) =>
-                        sum +
-                        l.quantity,
-                      0
-                    )}{" "}
-                    fans total
-                  </span>
-
-                  <span
-                    className="text-lg font-bold"
-                    style={{
-                      color:
-                        ACCENT,
-                    }}
-                  >
-                    {fanOrderLines.reduce(
-                      (
-                        sum,
-                        l
-                      ) =>
-                        sum +
-                        PRICE *
-                          l.quantity,
-                      0
-                    )}{" "}
-                    LE
-                  </span>
+                  {layer.type === "text" && (
+                    <span
+                      className={`${getFont(layer.font).className} block whitespace-nowrap`}
+                      style={{
+                        fontSize: `${layer.fontSize}px`,
+                        color: layer.color,
+                      }}
+                    >
+                      {layer.content}
+                    </span>
+                  )}
+                  {layer.type === "fill" && (
+                    <div
+                      className="h-24 w-24 rounded-full opacity-60"
+                      style={{ backgroundColor: layer.colors[0] }}
+                    />
+                  )}
                 </div>
+              ))}
+            </div>
+          </div>
 
-                <button
-                  onClick={
-                    addFanToCart
-                  }
-                  className="mt-1 inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90"
-                  style={{
-                    backgroundColor:
-                      ACCENT,
-                    color:
-                      "#FFF4E6",
-                  }}
-                >
-                  Add Order to Cart
-                </button>
-              </div>
-            )}
-
-            {addedToCart && (
-              <p
-                className="text-xs font-medium"
-                style={{
-                  color:
-                    "#6E86C7",
-                }}
-              >
-                Added to cart ✓
-              </p>
-            )}
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={() => addText("message")}
+              className="rounded-lg bg-neutral-900 px-4 py-2 text-xs font-medium text-white shadow hover:bg-neutral-800"
+            >
+              + Add Message Text
+            </button>
+            <button
+              onClick={() => addText("monogram")}
+              className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-xs font-medium text-neutral-700 shadow-sm hover:bg-neutral-50"
+            >
+              + Add Monogram
+            </button>
           </div>
         </div>
-      )}
+
+        {/* Customization & Controls Toolbar */}
+        <div className="flex flex-col gap-6 lg:col-span-5">
+          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-500">
+              Tassel Selection
+            </h2>
+            <div className="mt-3 grid grid-cols-4 gap-2">
+              {TASSEL_COLORS.map((tassel) => (
+                <button
+                  key={tassel.id}
+                  onClick={() => setSelectedTassel(tassel.id)}
+                  className={`flex items-center gap-2 rounded-xl border p-2 text-xs font-medium transition ${
+                    selectedTassel === tassel.id
+                      ? "border-[#DE4B33] bg-[#FFF5F3] text-[#DE4B33]"
+                      : "border-neutral-200 hover:bg-neutral-50"
+                  }`}
+                >
+                  <span
+                    className="h-3.5 w-3.5 rounded-full border border-black/10"
+                    style={{ backgroundColor: tassel.hex }}
+                  />
+                  <span className="truncate">{tassel.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <span className="text-2xl font-bold text-neutral-900">
+                  ${PRICE}.00
+                </span>
+                <span className="ml-2 text-xs text-neutral-500">per fan</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-neutral-600">Qty:</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-16 rounded-lg border border-neutral-300 px-2 py-1 text-center text-sm"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleAddToCart}
+              className="w-full rounded-xl bg-[#DE4B33] py-3 text-sm font-bold text-white shadow-md transition hover:bg-[#c73d26] active:scale-[0.98]"
+            >
+              {addedToCart ? "Added to Cart! ✓" : "Add Custom Fan to Cart"}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Upload icon                                                        */
-/* ------------------------------------------------------------------ */
-
-function UploadIcon() {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#DE4B33"
-      strokeWidth="1.6"
-    >
-      <path d="M12 3v12" />
-      <path d="M7 8l5-5 5 5" />
-      <rect
-        x="3"
-        y="16"
-        width="18"
-        height="5"
-        rx="1"
-      />
-    </svg>
   );
 }
