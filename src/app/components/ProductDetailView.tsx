@@ -17,6 +17,8 @@ type OrderLine = {
   quantity: number;
   image: string;
   inCart?: boolean;
+  monogramText?: string;
+  monogramImage?: string;
 };
 
 type GalleryItem = {
@@ -76,6 +78,7 @@ const COLOR_SCROLL_PRODUCTS = [
   "Pocket Hearts",
   "Rustic Warmth",
   "Jar Candle",
+
 ];
 
 // These simple, single-variant candles skip the on-page "Your Order"
@@ -292,6 +295,15 @@ export default function ProductDetailView({
 
 const [plainQuantity, setPlainQuantity] = useState(1);
 
+  // Pocket Hearts — optional personalization: initials typed as text
+  // (e.g. "S & H") or an uploaded image of custom lettering, similar
+  // to the reference wedding-favor tags. Only one is sent to the
+  // cart — whichever the person filled in.
+  const [monogramText, setMonogramText] = useState("");
+  const [monogramImageUrl, setMonogramImageUrl] = useState<string | null>(
+    null
+  );
+  const monogramFileInputRef = useRef<HTMLInputElement>(null);
   const [
     selectedNoorWhite,
     setSelectedNoorWhite,
@@ -421,8 +433,11 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     setSelectedBride(false);
     setSelectedGroom(false);
 
-    setBrideQuantity(1);
+   setBrideQuantity(1);
     setGroomQuantity(1);
+
+    setMonogramText("");
+    setMonogramImageUrl(null);
 
     setOrderLines([]);
 
@@ -642,14 +657,22 @@ const [plainQuantity, setPlainQuantity] = useState(1);
         addImage(selectedOption.image_url, selectedColor.name);
       }
 
-      addImages(selectedColor.image_urls, selectedColor.name);
+            addImages(selectedColor.image_urls, selectedColor.name);
       addImage(selectedColor.image_url, selectedColor.name);
 
-      selectedColor.options?.forEach((option, optionIndex) => {
-        if (hasOptions && optionIndex === selectedOptionIndex) return;
-        addImages(option.image_urls, selectedColor.name);
-        addImage(option.image_url, selectedColor.name);
-      });
+      // Only pull in other options' photos here for products that
+      // actually want a combined gallery across options (none
+      // currently do, but this stays generic for future cases). For
+      // an ordinary size/style toggle like Plain Candle's 150ml vs
+      // 380ml, each option's gallery should be scoped to itself —
+      // switching size must not keep the other size's photo(s) in
+      // the swipeable gallery.
+      if (!hasOptions) {
+        selectedColor.options?.forEach((option) => {
+          addImages(option.image_urls, selectedColor.name);
+          addImage(option.image_url, selectedColor.name);
+        });
+      }
 
       if (items.length === 0) {
         addImages(product.image_urls, selectedColor.name);
@@ -1724,6 +1747,30 @@ useEffect(() => {
 
   /*
    * ============================================================
+   * POCKET HEARTS — PERSONALIZATION
+   * ============================================================
+   */
+
+  function handleMonogramImageChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Please choose an image under 5MB.");
+      return;
+    }
+
+    setMonogramImageUrl(URL.createObjectURL(file));
+    e.target.value = "";
+  }
+
+  /*
+   * ============================================================
    * REGULAR CART
    * ============================================================
    */
@@ -1755,20 +1802,39 @@ useEffect(() => {
       gallery[0] ??
       "";
 
+    // Pocket Hearts personalization — optional, whichever the person
+    // filled in (typed initials or an uploaded image). Always
+    // undefined for every other product since this section only
+    // renders for Pocket Hearts.
+    const monogramTextToUse =
+      productName === "Pocket Hearts" && monogramText.trim()
+        ? monogramText.trim()
+        : undefined;
+
+    const monogramImageToUse =
+      productName === "Pocket Hearts" && monogramImageUrl
+        ? monogramImageUrl
+        : undefined;
+
     // Single source of truth for cart writes — addToCart() already
     // finds a line with this exact id and increments its quantity by
     // 1 instead of creating a duplicate, or adds a fresh line at
     // quantity 1 if this variant isn't in the cart yet.
-    addToCart({
-      id: lineId,
-      productId: product.id,
-      productName,
-      price: Number(displayPrice),
-      quantity: 1,
-      scent: productScent,
-      color: productColor,
-      image: lineImage,
-    });
+   addToCart({
+  id: lineId,
+  productId: product.id,
+  productName,
+  price: Number(displayPrice),
+  quantity: 1,
+  scent: productScent,
+  color: productColor,
+  image: lineImage,
+  customization: {
+    type: "monogram",
+    monogramText,
+    monogramImage: monogramImageToUse,
+  },
+});
 
     setOrderLines((prev) => {
       const existingLineIndex = prev.findIndex(
@@ -1793,10 +1859,18 @@ useEffect(() => {
           price: Number(displayPrice),
           quantity: 1,
           image: lineImage,
+          monogramText: monogramTextToUse,
+          monogramImage: monogramImageToUse,
         },
       ];
     });
-  
+
+    // Personalization is entered fresh per line — clear it after
+    // adding so a follow-up click doesn't silently reuse it.
+    if (productName === "Pocket Hearts") {
+      setMonogramText("");
+      setMonogramImageUrl(null);
+    }
   }
 
   /*
@@ -2073,37 +2147,38 @@ useEffect(() => {
                 viewport, so they scrolled away with the images and
                 only looked correct on the very first photo.
               */}
-              {gallery.length > 1 && (
+                            {gallery.length > 1 && (
                 <>
                   <button
                     type="button"
                     onClick={previousImage}
                     aria-label="Previous image"
-                    className="absolute left-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 shadow-lg backdrop-blur transition-all duration-200 hover:scale-110 hover:shadow-xl active:scale-95"
+                    className="absolute left-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full backdrop-blur transition-all duration-200 hover:brightness-95 active:scale-95"
                     style={{
-                      border: "1px solid rgba(0,0,0,0.06)",
+                      backgroundColor: `${accent}1F`,
                       color: accent,
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
                     }}
                   >
-                    <ChevronLeft size={20} strokeWidth={2.2} />
+                    <ChevronLeft size={18} strokeWidth={2.2} />
                   </button>
 
                   <button
                     type="button"
                     onClick={nextImage}
                     aria-label="Next image"
-                    className="absolute right-2 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 shadow-lg backdrop-blur transition-all duration-200 hover:scale-110 hover:shadow-xl active:scale-95"
+                    className="absolute right-2 top-1/2 z-10 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full backdrop-blur transition-all duration-200 hover:brightness-95 active:scale-95"
                     style={{
-                      border: "1px solid rgba(0,0,0,0.06)",
+                      backgroundColor: `${accent}1F`,
                       color: accent,
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
                     }}
                   >
-                    <ChevronRight size={20} strokeWidth={2.2} />
+                    <ChevronRight size={18} strokeWidth={2.2} />
                   </button>
                 </>
               )}
-            </div>
-       =
+             </div>
 
             {/* ==================================================
                 ACTIVE COLOR
@@ -3096,6 +3171,86 @@ useEffect(() => {
                   </div>
                 </div>
               )}
+
+            {/* ==================================================
+                POCKET HEARTS — PERSONALIZATION (optional)
+                ================================================== */}
+
+            {productName === "Pocket Hearts" && (
+              <div className="mt-5">
+                <p
+                  className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+                  style={{ color: accent }}
+                >
+                  Personalize (Optional)
+                </p>
+
+                <p
+                  className="mb-3 text-xs"
+                  style={{ color: "rgba(0,0,0,0.55)" }}
+                >
+                  Add initials to your hearts — like &quot;S &amp; H&quot;
+                  in the example photo. Type them, or upload an image
+                  if you'd like a specific lettering style.
+                </p>
+
+                <input
+                  value={monogramText}
+                  onChange={(e) => {
+                    // Keep this to initials only — two letters with
+                    // "&" between them, e.g. "S & H".
+                    const raw = e.target.value
+                      .toUpperCase()
+                      .replace(/[^A-Z&\s]/g, "");
+                    setMonogramText(raw.slice(0, 6));
+                  }}
+                  placeholder="e.g. S & H"
+                  maxLength={6}
+                  className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                  style={{
+                    border: "1.5px solid rgba(0,0,0,0.15)",
+                    backgroundColor: "#FFFFFF",
+                    color: "#000000",
+                  }}
+                />
+
+                <div className="mt-3 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      monogramFileInputRef.current?.click()
+                    }
+                    className="flex-1 rounded-xl border px-4 py-3 text-left text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5"
+                    style={{
+                      backgroundColor: "transparent",
+                      borderColor: accent,
+                      color: "#000000",
+                    }}
+                  >
+                    {monogramImageUrl
+                      ? "Image added — tap to change"
+                      : "Or upload an image instead"}
+                  </button>
+
+                  {monogramImageUrl && (
+                    <img
+                      src={monogramImageUrl}
+                      alt="Your uploaded lettering"
+                      className="h-12 w-12 flex-shrink-0 rounded-lg object-cover"
+                      style={{ border: `1px solid ${accent}` }}
+                    />
+                  )}
+                </div>
+
+                <input
+                  ref={monogramFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={handleMonogramImageChange}
+                />
+              </div>
+            )}
 
             {/* ==================================================
                 REGULAR ADD TO CART

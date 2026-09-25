@@ -15,7 +15,11 @@ export type FanCustomization = {
   tasselColor: string;
   layersBySide: unknown;
 };
-
+export type MonogramCustomization = {
+  type: "monogram";
+  monogramText: string;
+  monogramImage?: string;
+};
 export type CartItem = {
   id: string;
   productId: string | number;
@@ -36,9 +40,10 @@ export type CartItem = {
 
   // Optional customization information.
   // Can belong to either a customized tambourine or customized fan.
-  customization?:
-    | TambourineCustomization
-    | FanCustomization;
+customization?:
+  | TambourineCustomization
+  | FanCustomization
+  | MonogramCustomization;
 };
 
 export function getCart(): CartItem[] {
