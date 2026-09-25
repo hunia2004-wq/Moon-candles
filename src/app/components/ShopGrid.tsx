@@ -14,7 +14,9 @@ const GIVEAWAY_NAMES = [
   "Tambourine",
   "Fan",
   "Bloom Wand",
-  "fan"
+  "Forever Clasp",
+  "Pocket Hearts",
+  "Rustic Warmth",
 ];
 // These products don't have one fixed price — show a range instead of
 // product.price. Matched case-insensitively against product.name.
