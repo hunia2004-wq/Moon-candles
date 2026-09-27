@@ -8,7 +8,10 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { Product } from "@/lib/supabase/types";
-import { addToCart, updateCartItemQuantity, removeCartItem } from "@/lib/cart";
+import {
+  updateCartItemQuantity,
+  removeCartItem,
+} from "@/lib/cart";
 
 type OrderLine = {
   id: string;
@@ -27,12 +30,6 @@ const CREAM = "#FFF4E6";
 const SAND = "#EFE3C4";
 const SAND_BORDER = "#D8C9B0";
 
-/*
- * Bloom Wand "With Photo" gallery.
- *
- * These are intentionally hardcoded because the Supabase
- * image_urls currently contains only one image.
- */
 const BLOOM_WAND_WITH_PHOTO_IMAGES = [
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/wand%20with%20pic%201.jpg",
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/wand%20with%20pic%202.jpg",
@@ -80,13 +77,10 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
-     const [selectedColorIndex, setSelectedColorIndex] =
+  const [selectedColorIndex, setSelectedColorIndex] =
     useState(0);
 
-  // Pressing "With Photo" itself should show the 3 generic example
-  // photos by default; only AFTER that, picking a specific color
-  // switches the gallery to that color's own real photo instead.
-   const [selectedOptionIndex, setSelectedOptionIndex] =
+  const [selectedOptionIndex, setSelectedOptionIndex] =
     useState(0);
 
   const [selectedImageIndex, setSelectedImageIndex] =
@@ -94,7 +88,7 @@ export default function BloomWandBuilder({
 
   const [quantity, setQuantity] = useState(1);
 
-    const [orderLines, setOrderLines] =
+  const [orderLines, setOrderLines] =
     useState<OrderLine[]>([]);
 
   const [frontPhotoUrl, setFrontPhotoUrl] =
@@ -115,14 +109,20 @@ export default function BloomWandBuilder({
   const backFileInputRef =
     useRef<HTMLInputElement>(null);
 
-  // Tracks which staged order lines have actually been written to
-  // the real cart via "Add Order to Cart" — lets the sync effect
-  // below tell "not committed yet" apart from "was committed, then
-  // removed from the drawer" (only the latter should disappear from
-  // this page).
-    const committedLineIds = useRef<Set<string>>(new Set());
-  const scrollSyncing = useRef(false);
-  const colors = product.colors ?? [];
+  const committedLineIds =
+    useRef<Set<string>>(new Set());
+
+  const scrollSyncing =
+    useRef(false);
+
+  // IMPORTANT:
+  // Prevents the normal scroll listener from fighting
+  // with arrow/button navigation.
+  const programmaticScroll =
+    useRef(false);
+
+  const colors =
+    product.colors ?? [];
 
   const selectedColor =
     colors[selectedColorIndex];
@@ -142,67 +142,76 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
-     // IMPORTANT: this never reads FROM selectedOption when
-  // selectedOption is "With Photo" — every color's "With Photo"
-  // option shares the exact same 3 generic placeholder image_urls,
-  // so that check always returned true regardless of color.
-  //
-  // The real photo appended after the 3 generic examples comes from,
-  // in order: the color's own top-level image (White/Green have
-  // this), or — for every other color — that color's "Without Photo"
-  // option image, which already exists for all 8 colors and is the
-  // same real solid-color photo used for the color swatches. This is
-  // what makes Orange (and Pink/Purple/Red/Yellow/Blue) show a real
-  // photo after scrolling, not just White/Green.
-    const withoutPhotoOption = selectedColor?.options?.find(
-    (o) => o.name === "Without Photo"
-  );
+  const withoutPhotoOption =
+    selectedColor?.options?.find(
+      (o) => o.name === "Without Photo"
+    );
 
-  const colorOwnImages = selectedColor?.image_urls?.length
-    ? selectedColor.image_urls
-    : selectedColor?.image_url
-    ? [selectedColor.image_url]
-    : withoutPhotoOption?.image_urls?.length
-    ? withoutPhotoOption.image_urls
-    : withoutPhotoOption?.image_url
-    ? [withoutPhotoOption.image_url]
-    : [];
+  const colorOwnImages =
+    selectedColor?.image_urls?.length
+      ? selectedColor.image_urls
+      : selectedColor?.image_url
+      ? [selectedColor.image_url]
+      : withoutPhotoOption?.image_urls?.length
+      ? withoutPhotoOption.image_urls
+      : withoutPhotoOption?.image_url
+      ? [withoutPhotoOption.image_url]
+      : [];
 
-  const colorHasOwnImage = colorOwnImages.length > 0;
+  const colorHasOwnImage =
+    colorOwnImages.length > 0;
 
-  // When "Without Photo" is selected, the main gallery scrolls
-  // through EVERY color's own photo in one swipeable strip (same
-  // pattern as Marble Moon on the product page) — each entry
-  // remembers which color it belongs to, so scrolling (or tapping a
-  // swatch) keeps the selected color in sync with whichever photo is
-  // centered. "With Photo" keeps its existing per-color + placeholder
-  // behavior, since spanning colors doesn't apply there.
-  type GalleryItem = { url: string; colorIndex: number };
+  type GalleryItem = {
+    url: string;
+    colorIndex: number;
+  };
 
-  const galleryItems: GalleryItem[] = !isWithPhoto
-    ? colors.flatMap((color, colorIndex) => {
-        const matchingOption =
-          color.options?.find((o) => o.name === selectedOption?.name) ??
-          color.options?.[0];
+  const galleryItems: GalleryItem[] =
+    !isWithPhoto
+      ? colors.flatMap(
+          (color, colorIndex) => {
+            const matchingOption =
+              color.options?.find(
+                (o) =>
+                  o.name ===
+                  selectedOption?.name
+              ) ??
+              color.options?.[0];
 
-        const urls = matchingOption?.image_urls?.length
-          ? matchingOption.image_urls
-          : matchingOption?.image_url
-          ? [matchingOption.image_url]
-          : color.image_urls?.length
-          ? color.image_urls
-          : color.image_url
-          ? [color.image_url]
-          : [];
+            const urls =
+              matchingOption?.image_urls?.length
+                ? matchingOption.image_urls
+                : matchingOption?.image_url
+                ? [matchingOption.image_url]
+                : color.image_urls?.length
+                ? color.image_urls
+                : color.image_url
+                ? [color.image_url]
+                : [];
 
-        return urls.map((url) => ({ url, colorIndex }));
-      })
-    : (colorHasOwnImage
-        ? [...colorOwnImages, ...BLOOM_WAND_WITH_PHOTO_IMAGES]
-        : BLOOM_WAND_WITH_PHOTO_IMAGES
-      ).map((url) => ({ url, colorIndex: selectedColorIndex }));
+            return urls.map((url) => ({
+              url,
+              colorIndex,
+            }));
+          }
+        )
+      : (
+          colorHasOwnImage
+            ? [
+                ...colorOwnImages,
+                ...BLOOM_WAND_WITH_PHOTO_IMAGES,
+              ]
+            : BLOOM_WAND_WITH_PHOTO_IMAGES
+        ).map((url) => ({
+          url,
+          colorIndex:
+            selectedColorIndex,
+        }));
 
-  const gallery = galleryItems.map((item) => item.url);
+  const gallery =
+    galleryItems.map(
+      (item) => item.url
+    );
 
   const previewImage =
     gallery[selectedImageIndex] ??
@@ -211,81 +220,145 @@ export default function BloomWandBuilder({
 
   /*
    * ============================================================
-   * TWO-WAY SYNC WITH CART
+   * CART SYNC
    * ============================================================
    */
 
-    useEffect(() => {
+  useEffect(() => {
     function syncOrderWithCart() {
-      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-      const cartIds = new Set(cart.map((item: any) => item.id));
+      const cart = JSON.parse(
+        localStorage.getItem("cart") || "[]"
+      );
 
-      // Snapshot committedLineIds into a plain, frozen Set BEFORE
-      // touching the live ref, so the updater below always sees a
-      // consistent picture even if this handler is re-entered or
-      // deferred.
-      const committedSnapshot = new Set(committedLineIds.current);
+      const cartIds = new Set(
+        cart.map(
+          (item: any) => item.id
+        )
+      );
+
+      const committedSnapshot =
+        new Set(
+          committedLineIds.current
+        );
 
       setOrderLines((prev) =>
         prev
           .filter(
             (line) =>
-              cartIds.has(line.id) || !committedSnapshot.has(line.id)
+              cartIds.has(line.id) ||
+              !committedSnapshot.has(
+                line.id
+              )
           )
           .map((line) => {
-            const cartMatch = cart.find((item: any) => item.id === line.id);
+            const cartMatch =
+              cart.find(
+                (item: any) =>
+                  item.id === line.id
+              );
+
             return cartMatch
-              ? { ...line, quantity: cartMatch.quantity }
+              ? {
+                  ...line,
+                  quantity:
+                    cartMatch.quantity,
+                }
               : line;
           })
       );
 
-      committedSnapshot.forEach((id) => {
-        if (!cartIds.has(id)) {
-          committedLineIds.current.delete(id);
+      committedSnapshot.forEach(
+        (id) => {
+          if (!cartIds.has(id)) {
+            committedLineIds.current.delete(
+              id
+            );
+          }
         }
-      });
+      );
     }
 
-    window.addEventListener("cartUpdated", syncOrderWithCart);
+    window.addEventListener(
+      "cartUpdated",
+      syncOrderWithCart
+    );
 
     return () => {
-      window.removeEventListener("cartUpdated", syncOrderWithCart);
+      window.removeEventListener(
+        "cartUpdated",
+        syncOrderWithCart
+      );
     };
   }, []);
 
-  // Rehydrate staged lines + committed tracking from the real cart on
-  // mount, so navigating away and back (or any remount) doesn't lose
-  // track of which lines are already in the cart.
+  /*
+   * ============================================================
+   * REHYDRATE CART
+   * ============================================================
+   */
+
   useEffect(() => {
-    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+    const cart = JSON.parse(
+      localStorage.getItem("cart") || "[]"
+    );
 
-    const existingLines: OrderLine[] = cart
-      .filter((item: any) => item.productId === product.id)
-      .map((item: any) => ({
-        id: item.id,
-        colorName: item.color ?? "",
-        optionName: item.option ?? "",
-        price: Number(item.price) || 0,
-        quantity: Number(item.quantity) || 1,
-        image: item.image ?? "",
-        photoUrlFront: item.photoUrlFront ?? undefined,
-        photoUrlBack: item.photoUrlBack ?? undefined,
-      }));
+    const existingLines: OrderLine[] =
+      cart
+        .filter(
+          (item: any) =>
+            item.productId === product.id
+        )
+        .map((item: any) => ({
+          id: item.id,
+          colorName:
+            item.color ?? "",
+          optionName:
+            item.option ?? "",
+          price:
+            Number(item.price) || 0,
+          quantity:
+            Number(item.quantity) || 1,
+          image:
+            item.image ?? "",
+          photoUrlFront:
+            item.photoUrlFront ??
+            undefined,
+          photoUrlBack:
+            item.photoUrlBack ??
+            undefined,
+        }));
 
-    if (existingLines.length > 0) {
+    if (
+      existingLines.length > 0
+    ) {
       setOrderLines((prev) => {
-        const existingIds = new Set(prev.map((l) => l.id));
+        const existingIds =
+          new Set(
+            prev.map(
+              (l) => l.id
+            )
+          );
+
         return [
           ...prev,
-          ...existingLines.filter((l) => !existingIds.has(l.id)),
+          ...existingLines.filter(
+            (l) =>
+              !existingIds.has(
+                l.id
+              )
+          ),
         ];
       });
 
-      existingLines.forEach((line) => {
-        committedLineIds.current.add(line.id);
-      });
+      existingLines.forEach(
+        (line) => {
+          committedLineIds.current.add(
+            line.id
+          );
+        }
+      );
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -295,18 +368,25 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
-    useEffect(() => {
+  useEffect(() => {
+    /*
+     * When the gallery itself changes color because
+     * of scrolling, don't reset it back to image 0.
+     */
     if (scrollSyncing.current) {
-      // This color change came FROM scrolling or a swatch tap that
-      // already scrolled to the right spot — don't fight it by
-      // resetting the scroll position back to the start.
       scrollSyncing.current = false;
       return;
     }
 
-    setSelectedImageIndex(0);
+    /*
+     * If an arrow/button is currently controlling
+     * the gallery, don't let this effect fight it.
+     */
+    if (programmaticScroll.current) {
+      return;
+    }
 
-    imageRefs.current = [];
+    setSelectedImageIndex(0);
 
     requestAnimationFrame(() => {
       imageScrollRef.current?.scrollTo({
@@ -325,49 +405,59 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
-      function handleColorChange(index: number) {
+  function handleColorChange(
+    index: number
+  ) {
     const currentOptionName =
       selectedColor?.options?.[
         selectedOptionIndex
       ]?.name;
 
     if (!isWithPhoto) {
-      scrollSyncing.current = true;
+      scrollSyncing.current =
+        true;
     }
 
-     setSelectedColorIndex(index);
+    setSelectedColorIndex(index);
 
     const newOptionIndex =
       colors[index]?.options?.findIndex(
         (option) =>
-          option.name === currentOptionName
+          option.name ===
+          currentOptionName
       );
 
     if (
-      newOptionIndex !== undefined &&
+      newOptionIndex !==
+        undefined &&
       newOptionIndex >= 0
     ) {
-      setSelectedOptionIndex(newOptionIndex);
+      setSelectedOptionIndex(
+        newOptionIndex
+      );
     } else {
       setSelectedOptionIndex(0);
     }
 
     if (isWithPhoto) {
       setSelectedImageIndex(0);
-      imageRefs.current = [];
     } else {
-      const targetIndex = galleryItems.findIndex(
-        (item) => item.colorIndex === index
-      );
+      const targetIndex =
+        galleryItems.findIndex(
+          (item) =>
+            item.colorIndex ===
+            index
+        );
 
       if (targetIndex >= 0) {
         requestAnimationFrame(() => {
-          scrollToImage(targetIndex);
+          scrollToImage(
+            targetIndex
+          );
         });
       }
     }
   }
- 
 
   /*
    * ============================================================
@@ -375,10 +465,18 @@ export default function BloomWandBuilder({
    * ============================================================
    */
 
-function handleOptionChange(index: number) {
-    setSelectedOptionIndex(index);
+  function handleOptionChange(
+    index: number
+  ) {
+    setSelectedOptionIndex(
+      index
+    );
+
     setSelectedImageIndex(0);
-    imageRefs.current = [];
+
+    /*
+     * DO NOT clear imageRefs.current.
+     */
   }
 
   /*
@@ -387,18 +485,23 @@ function handleOptionChange(index: number) {
    * ============================================================
    */
 
-  function scrollToImage(index: number) {
+  function scrollToImage(
+    index: number
+  ) {
     if (!gallery.length) {
       return;
     }
 
-    const safeIndex = Math.max(
-      0,
-      Math.min(
-        index,
-        gallery.length - 1
-      )
-    );
+    /*
+     * This allows the gallery to wrap:
+     *
+     * last -> first
+     * first -> last
+     */
+    const safeIndex =
+      ((index % gallery.length) +
+        gallery.length) %
+      gallery.length;
 
     const container =
       imageScrollRef.current;
@@ -408,24 +511,117 @@ function handleOptionChange(index: number) {
     }
 
     const slide =
-      imageRefs.current[safeIndex];
+      imageRefs.current[
+        safeIndex
+      ];
 
     if (!slide) {
+      requestAnimationFrame(() => {
+        const retrySlide =
+          imageRefs.current[
+            safeIndex
+          ];
+
+        if (!retrySlide) {
+          return;
+        }
+
+        programmaticScroll.current =
+          true;
+
+        const targetLeft =
+          retrySlide.offsetLeft -
+          (container.clientWidth -
+            retrySlide.clientWidth) /
+            2;
+
+        container.scrollTo({
+          left: Math.max(
+            0,
+            targetLeft
+          ),
+          behavior: "smooth",
+        });
+
+        setSelectedImageIndex(
+          safeIndex
+        );
+
+        window.setTimeout(() => {
+          programmaticScroll.current =
+            false;
+        }, 600);
+      });
+
       return;
     }
 
-    const containerWidth =
-      container.clientWidth;
+    /*
+     * IMPORTANT:
+     * The arrow is intentionally controlling the gallery.
+     * The scroll listener must not override it.
+     */
+    programmaticScroll.current =
+      true;
 
-    const slideLeft =
-      slide.offsetLeft;
+    /*
+     * Update image FIRST.
+     */
+    setSelectedImageIndex(
+      safeIndex
+    );
 
-    const slideWidth =
-      slide.clientWidth;
+    /*
+     * Update the color belonging to this image.
+     *
+     * This is what makes image 0 select the FIRST
+     * color instead of accidentally jumping to Purple.
+     */
+    if (!isWithPhoto) {
+      const targetColorIndex =
+        galleryItems[
+          safeIndex
+        ]?.colorIndex;
 
+      if (
+        targetColorIndex !==
+          undefined &&
+        targetColorIndex !==
+          selectedColorIndex
+      ) {
+        const currentOptionName =
+          selectedOption?.name;
+
+        setSelectedColorIndex(
+          targetColorIndex
+        );
+
+        const newOptionIndex =
+          colors[
+            targetColorIndex
+          ]?.options?.findIndex(
+            (option) =>
+              option.name ===
+              currentOptionName
+          );
+
+        setSelectedOptionIndex(
+          newOptionIndex !==
+              undefined &&
+            newOptionIndex >= 0
+            ? newOptionIndex
+            : 0
+        );
+      }
+    }
+
+    /*
+     * Scroll to the exact slide.
+     */
     const targetLeft =
-      slideLeft -
-      (containerWidth - slideWidth) /
+      slide.offsetLeft -
+      (container.clientWidth -
+        slide.clientWidth) /
         2;
 
     container.scrollTo({
@@ -436,37 +632,34 @@ function handleOptionChange(index: number) {
       behavior: "smooth",
     });
 
-        setSelectedImageIndex(
-      safeIndex
-    );
-
-    if (!isWithPhoto) {
-      const targetColorIndex = galleryItems[safeIndex]?.colorIndex;
-
-      if (
-        targetColorIndex !== undefined &&
-        targetColorIndex !== selectedColorIndex
-      ) {
-        scrollSyncing.current = true;
-
-        const currentOptionName = selectedOption?.name;
-
-        setSelectedColorIndex(targetColorIndex);
-
-        const newOptionIndex = colors[targetColorIndex]?.options?.findIndex(
-          (option) => option.name === currentOptionName
-        );
-
-        setSelectedOptionIndex(
-          newOptionIndex !== undefined && newOptionIndex >= 0
-            ? newOptionIndex
-            : 0
-        );
-      }
-    }
+    /*
+     * After the smooth scroll has finished,
+     * allow normal swipe detection again.
+     */
+    window.setTimeout(() => {
+      programmaticScroll.current =
+        false;
+    }, 600);
   }
 
+  /*
+   * ============================================================
+   * DETECT SWIPE / SCROLL
+   * ============================================================
+   */
+
   function handleGalleryScroll() {
+    /*
+     * VERY IMPORTANT:
+     *
+     * If an arrow is moving the gallery, don't let
+     * the browser's intermediate scroll positions
+     * change the selected color.
+     */
+    if (programmaticScroll.current) {
+      return;
+    }
+
     const container =
       imageScrollRef.current;
 
@@ -479,18 +672,23 @@ function handleOptionChange(index: number) {
 
     const containerCenter =
       container.scrollLeft +
-      container.clientWidth / 2;
+      container.clientWidth /
+        2;
 
     let closestIndex = 0;
-    let closestDistance = Infinity;
+    let closestDistance =
+      Infinity;
 
     imageRefs.current.forEach(
       (slide, index) => {
-        if (!slide) return;
+        if (!slide) {
+          return;
+        }
 
         const slideCenter =
           slide.offsetLeft +
-          slide.clientWidth / 2;
+          slide.clientWidth /
+            2;
 
         const distance =
           Math.abs(
@@ -502,35 +700,65 @@ function handleOptionChange(index: number) {
           distance <
           closestDistance
         ) {
-          closestDistance = distance;
-          closestIndex = index;
+          closestDistance =
+            distance;
+
+          closestIndex =
+            index;
         }
       }
     );
 
-        setSelectedImageIndex(
-      closestIndex
-    );
+    /*
+     * Don't update state unnecessarily.
+     */
+    if (
+      closestIndex !==
+      selectedImageIndex
+    ) {
+      setSelectedImageIndex(
+        closestIndex
+      );
+    }
 
+    /*
+     * Swiping manually changes the color.
+     */
     if (!isWithPhoto) {
-      const targetColorIndex = galleryItems[closestIndex]?.colorIndex;
+      const targetColorIndex =
+        galleryItems[
+          closestIndex
+        ]?.colorIndex;
 
       if (
-        targetColorIndex !== undefined &&
-        targetColorIndex !== selectedColorIndex
+        targetColorIndex !==
+          undefined &&
+        targetColorIndex !==
+          selectedColorIndex
       ) {
-        scrollSyncing.current = true;
+        scrollSyncing.current =
+          true;
 
-        const currentOptionName = selectedOption?.name;
+        const currentOptionName =
+          selectedOption?.name;
 
-        setSelectedColorIndex(targetColorIndex);
-
-        const newOptionIndex = colors[targetColorIndex]?.options?.findIndex(
-          (option) => option.name === currentOptionName
+        setSelectedColorIndex(
+          targetColorIndex
         );
 
+        const newOptionIndex =
+          colors[
+            targetColorIndex
+          ]?.options?.findIndex(
+            (option) =>
+              option.name ===
+              currentOptionName
+          );
+
         setSelectedOptionIndex(
-          newOptionIndex !== undefined && newOptionIndex >= 0
+          newOptionIndex !==
+              undefined &&
+            newOptionIndex >= 0
             ? newOptionIndex
             : 0
         );
@@ -538,14 +766,20 @@ function handleOptionChange(index: number) {
     }
   }
 
+  /*
+   * ============================================================
+   * NEXT / PREVIOUS
+   * ============================================================
+   */
+
   function nextImage() {
     if (gallery.length <= 1) {
       return;
     }
 
     const next =
-      selectedImageIndex >=
-      gallery.length - 1
+      selectedImageIndex + 1 >=
+      gallery.length
         ? 0
         : selectedImageIndex + 1;
 
@@ -558,7 +792,7 @@ function handleOptionChange(index: number) {
     }
 
     const previous =
-      selectedImageIndex <= 0
+      selectedImageIndex - 1 < 0
         ? gallery.length - 1
         : selectedImageIndex - 1;
 
@@ -590,6 +824,7 @@ function handleOptionChange(index: number) {
 
       requestAnimationFrame(() => {
         handleGalleryScroll();
+
         ticking = false;
       });
     };
@@ -616,38 +851,47 @@ function handleOptionChange(index: number) {
    * ============================================================
    */
 
-    function handleFrontPhotoChange(
+  function handleFrontPhotoChange(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
-    const file = e.target.files?.[0];
+    const file =
+      e.target.files?.[0];
 
     if (!file) {
       return;
     }
 
-    setFrontPhotoUrl(URL.createObjectURL(file));
+    setFrontPhotoUrl(
+      URL.createObjectURL(file)
+    );
+
     e.target.value = "";
   }
 
   function handleBackPhotoChange(
     e: React.ChangeEvent<HTMLInputElement>
   ) {
-    const file = e.target.files?.[0];
+    const file =
+      e.target.files?.[0];
 
     if (!file) {
       return;
     }
 
-    setBackPhotoUrl(URL.createObjectURL(file));
+    setBackPhotoUrl(
+      URL.createObjectURL(file)
+    );
+
     e.target.value = "";
   }
+
   /*
    * ============================================================
    * ADD TO ORDER
    * ============================================================
    */
 
-    function addLine() {
+  function addLine() {
     if (
       !selectedColor ||
       !selectedOption
@@ -657,7 +901,8 @@ function handleOptionChange(index: number) {
 
     if (
       isWithPhoto &&
-      (!frontPhotoUrl || !backPhotoUrl)
+      (!frontPhotoUrl ||
+        !backPhotoUrl)
     ) {
       return;
     }
@@ -676,15 +921,18 @@ function handleOptionChange(index: number) {
               0
           ),
         quantity,
-                image:
-          colorOwnImages[0] ?? previewImage,
+        image:
+          colorOwnImages[0] ??
+          previewImage,
         photoUrlFront:
           isWithPhoto
-            ? frontPhotoUrl ?? undefined
+            ? frontPhotoUrl ??
+              undefined
             : undefined,
         photoUrlBack:
           isWithPhoto
-            ? backPhotoUrl ?? undefined
+            ? backPhotoUrl ??
+              undefined
             : undefined,
       },
     ]);
@@ -693,13 +941,14 @@ function handleOptionChange(index: number) {
     setFrontPhotoUrl(null);
     setBackPhotoUrl(null);
   }
+
   /*
    * ============================================================
    * ORDER QUANTITY
    * ============================================================
    */
 
-    function updateLineQuantity(
+  function updateLineQuantity(
     lineId: string,
     newQuantity: number
   ) {
@@ -708,23 +957,33 @@ function handleOptionChange(index: number) {
       return;
     }
 
-    const safeQuantity = Math.max(1, newQuantity);
+    const safeQuantity =
+      Math.max(
+        1,
+        newQuantity
+      );
 
     setOrderLines((prev) =>
       prev.map((line) =>
         line.id === lineId
-          ? { ...line, quantity: safeQuantity }
+          ? {
+              ...line,
+              quantity:
+                safeQuantity,
+            }
           : line
       )
     );
 
-    // No-op if this line hasn't been committed via "Add Order to
-    // Cart" yet (still just staged locally) — otherwise keeps the
-    // real cart in sync, quietly, without popping the drawer open.
-    updateCartItemQuantity(lineId, safeQuantity);
+    updateCartItemQuantity(
+      lineId,
+      safeQuantity
+    );
   }
 
-  function removeLine(id: string) {
+  function removeLine(
+    id: string
+  ) {
     setOrderLines((prev) =>
       prev.filter(
         (line) =>
@@ -733,7 +992,10 @@ function handleOptionChange(index: number) {
     );
 
     removeCartItem(id);
-    committedLineIds.current.delete(id);
+
+    committedLineIds.current.delete(
+      id
+    );
   }
 
   /*
@@ -764,19 +1026,20 @@ function handleOptionChange(index: number) {
    * ============================================================
    */
 
-     function setCartLineExact(line: OrderLine) {
-    // Do the "remove any existing entry, then add fresh" as ONE
-    // atomic localStorage write + ONE dispatch, instead of two
-    // separate calls (removeCartItem then addToCart). Two separate
-    // calls meant the item was briefly, genuinely absent from the
-    // cart in between them — and since this line was often already
-    // flagged as committed from a PREVIOUS "Add Order to Cart"
-    // press, the sync effect's cartUpdated listener would see that
-    // brief real absence and permanently drop the line from
-    // orderLines, before the second call ever put it back. That's
-    // what caused items to vanish from this page until a refresh.
-    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-    const withoutLine = cart.filter((item: any) => item.id !== line.id);
+  function setCartLineExact(
+    line: OrderLine
+  ) {
+    const cart = JSON.parse(
+      localStorage.getItem(
+        "cart"
+      ) || "[]"
+    );
+
+    const withoutLine =
+      cart.filter(
+        (item: any) =>
+          item.id !== line.id
+      );
 
     withoutLine.push({
       id: line.id,
@@ -788,14 +1051,30 @@ function handleOptionChange(index: number) {
       color: line.colorName,
       option: line.optionName,
       image: line.image,
-      photoUrlFront: line.photoUrlFront ?? null,
-      photoUrlBack: line.photoUrlBack ?? null,
+      photoUrlFront:
+        line.photoUrlFront ??
+        null,
+      photoUrlBack:
+        line.photoUrlBack ??
+        null,
     });
 
-    localStorage.setItem("cart", JSON.stringify(withoutLine));
+    localStorage.setItem(
+      "cart",
+      JSON.stringify(
+        withoutLine
+      )
+    );
 
     window.dispatchEvent(
-      new CustomEvent("cartUpdated", { detail: { open: true } })
+      new CustomEvent(
+        "cartUpdated",
+        {
+          detail: {
+            open: true,
+          },
+        }
+      )
     );
   }
 
@@ -804,11 +1083,19 @@ function handleOptionChange(index: number) {
       return;
     }
 
-    orderLines.forEach((line) => {
-      setCartLineExact(line);
-      committedLineIds.current.add(line.id);
-    });
+    orderLines.forEach(
+      (line) => {
+        setCartLineExact(
+          line
+        );
+
+        committedLineIds.current.add(
+          line.id
+        );
+      }
+    );
   }
+
   /*
    * ============================================================
    * RENDER
@@ -860,7 +1147,9 @@ function handleOptionChange(index: number) {
                 }}
               />
 
-              {/* GALLERY */}
+              {/* ================================================= */}
+              {/* SCROLLING GALLERY                                 */}
+              {/* ================================================= */}
 
               <div
                 ref={imageScrollRef}
@@ -920,48 +1209,57 @@ function handleOptionChange(index: number) {
                     No image available
                   </div>
                 )}
-
-                                {gallery.length >
-                  1 && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={
-                        previousImage
-                      }
-                      aria-label="Previous image"
-                      className="absolute left-3 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full shadow-lg transition-all duration-150 hover:scale-110 active:scale-95 md:flex"
-                      style={{
-                        backgroundColor: ACCENT,
-                      }}
-                    >
-                      <ChevronLeft
-                        size={20}
-                        color={CREAM}
-                        strokeWidth={2.5}
-                      />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={
-                        nextImage
-                      }
-                      aria-label="Next image"
-                      className="absolute right-3 top-1/2 hidden h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full shadow-lg transition-all duration-150 hover:scale-110 active:scale-95 md:flex"
-                      style={{
-                        backgroundColor: ACCENT,
-                      }}
-                    >
-                      <ChevronRight
-                        size={20}
-                        color={CREAM}
-                        strokeWidth={2.5}
-                      />
-                    </button>
-                  </>
-                )}
               </div>
+
+              {/* ================================================= */}
+              {/* FIXED GALLERY ARROWS                             */}
+              {/* ================================================= */}
+
+              {gallery.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={
+                      previousImage
+                    }
+                    aria-label="Previous image"
+                    className="absolute left-3 top-1/2 z-30 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full shadow-lg transition-all duration-150 hover:scale-110 active:scale-95"
+                    style={{
+                      backgroundColor:
+                        ACCENT,
+                    }}
+                  >
+                    <ChevronLeft
+                      size={20}
+                      color={CREAM}
+                      strokeWidth={
+                        2.5
+                      }
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={
+                      nextImage
+                    }
+                    aria-label="Next image"
+                    className="absolute right-3 top-1/2 z-30 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full shadow-lg transition-all duration-150 hover:scale-110 active:scale-95"
+                    style={{
+                      backgroundColor:
+                        ACCENT,
+                    }}
+                  >
+                    <ChevronRight
+                      size={20}
+                      color={CREAM}
+                      strokeWidth={
+                        2.5
+                      }
+                    />
+                  </button>
+                </>
+              )}
             </div>
 
             {/* COLOR LABEL */}
@@ -976,7 +1274,9 @@ function handleOptionChange(index: number) {
                     color: ACCENT,
                   }}
                 >
-                  {selectedColor.name}
+                  {
+                    selectedColor.name
+                  }
                 </span>
               </div>
             )}
@@ -1020,12 +1320,13 @@ function handleOptionChange(index: number) {
                   <span
                     className="text-2xl font-bold md:text-3xl"
                     style={{
-                      color:
-                        ACCENT,
+                      color: ACCENT,
                     }}
                   >
-                    {selectedOption?.price ??
-                      product.price}
+                    {
+                      selectedOption?.price ??
+                      product.price
+                    }
                   </span>
 
                   <span className="text-[9px] font-bold uppercase tracking-wider">
@@ -1047,8 +1348,7 @@ function handleOptionChange(index: number) {
                       <span
                         className="text-[9px] font-bold uppercase tracking-[0.18em]"
                         style={{
-                          color:
-                            ACCENT,
+                          color: ACCENT,
                         }}
                       >
                         Size
@@ -1113,8 +1413,7 @@ function handleOptionChange(index: number) {
                 <p
                   className="mb-2 text-[10px] font-bold uppercase tracking-[0.22em]"
                   style={{
-                    color:
-                      ACCENT,
+                    color: ACCENT,
                   }}
                 >
                   Color
@@ -1216,8 +1515,7 @@ function handleOptionChange(index: number) {
                   <p
                     className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
                     style={{
-                      color:
-                        ACCENT,
+                      color: ACCENT,
                     }}
                   >
                     Style
@@ -1279,34 +1577,48 @@ function handleOptionChange(index: number) {
                 </div>
               )}
 
-                       {/* WITH PHOTO — front + back */}
+            {/* WITH PHOTO */}
 
             {isWithPhoto && (
               <div className="mt-5">
 
-                                <p
+                <p
                   className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
-                  style={{ color: ACCENT }}
+                  style={{
+                    color: ACCENT,
+                  }}
                 >
                   Your Photos
                 </p>
-{selectedColor && (
+
+                {selectedColor && (
                   <div className="mb-3 flex items-center gap-2">
                     <img
                       src={
                         selectedColor.image_url ??
                         selectedColor.image_urls?.[0] ??
                         selectedColor.options?.find(
-                          (o) => o.name === "Without Photo"
+                          (o) =>
+                            o.name ===
+                            "Without Photo"
                         )?.image_url ??
                         previewImage
                       }
-                      alt={selectedColor.name}
+                      alt={
+                        selectedColor.name
+                      }
                       className="h-12 w-12 rounded-xl object-contain"
-                      style={{ backgroundColor: "#F7EEDC" }}
+                      style={{
+                        backgroundColor:
+                          "#F7EEDC",
+                      }}
                     />
+
                     <span className="text-xs opacity-60">
-                      {selectedColor.name} wand
+                      {
+                        selectedColor.name
+                      }{" "}
+                      wand
                     </span>
                   </div>
                 )}
@@ -1314,6 +1626,7 @@ function handleOptionChange(index: number) {
                 <div className="grid grid-cols-2 gap-3">
 
                   {/* FRONT */}
+
                   <div>
                     <button
                       type="button"
@@ -1322,35 +1635,47 @@ function handleOptionChange(index: number) {
                       }
                       className="w-full rounded-2xl border px-4 py-4 text-left text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5"
                       style={{
-                        backgroundColor: "transparent",
-                        borderColor: ACCENT,
-                        color: "#000000",
+                        backgroundColor:
+                          "transparent",
+                        borderColor:
+                          ACCENT,
+                        color:
+                          "#000000",
                       }}
                     >
                       Front photo
                     </button>
 
                     <input
-                      ref={frontFileInputRef}
+                      ref={
+                        frontFileInputRef
+                      }
                       type="file"
                       accept="image/jpeg,image/png"
                       className="hidden"
-                      onChange={handleFrontPhotoChange}
+                      onChange={
+                        handleFrontPhotoChange
+                      }
                     />
 
                     {frontPhotoUrl && (
                       <div className="mt-2 flex justify-center">
                         <img
-                          src={frontPhotoUrl}
+                          src={
+                            frontPhotoUrl
+                          }
                           alt="Front photo"
                           className="h-16 w-16 rounded-xl object-cover"
-                          style={{ border: `1px solid ${ACCENT}` }}
+                          style={{
+                            border: `1px solid ${ACCENT}`,
+                          }}
                         />
                       </div>
                     )}
                   </div>
 
                   {/* BACK */}
+
                   <div>
                     <button
                       type="button"
@@ -1359,29 +1684,40 @@ function handleOptionChange(index: number) {
                       }
                       className="w-full rounded-2xl border px-4 py-4 text-left text-sm font-semibold transition-all duration-200 hover:-translate-y-0.5"
                       style={{
-                        backgroundColor: "transparent",
-                        borderColor: ACCENT,
-                        color: "#000000",
+                        backgroundColor:
+                          "transparent",
+                        borderColor:
+                          ACCENT,
+                        color:
+                          "#000000",
                       }}
                     >
                       Back photo
                     </button>
 
                     <input
-                      ref={backFileInputRef}
+                      ref={
+                        backFileInputRef
+                      }
                       type="file"
                       accept="image/jpeg,image/png"
                       className="hidden"
-                      onChange={handleBackPhotoChange}
+                      onChange={
+                        handleBackPhotoChange
+                      }
                     />
 
                     {backPhotoUrl && (
                       <div className="mt-2 flex justify-center">
                         <img
-                          src={backPhotoUrl}
+                          src={
+                            backPhotoUrl
+                          }
                           alt="Back photo"
                           className="h-16 w-16 rounded-xl object-cover"
-                          style={{ border: `1px solid ${ACCENT}` }}
+                          style={{
+                            border: `1px solid ${ACCENT}`,
+                          }}
                         />
                       </div>
                     )}
@@ -1390,12 +1726,16 @@ function handleOptionChange(index: number) {
 
                 <p
                   className="mt-2 text-[10px]"
-                  style={{ color: "rgba(0,0,0,0.45)" }}
+                  style={{
+                    color:
+                      "rgba(0,0,0,0.45)",
+                  }}
                 >
                   Both a front and back photo are required for this style.
                 </p>
               </div>
             )}
+
             {/* QUANTITY */}
 
             <div className="mt-5">
@@ -1403,8 +1743,7 @@ function handleOptionChange(index: number) {
               <p
                 className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
                 style={{
-                  color:
-                    ACCENT,
+                  color: ACCENT,
                 }}
               >
                 Quantity
@@ -1452,10 +1791,11 @@ function handleOptionChange(index: number) {
             <button
               type="button"
               onClick={addLine}
-                            disabled={
+              disabled={
                 !selectedOption ||
                 (isWithPhoto &&
-                  (!frontPhotoUrl || !backPhotoUrl))
+                  (!frontPhotoUrl ||
+                    !backPhotoUrl))
               }
               className="mt-6 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
               style={{
@@ -1479,9 +1819,7 @@ function handleOptionChange(index: number) {
               + Add to Order
             </button>
 
-            {/* ================================================= */}
-            {/* YOUR ORDER                                       */}
-            {/* ================================================= */}
+            {/* YOUR ORDER */}
 
             {orderLines.length > 0 && (
               <div className="mt-5">
@@ -1489,8 +1827,7 @@ function handleOptionChange(index: number) {
                 <p
                   className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
                   style={{
-                    color:
-                      ACCENT,
+                    color: ACCENT,
                   }}
                 >
                   Your Order
@@ -1511,21 +1848,29 @@ function handleOptionChange(index: number) {
                             SAND,
                         }}
                       >
-                                                                      <div className="flex items-start gap-3">
+                        <div className="flex items-start gap-3">
 
                           <div className="flex flex-shrink-0 gap-1">
+
                             {line.image && (
                               <img
-                                src={line.image}
+                                src={
+                                  line.image
+                                }
                                 alt="Wand color"
                                 className="h-12 w-12 rounded-xl object-contain"
-                                style={{ backgroundColor: "#F7EEDC" }}
+                                style={{
+                                  backgroundColor:
+                                    "#F7EEDC",
+                                }}
                               />
                             )}
 
                             {line.photoUrlFront && (
                               <img
-                                src={line.photoUrlFront}
+                                src={
+                                  line.photoUrlFront
+                                }
                                 alt="Front photo"
                                 className="h-12 w-12 rounded-xl object-cover"
                               />
@@ -1533,7 +1878,9 @@ function handleOptionChange(index: number) {
 
                             {line.photoUrlBack && (
                               <img
-                                src={line.photoUrlBack}
+                                src={
+                                  line.photoUrlBack
+                                }
                                 alt="Back photo"
                                 className="h-12 w-12 rounded-xl object-cover"
                               />
@@ -1541,22 +1888,30 @@ function handleOptionChange(index: number) {
                           </div>
 
                           <div className="min-w-0 flex-1">
+
                             <p className="truncate text-sm font-semibold">
-                              {line.colorName}
+                              {
+                                line.colorName
+                              }
                             </p>
 
                             <p className="mt-1 text-xs opacity-55">
-                              {line.optionName}
+                              {
+                                line.optionName
+                              }
                             </p>
 
                             <div className="mt-2 flex items-center justify-between gap-2">
+
                               <div className="flex items-center gap-2">
+
                                 <button
                                   type="button"
                                   onClick={() =>
                                     updateLineQuantity(
                                       line.id,
-                                      line.quantity - 1
+                                      line.quantity -
+                                        1
                                     )
                                   }
                                   className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
@@ -1565,7 +1920,9 @@ function handleOptionChange(index: number) {
                                 </button>
 
                                 <span className="w-5 text-center text-sm font-semibold">
-                                  {line.quantity}
+                                  {
+                                    line.quantity
+                                  }
                                 </span>
 
                                 <button
@@ -1573,7 +1930,8 @@ function handleOptionChange(index: number) {
                                   onClick={() =>
                                     updateLineQuantity(
                                       line.id,
-                                      line.quantity + 1
+                                      line.quantity +
+                                        1
                                     )
                                   }
                                   className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold"
@@ -1584,17 +1942,23 @@ function handleOptionChange(index: number) {
 
                               <span
                                 className="text-sm font-bold"
-                                style={{ color: ACCENT }}
+                                style={{
+                                  color:
+                                    ACCENT,
+                                }}
                               >
-                                {line.price * line.quantity} EGP
+                                {
+                                  line.price *
+                                  line.quantity
+                                }{" "}
+                                EGP
                               </span>
                             </div>
                           </div>
                         </div>
 
-                        {/* REMOVE */}
-
                         <div className="mt-1 text-right">
+
                           <button
                             type="button"
                             onClick={() =>
@@ -1606,6 +1970,7 @@ function handleOptionChange(index: number) {
                           >
                             remove
                           </button>
+
                         </div>
                       </div>
                     )
@@ -1623,7 +1988,9 @@ function handleOptionChange(index: number) {
                   }}
                 >
                   <span className="text-sm font-semibold">
-                    {totalQuantity}{" "}
+                    {
+                      totalQuantity
+                    }{" "}
                     wand
                     {totalQuantity !==
                     1
@@ -1635,8 +2002,7 @@ function handleOptionChange(index: number) {
                   <span
                     className="text-lg font-bold"
                     style={{
-                      color:
-                        ACCENT,
+                      color: ACCENT,
                     }}
                   >
                     {

@@ -78,7 +78,7 @@ const COLOR_SCROLL_PRODUCTS = [
   "Pocket Hearts",
   "Rustic Warmth",
   "Jar Candle",
-
+  "Bloom Wand",
 ];
 
 // These simple, single-variant candles skip the on-page "Your Order"
