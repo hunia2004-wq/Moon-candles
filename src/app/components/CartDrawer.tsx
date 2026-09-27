@@ -285,24 +285,32 @@ export default function CartDrawer() {
                     "rgba(0,0,0,0.08)",
                 }}
               >
-                {/* PRODUCT IMAGE */}
+                               {/* PRODUCT IMAGE(S) */}
 
-                <div
-                  className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl"
-                  style={{
-                    backgroundColor:
-                      SAND,
-                  }}
-                >
-                  {item.image && (
-                    <img
-                      src={item.image}
-                      alt={
-                        item.productName
-                      }
-                      className="h-full w-full object-contain"
-                    />
-                  )}
+                <div className="flex flex-shrink-0 gap-1">
+                  <div
+                    className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl"
+                    style={{
+                      backgroundColor: SAND,
+                    }}
+                  >
+                    {item.image && (
+                      <img
+                        src={item.image}
+                        alt={item.productName}
+                        className="h-full w-full object-contain"
+                      />
+                    )}
+                  </div>
+
+                  {item.customization?.type === "monogram" &&
+                    item.customization.monogramImage && (
+                      <img
+                        src={item.customization.monogramImage}
+                        alt="Custom lettering"
+                        className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
+                      />
+                    )}
                 </div>
 
                 {/* PRODUCT INFO */}
@@ -332,7 +340,7 @@ export default function CartDrawer() {
                       </p>
                     )}
 
-                                        <p
+                                                                               <p
                       className="mt-0.5 text-[11px]"
                       style={{
                         color:
@@ -341,6 +349,16 @@ export default function CartDrawer() {
                     >
                       {item.scent ?? "Unscented"}
                     </p>
+
+                    {item.customization?.type === "monogram" &&
+                      item.customization.monogramText && (
+                        <p
+                          className="mt-0.5 text-[11px]"
+                          style={{ color: "rgba(0,0,0,0.5)" }}
+                        >
+                          Initials: {item.customization.monogramText}
+                        </p>
+                      )}
                   </div>
 
                   {/* QUANTITY + PRICE */}

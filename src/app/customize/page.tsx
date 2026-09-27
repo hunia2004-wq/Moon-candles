@@ -3,8 +3,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import CandleLabelWrap from "../components/CandleLabelWrap";
-import CandleSpin3D from "../components/CandleSpin3D.tsx";
 
+// Static "how it looks in real life" photo shown under the preview —
+// not user-editable, just a fixed reference image.
+const REFERENCE_PHOTO_URL = "PASTE_YOUR_HOSTED_IMAGE_URL_HERE";
 const SIZES = [
   {
     id: "small",
@@ -209,8 +211,9 @@ export default function CustomizeCandlePage() {
     className="fixed inset-0 z-[999] flex flex-col items-center justify-center px-6"
     style={{ backgroundColor: "#FFF4E6" }}
   >
-    <button
-      onClick={() => setShowPreview(false)}
+              <button
+  type="button"
+  onClick={() => setShowPreview(true)}
       className="absolute top-6 right-6 text-2xl"
       style={{ color: "#000000" }}
       aria-label="Close"
@@ -218,12 +221,20 @@ export default function CustomizeCandlePage() {
       ✕
     </button>
 
-        <CandleLabelWrap
-      candleImg={selectedSize.img}
-      photoUrl={photoUrl}
-      message={message}
+             <CandleLabelWrap
+        candleImg={selectedSize.img}
+        photoUrl={photoUrl}
+        message={message}
+        curved={false}
+        onPhotoZoneClick={() => fileInputRef.current?.click()}
+        onMessageChange={setMessage}
+      />
+
+    <img
+      src={REFERENCE_PHOTO_URL}
+      alt="How it looks in real life"
+      className="mt-6 w-full max-w-md rounded-xl"
     />
-    <CandleSpin3D photoUrl={photoUrl} message={message} />
 
 <button
   onClick={() => {

@@ -10,7 +10,7 @@ const SHOP_ITEMS = [
   { name: "Iced Latte", slug: "iced-latte-candle" },
   { name: "Molten Muse", slug: "molten-muse" },
   { name: "Crystal Glow", slug: "TEST-CRYSTAL" },
-    { name: "Shell", slug: "shell" },
+      { name: "Ocean Seashell Candle", slug: "shell" },
   { name: "Melt Balm", slug: "melt-balm" },
   { name: "Noor Al Qamar", slug: "Noor-Al-Qamar" },
   { name: "Plain Candle", slug: "Plain-Candle" },

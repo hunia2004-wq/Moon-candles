@@ -159,18 +159,29 @@ export default function CartPage() {
                       }}
                     >
                       {/* Image + name, side by side */}
-                      <div className="flex items-center gap-3 md:gap-4">
-                        <div
-                          className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl md:h-[68px] md:w-[68px]"
-                          style={{ backgroundColor: SAND }}
-                        >
-                          {item.image && (
-                            <img
-                              src={item.image}
-                              alt={item.productName}
-                              className="h-full w-full object-contain"
-                            />
-                          )}
+                                           <div className="flex items-center gap-3 md:gap-4">
+                        <div className="flex flex-shrink-0 gap-1">
+                          <div
+                            className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl md:h-[68px] md:w-[68px]"
+                            style={{ backgroundColor: SAND }}
+                          >
+                            {item.image && (
+                              <img
+                                src={item.image}
+                                alt={item.productName}
+                                className="h-full w-full object-contain"
+                              />
+                            )}
+                          </div>
+
+                          {item.customization?.type === "monogram" &&
+                            item.customization.monogramImage && (
+                              <img
+                                src={item.customization.monogramImage}
+                                alt="Custom lettering"
+                                className="h-16 w-16 flex-shrink-0 rounded-xl object-cover md:h-[68px] md:w-[68px]"
+                              />
+                            )}
                         </div>
 
                         <p
@@ -180,9 +191,7 @@ export default function CartPage() {
                           {item.productName}
                         </p>
                       </div>
-
-                      {/* Color / scent — full width, one line each */}
-                                            {/* Color / scent — full width, one line each */}
+                                            {/* Color / scent / personalization — full width, one line each */}
                       <div className="flex flex-col gap-0.5">
                         {item.color && (
                           <p
@@ -199,6 +208,16 @@ export default function CartPage() {
                         >
                           {item.scent ?? "Unscented"}
                         </p>
+
+                        {item.customization?.type === "monogram" &&
+                          item.customization.monogramText && (
+                            <p
+                              className="whitespace-nowrap text-[11px]"
+                              style={{ color: "rgba(0,0,0,0.5)" }}
+                            >
+                              Initials: {item.customization.monogramText}
+                            </p>
+                          )}
                       </div>
 
                       {/* Quantity + price, on their own row */}

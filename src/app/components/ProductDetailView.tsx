@@ -90,7 +90,7 @@ const NO_ORDER_COUNTER_NAMES = [
   "Iced Latte",
   "Molten Muse",
   "Crystal Glow",
-  "Shell",
+  "Ocean Seashell Candle",
   "Melt Balm",
   "Forever Clasp",
   "Pocket Hearts",
@@ -164,6 +164,54 @@ export default function ProductDetailView({
 
   const normalizedProductName =
     productName.trim().toLowerCase();
+      // Some products' photos sit small/centered within their own image
+  // file (e.g. Molten Muse's glass is a small part of the frame) —
+  // this trims the gallery slide's own padding for just those
+  // products so the photo can visually fill more of the box, without
+  // touching every other product's gallery.
+  const GALLERY_SLIDE_PADDING_OVERRIDES: Record<string, string> = {
+       "molten muse": "px-0 py-0 md:px-1",
+  };
+  // Per-product, per-image-index scale overrides. Index is the
+  // position in that product's own gallery (0 = first image, 1 =
+  // second, etc.) — omit an index to leave that image at its
+  // default (unscaled) size.
+ type GalleryScaleMap = Record<string, Record<number, number>>;
+
+  const GALLERY_IMAGE_SCALE_OVERRIDES: GalleryScaleMap = {
+    "molten muse": {
+      0: 1.9, // image 1
+      2: 1.7, // image 3
+      // no entry for index 1 (image 2) — stays default size
+    },
+  };
+
+  function getGalleryImageScale(index: number): number {
+    return (
+      GALLERY_IMAGE_SCALE_OVERRIDES[normalizedProductName]?.[index] ?? 1
+    );
+  }
+
+  // Per-product, per-image-index vertical nudge, in pixels. Negative
+  // moves the image UP, positive moves it DOWN. Same index rules as
+  // the scale map above — omit an index to leave it unmoved.
+  type GalleryOffsetMap = Record<string, Record<number, number>>;
+
+  const GALLERY_IMAGE_OFFSET_Y_OVERRIDES: GalleryOffsetMap = {
+    "molten muse": {
+      2: -40, // image 3 — nudged upward
+    },
+  };
+
+  function getGalleryImageOffsetY(index: number): number {
+    return (
+      GALLERY_IMAGE_OFFSET_Y_OVERRIDES[normalizedProductName]?.[index] ?? 0
+    );
+  }
+
+  const gallerySlidePadding =
+    GALLERY_SLIDE_PADDING_OVERRIDES[normalizedProductName] ??
+    "px-4 py-2 md:px-8";
 
   /*
    * ============================================================
@@ -1806,7 +1854,7 @@ useEffect(() => {
     // filled in (typed initials or an uploaded image). Always
     // undefined for every other product since this section only
     // renders for Pocket Hearts.
-    const monogramTextToUse =
+      const monogramTextToUse =
       productName === "Pocket Hearts" && monogramText.trim()
         ? monogramText.trim()
         : undefined;
@@ -1816,25 +1864,33 @@ useEffect(() => {
         ? monogramImageUrl
         : undefined;
 
+    // Only attach personalization when this is Pocket Hearts AND the
+    // person actually filled something in — every other product (and
+    // a blank Pocket Hearts order) gets no customization field at all.
+    const monogramCustomization =
+      monogramTextToUse || monogramImageToUse
+        ? {
+            type: "monogram" as const,
+            monogramText: monogramTextToUse ?? "",
+            monogramImage: monogramImageToUse,
+          }
+        : undefined;
+
     // Single source of truth for cart writes — addToCart() already
     // finds a line with this exact id and increments its quantity by
     // 1 instead of creating a duplicate, or adds a fresh line at
     // quantity 1 if this variant isn't in the cart yet.
-   addToCart({
-  id: lineId,
-  productId: product.id,
-  productName,
-  price: Number(displayPrice),
-  quantity: 1,
-  scent: productScent,
-  color: productColor,
-  image: lineImage,
-  customization: {
-    type: "monogram",
-    monogramText,
-    monogramImage: monogramImageToUse,
-  },
-});
+    addToCart({
+      id: lineId,
+      productId: product.id,
+      productName,
+      price: Number(displayPrice),
+      quantity: 1,
+      scent: productScent,
+      color: productColor,
+      image: lineImage,
+      customization: monogramCustomization,
+    });
 
     setOrderLines((prev) => {
       const existingLineIndex = prev.findIndex(
@@ -2106,13 +2162,13 @@ useEffect(() => {
                           ] =
                             element;
                         }}
-                        className="flex h-full w-full flex-shrink-0 snap-center snap-always items-center justify-center px-4 py-2 md:px-8"
+                                                className={`flex h-full w-full flex-shrink-0 snap-center snap-always items-center justify-center ${gallerySlidePadding}`}
                         style={{
                           scrollSnapAlign:
                             "center",
                         }}
                       >
-                        <img
+                                                 <img
                           src={url}
                           alt={`${productName} ${
                             galleryColorNames[
@@ -2122,6 +2178,9 @@ useEffect(() => {
                             index + 1
                           }`}
                           className="h-full w-full select-none object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.10)]"
+                                                   style={{
+                            transform: `translateY(${getGalleryImageOffsetY(index)}px) scale(${getGalleryImageScale(index)})`,
+                          }}
                           draggable={
                             false
                           }

@@ -40,11 +40,15 @@ export default function CandleLabelWrap({
   photoUrl,
   message,
   curved = true,
+  onPhotoZoneClick,
+  onMessageChange,
 }: {
   candleImg: string;
   photoUrl: string | null;
   message: string;
   curved?: boolean;
+  onPhotoZoneClick?: () => void;
+  onMessageChange?: (value: string) => void;
 }) {
   const [labelDataUrl, setLabelDataUrl] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -164,17 +168,22 @@ export default function CandleLabelWrap({
   // undistorted rectangle — same position/size as the curved version,
   // just without the strip-wrap effect. Used while editing, so the
   // photo/text are clear and easy to check, not bent by the curve math.
+    // Flat mode: candle stays visible, but the label sits on it as a plain
+  // undistorted rectangle. The photo zone and text zone remain interactive
+  // so the user can upload a photo and edit the message directly.
   if (!curved) {
     return (
       <div className="relative w-full max-w-md mx-auto">
         <canvas ref={canvasRef} className="hidden" />
 
-        <img src={candleImg} alt="Your candle" className="w-full h-auto" />
+        <img
+          src={candleImg}
+          alt="Your candle"
+          className="w-full h-auto"
+        />
 
         {labelDataUrl && (
-          <img
-            src={labelDataUrl}
-            alt="Your label design"
+          <div
             className="absolute rounded-sm shadow-md"
             style={{
               left: `${LABEL_LEFT_PCT}%`,
@@ -182,7 +191,54 @@ export default function CandleLabelWrap({
               width: `${LABEL_WIDTH_PCT}%`,
               aspectRatio: `${LABEL_ASPECT}`,
             }}
-          />
+          >
+            {/* Actual label design */}
+            <img
+              src={labelDataUrl}
+              alt="Your label design"
+              className="absolute inset-0 h-full w-full rounded-sm"
+            />
+
+            {/* ================================================= */}
+            {/* PHOTO UPLOAD ZONE                                */}
+            {/* ================================================= */}
+
+            <button
+              type="button"
+              onClick={onPhotoZoneClick}
+              aria-label="Add your photo"
+              className="absolute cursor-pointer bg-transparent"
+              style={{
+                left: `${PHOTO_ZONE.left}%`,
+                top: `${PHOTO_ZONE.top}%`,
+                width: `${PHOTO_ZONE.width}%`,
+                height: `${PHOTO_ZONE.height}%`,
+              }}
+            />
+
+            {/* ================================================= */}
+            {/* MESSAGE EDIT ZONE                                */}
+            {/* ================================================= */}
+
+            <textarea
+              value={message}
+              onChange={(e) =>
+                onMessageChange?.(
+                  e.target.value
+                )
+              }
+              placeholder=""
+              className="absolute resize-none bg-transparent text-center outline-none"
+              style={{
+                left: `${TEXT_ZONE.left}%`,
+                top: `${TEXT_ZONE.top}%`,
+                width: `${TEXT_ZONE.width}%`,
+                height: `${TEXT_ZONE.height}%`,
+                color: "transparent",
+                caretColor: "#2A2A2A",
+              }}
+            />
+          </div>
         )}
       </div>
     );

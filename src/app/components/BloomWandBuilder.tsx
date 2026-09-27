@@ -484,8 +484,39 @@ export default function BloomWandBuilder({
    * GALLERY SCROLL
    * ============================================================
    */
+function waitForScrollEnd(
+  container: HTMLDivElement,
+  callback: () => void
+) {
+  let lastLeft = container.scrollLeft;
+  let stableFrames = 0;
+  let elapsedFrames = 0;
 
-  function scrollToImage(
+  function check() {
+    const currentLeft = container.scrollLeft;
+
+    if (currentLeft === lastLeft) {
+      stableFrames++;
+    } else {
+      stableFrames = 0;
+      lastLeft = currentLeft;
+    }
+
+    elapsedFrames++;
+
+    // Stop once position is stable for 3 frames,
+    // or as a safety cap after ~2s so we never hang.
+    if (stableFrames >= 3 || elapsedFrames > 120) {
+      callback();
+      return;
+    }
+
+    requestAnimationFrame(check);
+  }
+
+  requestAnimationFrame(check);
+}
+    function scrollToImage(
     index: number
   ) {
     if (!gallery.length) {
@@ -547,10 +578,9 @@ export default function BloomWandBuilder({
           safeIndex
         );
 
-        window.setTimeout(() => {
-          programmaticScroll.current =
-            false;
-        }, 600);
+        waitForScrollEnd(container, () => {
+          programmaticScroll.current = false;
+        });
       });
 
       return;
@@ -636,12 +666,16 @@ export default function BloomWandBuilder({
      * After the smooth scroll has finished,
      * allow normal swipe detection again.
      */
-    window.setTimeout(() => {
-      programmaticScroll.current =
-        false;
-    }, 600);
+    waitForScrollEnd(container, () => {
+      programmaticScroll.current = false;
+    });
   }
 
+  /*
+   * ============================================================
+   * DETECT SWIPE / SCROLL
+   * ============================================================
+   */
   /*
    * ============================================================
    * DETECT SWIPE / SCROLL
@@ -1210,56 +1244,49 @@ export default function BloomWandBuilder({
                   </div>
                 )}
               </div>
+{/* ================================================= */}
+{/* FIXED GALLERY ARROWS                             */}
+{/* ================================================= */}
 
-              {/* ================================================= */}
-              {/* FIXED GALLERY ARROWS                             */}
-              {/* ================================================= */}
+{gallery.length > 1 && (
+  <>
+    <button
+      type="button"
+      onClick={previousImage}
+      aria-label="Previous image"
+      className="absolute left-2 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full backdrop-blur transition-all duration-200 hover:brightness-95 active:scale-95"
+      style={{
+        backgroundColor: `${ACCENT}1F`,
+        color: ACCENT,
+        boxShadow:
+          "0 1px 4px rgba(0,0,0,0.08)",
+      }}
+    >
+      <ChevronLeft
+        size={18}
+        strokeWidth={2.2}
+      />
+    </button>
 
-              {gallery.length > 1 && (
-                <>
-                  <button
-                    type="button"
-                    onClick={
-                      previousImage
-                    }
-                    aria-label="Previous image"
-                    className="absolute left-3 top-1/2 z-30 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full shadow-lg transition-all duration-150 hover:scale-110 active:scale-95"
-                    style={{
-                      backgroundColor:
-                        ACCENT,
-                    }}
-                  >
-                    <ChevronLeft
-                      size={20}
-                      color={CREAM}
-                      strokeWidth={
-                        2.5
-                      }
-                    />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={
-                      nextImage
-                    }
-                    aria-label="Next image"
-                    className="absolute right-3 top-1/2 z-30 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full shadow-lg transition-all duration-150 hover:scale-110 active:scale-95"
-                    style={{
-                      backgroundColor:
-                        ACCENT,
-                    }}
-                  >
-                    <ChevronRight
-                      size={20}
-                      color={CREAM}
-                      strokeWidth={
-                        2.5
-                      }
-                    />
-                  </button>
-                </>
-              )}
+    <button
+      type="button"
+      onClick={nextImage}
+      aria-label="Next image"
+      className="absolute right-2 top-1/2 z-30 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full backdrop-blur transition-all duration-200 hover:brightness-95 active:scale-95"
+      style={{
+        backgroundColor: `${ACCENT}1F`,
+        color: ACCENT,
+        boxShadow:
+          "0 1px 4px rgba(0,0,0,0.08)",
+      }}
+    >
+      <ChevronRight
+        size={18}
+        strokeWidth={2.2}
+      />
+    </button>
+  </>
+)}
             </div>
 
             {/* COLOR LABEL */}

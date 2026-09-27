@@ -1461,11 +1461,14 @@ export default function CustomizeTambourinePage() {
           </span>
         </h1>
 
-        <p
+                <p
           className="text-sm md:text-base mb-10"
           style={{ color: "rgba(0,0,0,0.62)" }}
         >
-          Design a tambourine that's uniquely yours.
+          Make your celebrations stand out with our unique wooden tambourines.
+          Each piece features a fully customized sticker with your chosen
+          design and a ribbon in your preferred color, making it a wonderful,
+          interactive keepsake for weddings and major milestones.
         </p>
 
         <StepLabel n={1} title="Choose your size" />
