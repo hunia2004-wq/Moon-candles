@@ -318,7 +318,8 @@ export function useLayerGestures<T extends Layer>(
     onPointerMove,
     onPointerUp,
     onWheelZoom,
-    undo,
+        undo,
+    pushHistory,
     canUndo: () => history.current.length > 0,
   };
 }

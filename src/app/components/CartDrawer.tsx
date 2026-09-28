@@ -340,15 +340,16 @@ export default function CartDrawer() {
                       </p>
                     )}
 
-                                                                               <p
-                      className="mt-0.5 text-[11px]"
-                      style={{
-                        color:
-                          "rgba(0,0,0,0.5)",
-                      }}
-                    >
-                      {item.scent ?? "Unscented"}
-                    </p>
+                                        {item.scent && (
+                      <p
+                        className="mt-0.5 text-[11px]"
+                        style={{
+                          color: "rgba(0,0,0,0.5)",
+                        }}
+                      >
+                        {item.scent}
+                      </p>
+                    )}
 
                     {item.customization?.type === "monogram" &&
                       item.customization.monogramText && (
