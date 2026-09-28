@@ -95,7 +95,10 @@ const NO_ORDER_COUNTER_NAMES = [
   "Forever Clasp",
   "Pocket Hearts",
   "Rustic Warmth",
+  "Jar Candle",
+  "plain candle",
 ];
+const NO_GALLERY_ARROWS_NAMES = ["Plain Candle"];
 const RIBBON_COLORS = [
   { id: "light-pink", label: "Light Pink", hex: "#F5C6D6" },
   { id: "light-blue", label: "Light Blue", hex: "#B9D9EC" },
@@ -256,10 +259,13 @@ export default function ProductDetailView({
         normalizedProductName
     );
       const hasNoOrderCounter =
+      
     NO_ORDER_COUNTER_NAMES.some(
       (name) => name.toLowerCase() === normalizedProductName
     );
-
+  const hideGalleryArrows = NO_GALLERY_ARROWS_NAMES.some(
+    (name) => name.toLowerCase() === normalizedProductName
+  );
   const accent = isGiveaway
     ? "#6E86C7"
     : "#D8A1AF";
@@ -405,6 +411,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
       []
     );
       const scrollSyncing = useRef(false);
+        const committedNoorIds = useRef<Set<string>>(new Set());
 
   const hasColors =
     (product.colors?.length ?? 0) > 0;
@@ -700,14 +707,20 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     } else if (selectedColor) {
       // Products with nested options (e.g. Bloom Wand): unchanged —
       // gallery stays scoped to the selected color/option's own photos.
-      if (hasOptions && selectedOption) {
+            if (hasOptions && selectedOption) {
         addImages(selectedOption.image_urls, selectedColor.name);
         addImage(selectedOption.image_url, selectedColor.name);
       }
 
-            addImages(selectedColor.image_urls, selectedColor.name);
-      addImage(selectedColor.image_url, selectedColor.name);
+      // Plain Candle: if the selected size already has its own photo,
+      // don't also add the color's default photo (that's the other
+      // size's picture, and it's what made the swipe appear).
+      const singlePhotoPerOption = normalizedProductName === "plain candle";
 
+      if (!(singlePhotoPerOption && items.length > 0)) {
+        addImages(selectedColor.image_urls, selectedColor.name);
+        addImage(selectedColor.image_url, selectedColor.name);
+      }
       // Only pull in other options' photos here for products that
       // actually want a combined gallery across options (none
       // currently do, but this stays generic for future cases). For
@@ -1173,73 +1186,92 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     };
   }, [productName]);
 
-useEffect(() => {
+  useEffect(() => {
     if (!isTwoColorProduct) return;
+
+    const whiteId = `${product.id}-white`;
+    const grayId = `${product.id}-gray`;
 
     function syncNoorWithCart() {
       const cart = JSON.parse(localStorage.getItem("cart") || "[]");
 
-      const whiteId = `${product.id}-white`;
-      const grayId = `${product.id}-gray`;
-
       const whiteItem = cart.find((item: any) => item.id === whiteId);
       const grayItem = cart.find((item: any) => item.id === grayId);
 
-       // Reflect removal, not just quantity changes — but only for
-      // lines that were actually committed to the cart. A still-draft
-      // selection (button pressed, "Add to Cart" not yet pressed)
-      // never had a real cart entry, so its absence doesn't mean it
-      // was removed — deselecting it here would wipe the person's
-      // in-progress choice every time any cartUpdated event fires.
-      setOrderLines((currentLines) => {
-        const whiteLine = currentLines.find(
-          (l) => l.id === whiteId
-        );
-        const grayLine = currentLines.find((l) => l.id === grayId);
+      // A color counts as "removed" only if it was in the cart before
+      // and isn't now. A color the person has only tapped (staged, not
+      // yet added) was never in the cart, so it's left alone.
+      const whiteRemoved =
+        !whiteItem && committedNoorIds.current.has(whiteId);
+      const grayRemoved =
+        !grayItem && committedNoorIds.current.has(grayId);
 
-        if (whiteItem) {
-          setSelectedNoorWhite(true);
-          setNoorWhiteQuantity(Number(whiteItem.quantity) || 1);
-        } else if (whiteLine?.inCart) {
-          setSelectedNoorWhite(false);
-          setNoorWhiteQuantity(1);
-        }
+      if (whiteItem) {
+        committedNoorIds.current.add(whiteId);
+        setSelectedNoorWhite(true);
+        setNoorWhiteQuantity(Number(whiteItem.quantity) || 1);
+      } else if (whiteRemoved) {
+        committedNoorIds.current.delete(whiteId);
+        setSelectedNoorWhite(false);
+        setNoorWhiteQuantity(1);
+      }
 
-        if (grayItem) {
-          setSelectedNoorGray(true);
-          setNoorGrayQuantity(Number(grayItem.quantity) || 1);
-        } else if (grayLine?.inCart) {
-          setSelectedNoorGray(false);
-          setNoorGrayQuantity(1);
-        }
+      if (grayItem) {
+        committedNoorIds.current.add(grayId);
+        setSelectedNoorGray(true);
+        setNoorGrayQuantity(Number(grayItem.quantity) || 1);
+      } else if (grayRemoved) {
+        committedNoorIds.current.delete(grayId);
+        setSelectedNoorGray(false);
+        setNoorGrayQuantity(1);
+      }
 
-        return currentLines;
-      });
-
-      setOrderLines((prev) =>
-        prev
-          .filter((line) => {
-            // Only Noor's own two lines are governed by this effect —
-            // leave any other product's lines untouched.
-            if (line.id !== whiteId && line.id !== grayId) return true;
-
-            // Draft lines (staged but never actually committed via
-            // "Add to Cart") were never in the real cart to begin
-            // with — their "absence" isn't a removal, so leave them
-            // alone instead of dropping them the moment any
-            // cartUpdated event fires (e.g. from the +/- counter
-            // calling updateCartItemQuantity as a harmless no-op).
-            if (!line.inCart) return true;
-
-            return line.id === whiteId ? !!whiteItem : !!grayItem;
-          })
+      setOrderLines((prev) => {
+        const next: OrderLine[] = prev
+          .filter(
+            (line) =>
+              !(line.id === whiteId && whiteRemoved) &&
+              !(line.id === grayId && grayRemoved)
+          )
           .map((line) => {
-            const cartMatch = cart.find((item: any) => item.id === line.id);
-            return cartMatch
-              ? { ...line, quantity: cartMatch.quantity }
+            const item =
+              line.id === whiteId
+                ? whiteItem
+                : line.id === grayId
+                ? grayItem
+                : null;
+
+            return item
+              ? {
+                  ...line,
+                  quantity: Number(item.quantity) || 1,
+                  inCart: true,
+                }
               : line;
-          })
-      );
+          });
+
+        // If the page loaded with Noor already in the cart, there is
+        // no line for it yet — create one so the page's own +/-, remove
+        // and total all work on it.
+        const ensureLine = (id: string, colorName: string, item: any) => {
+          if (item && !next.some((line) => line.id === id)) {
+            next.push({
+              id,
+              colorName,
+              scentName: null,
+              price: Number(item.price) || Number(product.price),
+              quantity: Number(item.quantity) || 1,
+              image: item.image ?? "",
+              inCart: true,
+            });
+          }
+        };
+
+        ensureLine(whiteId, "White", whiteItem);
+        ensureLine(grayId, "Gray", grayItem);
+
+        return next;
+      });
     }
 
     window.addEventListener("cartUpdated", syncNoorWithCart);
@@ -1249,7 +1281,7 @@ useEffect(() => {
     return () => {
       window.removeEventListener("cartUpdated", syncNoorWithCart);
     };
-  }, [isTwoColorProduct, product.id]);
+  }, [isTwoColorProduct, product.id, product.price]);
 
   /*
    * ============================================================
@@ -1824,7 +1856,12 @@ useEffect(() => {
    */
 
   function addRegularProductToCart() {
-    const productColor = selectedColor?.name ?? productName;
+        const productColor =
+      normalizedProductName === "plain candle" &&
+      hasOptions &&
+      selectedOption?.name
+        ? `${selectedColor?.name ?? productName} · ${selectedOption.name}`
+        : selectedColor?.name ?? productName;
 
     // Force scent to null whenever "Unscented" is the currently
     // selected Style option — regardless of whatever's left sitting
@@ -2216,7 +2253,7 @@ useEffect(() => {
                 viewport, so they scrolled away with the images and
                 only looked correct on the very first photo.
               */}
-                            {gallery.length > 1 && (
+                                         {gallery.length > 1 && !hideGalleryArrows && (
                 <>
                   <button
                     type="button"
@@ -2602,32 +2639,13 @@ useEffect(() => {
           {/* ================================================== */}
 
           <section className="flex flex-col lg:pt-6">
-
-                       {(productName === "Tambourine" || product.description) && (
-  <p
-    className="mt-1 max-w-lg text-sm leading-7"
-    style={{
-      color:
-        "rgba(0,0,0,0.62)",
-    }}
-  >
-    {productName === "Tambourine"
-      ? "A classic wooden tambourine with shiny silver jingles and a simple, timeless design. Perfect for weddings, celebrations, or as a decorative keepsake."
-      : product.description}
-  </p>
-)}
-
-            {/* ==================================================
-                OPTIONS (STYLE — Unscented / Scented, etc.)
-                ================================================== */}
-
-            {hasOptions && !isTwoColorProduct && (
-              <div className="mt-5">
+                        {hasOptions && !isTwoColorProduct && (
+                           <div className="-mt-4 lg:mt-5">
                 <p
                   className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
                   style={{ color: accent }}
                 >
-                  Style
+                  {normalizedProductName === "plain candle" ? "Size" : "Style"}
                 </p>
 
                 <div className="flex flex-wrap gap-2">
@@ -2659,6 +2677,22 @@ useEffect(() => {
                 </div>
               </div>
             )}
+
+                       {(productName === "Tambourine" || product.description) && (
+  <p
+        className="mt-6 max-w-lg text-sm leading-7"
+    style={{
+      color:
+        "rgba(0,0,0,0.62)",
+    }}
+  >
+    {productName === "Tambourine"
+      ? "A classic wooden tambourine with shiny silver jingles and a simple, timeless design. Perfect for weddings, celebrations, or as a decorative keepsake."
+      : product.description}
+  </p>
+)}
+
+            
 
             {/* ==================================================
                 SCENT

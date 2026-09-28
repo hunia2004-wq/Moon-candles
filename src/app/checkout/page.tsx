@@ -12,6 +12,7 @@ import {
 } from "@/lib/cart";
 
 const ACCENT = "#8FAA82";
+const ERROR = "#C0392B";
 const CREAM = "#FFF4E6";
 const SAND = "#EFE3C4";
 const WHITE = "#FFFFFF";
@@ -65,6 +66,7 @@ type FormState = {
   fullName: string;
   phone: string;
   city: string;
+  country: string;
   address: string;
   notes: string;
 };
@@ -73,10 +75,26 @@ const EMPTY_FORM: FormState = {
   fullName: "",
   phone: "",
   city: "",
+  country: "Egypt",
   address: "",
   notes: "",
 };
+
 type FormErrors = Partial<Record<keyof FormState, string>>;
+
+// Order the fields appear on screen — used to scroll to the first
+// field with a problem.
+const FIELD_ORDER: (keyof FormState)[] = [
+  "fullName",
+  "phone",
+  "city",
+  "country",
+  "address",
+];
+
+// Accepts Egyptian mobile numbers like 01012345678, +201012345678,
+// or 201012345678 (spaces and dashes are ignored).
+const EG_MOBILE_REGEX = /^(?:\+?20|0)?1[0125]\d{8}$/;
 
 type PlacedOrder = {
   items: CartItem[];
@@ -94,7 +112,7 @@ export default function CheckoutPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-     const [errors, setErrors] = useState<FormErrors>({});
+  const [errors, setErrors] = useState<FormErrors>({});
   const [placedOrder, setPlacedOrder] =
     useState<PlacedOrder | null>(null);
 
@@ -108,19 +126,49 @@ export default function CheckoutPage() {
       ...prev,
       [field]: value,
     }));
+
+    // Clear this field's error as soon as the person starts fixing it.
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   }
 
-    function validate(): boolean {
+  function validate(): FormErrors {
     const nextErrors: FormErrors = {};
 
-    if (!form.fullName.trim()) nextErrors.fullName = "Required";
-    if (!form.phone.trim()) nextErrors.phone = "Required";
-    if (!form.city.trim()) nextErrors.city = "Required";
-    if (!form.address.trim()) nextErrors.address = "Required";
+    if (!form.fullName.trim()) {
+      nextErrors.fullName = "Please enter your full name.";
+    }
 
-    setErrors(nextErrors);
+    const phoneDigits = form.phone.replace(/[\s-]/g, "");
 
-    return Object.keys(nextErrors).length === 0;
+    if (!phoneDigits) {
+      nextErrors.phone = "Please enter your phone number.";
+    } else if (!EG_MOBILE_REGEX.test(phoneDigits)) {
+      nextErrors.phone =
+        "Enter a valid Egyptian mobile number, e.g. 01012345678.";
+    }
+
+    if (!form.city.trim()) {
+      nextErrors.city = "Please select your delivery zone.";
+    }
+
+    if (!form.country.trim()) {
+      nextErrors.country = "Country is required.";
+    }
+
+    if (!form.address.trim()) {
+      nextErrors.address = "Please enter your delivery address.";
+    } else if (form.address.trim().length < 8) {
+      nextErrors.address =
+        "Please enter your full address (street, building, apartment).";
+    }
+
+    return nextErrors;
   }
 
   // Looked up from the selected zone name — 0 until a zone is chosen.
@@ -134,7 +182,19 @@ export default function CheckoutPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!validate()) return;
+    const nextErrors = validate();
+    setErrors(nextErrors);
+
+    const firstInvalid = FIELD_ORDER.find((key) => nextErrors[key]);
+
+    if (firstInvalid) {
+      const el = document.getElementById(`field-${firstInvalid}`);
+
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.focus({ preventScroll: true });
+
+      return;
+    }
 
     const order: PlacedOrder = {
       items,
@@ -153,389 +213,362 @@ export default function CheckoutPage() {
   }
 
   if (!hydrated) return null;
-/* ---------------- CONFIRMATION / RECEIPT ---------------- */
 
-if (placedOrder) {
-  const orderDate = new Date(placedOrder.createdAt);
+  /* ---------------- CONFIRMATION / RECEIPT ---------------- */
 
-  const formattedDate = orderDate.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  if (placedOrder) {
+    const orderDate = new Date(placedOrder.createdAt);
 
-  const formattedTime = orderDate.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+    const formattedDate = orderDate.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
 
-  return (
-    <div
-      className="min-h-full flex-1 font-mono"
-      style={{
-        backgroundColor: CREAM,
-        color: BLACK,
-      }}
-    >
-      <main className="mx-auto flex w-full max-w-lg flex-col items-center px-5 py-10 md:py-14">
+    const formattedTime = orderDate.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
-        {/* SUCCESS */}
-        <div className="mb-8 text-center font-sans">
-          <div
-            className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
-            style={{
-              backgroundColor: ACCENT,
-              color: WHITE,
-            }}
-          >
-            ✓
+    return (
+      <div
+        className="min-h-full flex-1 font-mono"
+        style={{
+          backgroundColor: CREAM,
+          color: BLACK,
+        }}
+      >
+        <main className="mx-auto flex w-full max-w-lg flex-col items-center px-5 py-10 md:py-14">
+          {/* SUCCESS */}
+          <div className="mb-8 text-center font-sans">
+            <div
+              className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
+              style={{
+                backgroundColor: ACCENT,
+                color: WHITE,
+              }}
+            >
+              ✓
+            </div>
+
+            <h1 className="text-xl font-semibold tracking-tight">
+              Order Confirmed
+            </h1>
+
+            <p
+              className="mt-1 text-xs"
+              style={{ color: "rgba(0,0,0,0.5)" }}
+            >
+              Thank you for shopping with Moon.
+            </p>
           </div>
 
-          <h1 className="text-xl font-semibold tracking-tight">
-            Order Confirmed
-          </h1>
+          {/* ================= RECEIPT ================= */}
 
-          <p
-            className="mt-1 text-xs"
-            style={{ color: "rgba(0,0,0,0.5)" }}
+          <div
+            className="relative w-full bg-white"
+            style={{
+              maxWidth: "390px",
+              boxShadow: "0 3px 14px rgba(0,0,0,0.08)",
+            }}
           >
-            Thank you for shopping with Moon.
-          </p>
-        </div>
-
-        {/* ================= RECEIPT ================= */}
-
-        <div
-          className="relative w-full bg-white"
-          style={{
-            maxWidth: "390px",
-            boxShadow: "0 3px 14px rgba(0,0,0,0.08)",
-          }}
-        >
-          {/* RECEIPT CONTENT */}
-          <div className="px-7 pb-8 pt-8 sm:px-9">
-
-            {/* STORE HEADER */}
-            <div className="text-center">
-
-              <h2
-                className="text-[27px] font-bold tracking-[0.22em]"
-                style={{ letterSpacing: "0.18em" }}
-              >
-                MOON
-              </h2>
-
-              <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.18em]">
-                Candles & Home
-              </p>
-
-              <p
-                className="mt-2 text-[8px] leading-3"
-                style={{ color: "rgba(0,0,0,0.55)" }}
-              >
-                Handmade with love
-              </p>
-            </div>
-
-            {/* TOP DIVIDER */}
-            <div
-              className="my-5 border-t border-dashed"
-              style={{
-                borderColor: "rgba(0,0,0,0.45)",
-              }}
-            />
-
-            {/* RECEIPT META */}
-            <div className="text-[9px] leading-4">
-
-              <div className="flex justify-between">
-                <span>ORDER</span>
-                <span className="font-bold">
-                  #{placedOrder.orderNumber}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>DATE</span>
-                <span>{formattedDate}</span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>TIME</span>
-                <span>{formattedTime}</span>
-              </div>
-
-              <div className="flex justify-between">
-                <span>PAYMENT</span>
-                <span>CASH ON DELIVERY</span>
-              </div>
-
-            </div>
-
-            {/* DIVIDER */}
-            <div
-              className="my-5 border-t border-dashed"
-              style={{
-                borderColor: "rgba(0,0,0,0.45)",
-              }}
-            />
-
-            {/* CUSTOMER */}
-            <div className="text-[9px]">
-
-              <p className="mb-2 font-bold uppercase tracking-[0.12em]">
-                Customer
-              </p>
-
-              <div className="space-y-0.5">
-                <p>{placedOrder.customer.fullName}</p>
-                <p>{placedOrder.customer.phone}</p>
-                <p>
-                  {placedOrder.customer.city}, Egypt
-                </p>
-                <p className="leading-4">
-                  {placedOrder.customer.address}
-                </p>
-              </div>
-
-            </div>
-
-            {/* DIVIDER */}
-            <div
-              className="my-5 border-t border-dashed"
-              style={{
-                borderColor: "rgba(0,0,0,0.45)",
-              }}
-            />
-
-            {/* ITEMS HEADER */}
-            <div
-              className="grid grid-cols-[1fr_35px_75px] gap-2 text-[8px] font-bold uppercase"
-            >
-              <span>Item</span>
-              <span className="text-center">Qty</span>
-              <span className="text-right">Amount</span>
-            </div>
-
-            <div
-              className="mt-2 border-t"
-              style={{
-                borderColor: "rgba(0,0,0,0.25)",
-              }}
-            />
-
-            {/* PRODUCTS */}
-            <div>
-              {placedOrder.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="py-3"
-                  style={{
-                    borderBottom:
-                      "1px dashed rgba(0,0,0,0.25)",
-                  }}
+            {/* RECEIPT CONTENT */}
+            <div className="px-7 pb-8 pt-8 sm:px-9">
+              {/* STORE HEADER */}
+              <div className="text-center">
+                <h2
+                  className="text-[27px] font-bold tracking-[0.22em]"
+                  style={{ letterSpacing: "0.18em" }}
                 >
-                  <div className="grid grid-cols-[1fr_35px_75px] gap-2">
+                  MOON CANDLES
+                </h2>
 
-                    {/* PRODUCT */}
-                    <div className="min-w-0">
+                
 
-                      <p className="break-words text-[10px] font-bold leading-4">
-                        {item.productName}
-                      </p>
+                <p
+                  className="mt-2 text-[8px] leading-3"
+                  style={{ color: "rgba(0,0,0,0.55)" }}
+                >
+                  Handmade with love
+                </p>
+              </div>
 
-                      {(item.color || item.scent) && (
-                        <p
-                          className="mt-0.5 text-[8px] leading-3"
-                          style={{
-                            color: "rgba(0,0,0,0.55)",
-                          }}
-                        >
-                          {[item.color, item.scent]
-                            .filter(Boolean)
-                            .join(" / ")}
-                        </p>
-                      )}
+              {/* TOP DIVIDER */}
+              <div
+                className="my-5 border-t border-dashed"
+                style={{
+                  borderColor: "rgba(0,0,0,0.45)",
+                }}
+              />
 
-                      <p
-                        className="mt-1 text-[8px]"
-                        style={{
-                          color: "rgba(0,0,0,0.5)",
-                        }}
-                      >
-                        {item.price.toLocaleString()} EGP
-                        {" "}×{" "}
-                        {item.quantity}
-                      </p>
-                    </div>
-
-                    {/* QTY */}
-                    <div className="text-center text-[9px]">
-                      {item.quantity}
-                    </div>
-
-                    {/* AMOUNT */}
-                    <div className="text-right text-[9px] font-bold">
-                      {(
-                        item.price * item.quantity
-                      ).toLocaleString()}{" "}
-                      EGP
-                    </div>
-
-                  </div>
+              {/* RECEIPT META */}
+              <div className="text-[9px] leading-4">
+                <div className="flex justify-between">
+                  <span>ORDER</span>
+                  <span className="font-bold">
+                    #{placedOrder.orderNumber}
+                  </span>
                 </div>
-              ))}
-            </div>
 
-            {/* TOTALS */}
-            <div className="mt-4 space-y-1.5 text-[9px]">
+                <div className="flex justify-between">
+                  <span>DATE</span>
+                  <span>{formattedDate}</span>
+                </div>
 
-              <div className="flex justify-between">
-                <span>SUBTOTAL</span>
-                <span>
-                  {placedOrder.subtotal.toLocaleString()} EGP
-                </span>
+                <div className="flex justify-between">
+                  <span>TIME</span>
+                  <span>{formattedTime}</span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span>PAYMENT</span>
+                  <span>CASH ON DELIVERY</span>
+                </div>
               </div>
 
-              <div className="flex justify-between">
-                <span>SHIPPING</span>
-                <span>
-                  {placedOrder.shippingFee.toLocaleString()} EGP
-                </span>
-              </div>
+              {/* DIVIDER */}
+              <div
+                className="my-5 border-t border-dashed"
+                style={{
+                  borderColor: "rgba(0,0,0,0.45)",
+                }}
+              />
 
-            </div>
+              {/* CUSTOMER */}
+              <div className="text-[9px]">
+                <p className="mb-2 font-bold uppercase tracking-[0.12em]">
+                  Customer
+                </p>
 
-            {/* TOTAL DIVIDER */}
-            <div
-              className="my-4 border-t-2"
-              style={{
-                borderColor: BLACK,
-              }}
-            />
-
-            {/* GRAND TOTAL */}
-            <div className="flex items-center justify-between">
-
-              <span className="text-[12px] font-bold">
-                TOTAL
-              </span>
-
-              <span className="text-[15px] font-bold">
-                {placedOrder.total.toLocaleString()} EGP
-              </span>
-
-            </div>
-
-            {/* PAYMENT */}
-            <div
-              className="mt-5 border px-3 py-2.5 text-center"
-              style={{
-                borderColor: "rgba(0,0,0,0.35)",
-              }}
-            >
-              <p className="text-[8px] font-bold uppercase tracking-[0.12em]">
-                Payment Method
-              </p>
-
-              <p className="mt-1 text-[9px] font-bold">
-                CASH ON DELIVERY
-              </p>
-            </div>
-
-            {/* NOTES */}
-            {placedOrder.customer.notes && (
-              <>
-                <div
-                  className="my-5 border-t border-dashed"
-                  style={{
-                    borderColor: "rgba(0,0,0,0.35)",
-                  }}
-                />
-
-                <div>
-                  <p className="text-[8px] font-bold uppercase tracking-[0.12em]">
-                    Delivery Notes
+                <div className="space-y-0.5">
+                  <p>{placedOrder.customer.fullName}</p>
+                  <p>{placedOrder.customer.phone}</p>
+                  <p>
+                    {placedOrder.customer.city},{" "}
+                    {placedOrder.customer.country}
                   </p>
+                  <p className="leading-4">
+                    {placedOrder.customer.address}
+                  </p>
+                </div>
+              </div>
 
-                  <p
-                    className="mt-1.5 text-[8px] leading-4"
+              {/* DIVIDER */}
+              <div
+                className="my-5 border-t border-dashed"
+                style={{
+                  borderColor: "rgba(0,0,0,0.45)",
+                }}
+              />
+
+              {/* ITEMS HEADER */}
+              <div className="grid grid-cols-[1fr_35px_75px] gap-2 text-[8px] font-bold uppercase">
+                <span>Item</span>
+                <span className="text-center">Qty</span>
+                <span className="text-right">Amount</span>
+              </div>
+
+              <div
+                className="mt-2 border-t"
+                style={{
+                  borderColor: "rgba(0,0,0,0.25)",
+                }}
+              />
+
+              {/* PRODUCTS */}
+              <div>
+                {placedOrder.items.map((item) => (
+                  <div
+                    key={item.id}
+                    className="py-3"
                     style={{
-                      color: "rgba(0,0,0,0.65)",
+                      borderBottom:
+                        "1px dashed rgba(0,0,0,0.25)",
                     }}
                   >
-                    {placedOrder.customer.notes}
-                  </p>
+                    <div className="grid grid-cols-[1fr_35px_75px] gap-2">
+                      {/* PRODUCT */}
+                      <div className="min-w-0">
+                        <p className="break-words text-[10px] font-bold leading-4">
+                          {item.productName}
+                        </p>
+
+                        {(item.color || item.scent) && (
+                          <p
+                            className="mt-0.5 text-[8px] leading-3"
+                            style={{
+                              color: "rgba(0,0,0,0.55)",
+                            }}
+                          >
+                            {[item.color, item.scent]
+                              .filter(Boolean)
+                              .join(" / ")}
+                          </p>
+                        )}
+
+                        <p
+                          className="mt-1 text-[8px]"
+                          style={{
+                            color: "rgba(0,0,0,0.5)",
+                          }}
+                        >
+                          {item.price.toLocaleString()} EGP ×{" "}
+                          {item.quantity}
+                        </p>
+                      </div>
+
+                      {/* QTY */}
+                      <div className="text-center text-[9px]">
+                        {item.quantity}
+                      </div>
+
+                      {/* AMOUNT */}
+                      <div className="text-right text-[9px] font-bold">
+                        {(
+                          item.price * item.quantity
+                        ).toLocaleString()}{" "}
+                        EGP
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* TOTALS */}
+              <div className="mt-4 space-y-1.5 text-[9px]">
+                <div className="flex justify-between">
+                  <span>SUBTOTAL</span>
+                  <span>
+                    {placedOrder.subtotal.toLocaleString()} EGP
+                  </span>
                 </div>
-              </>
-            )}
 
-            {/* FOOTER DIVIDER */}
-            <div
-              className="my-6 border-t border-dashed"
-              style={{
-                borderColor: "rgba(0,0,0,0.45)",
-              }}
-            />
+                <div className="flex justify-between">
+                  <span>SHIPPING</span>
+                  <span>
+                    {placedOrder.shippingFee.toLocaleString()} EGP
+                  </span>
+                </div>
+              </div>
 
-            {/* RECEIPT FOOTER */}
-            <div className="text-center">
-
-              <p className="text-[10px] font-bold">
-                THANK YOU!
-              </p>
-
-              <p
-                className="mt-1.5 text-[8px] leading-3.5"
+              {/* TOTAL DIVIDER */}
+              <div
+                className="my-4 border-t-2"
                 style={{
-                  color: "rgba(0,0,0,0.55)",
+                  borderColor: BLACK,
+                }}
+              />
+
+              {/* GRAND TOTAL */}
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] font-bold">TOTAL</span>
+
+                <span className="text-[15px] font-bold">
+                  {placedOrder.total.toLocaleString()} EGP
+                </span>
+              </div>
+
+              {/* PAYMENT */}
+              <div
+                className="mt-5 border px-3 py-2.5 text-center"
+                style={{
+                  borderColor: "rgba(0,0,0,0.35)",
                 }}
               >
-                Thank you for choosing Moon.
-                <br />
-                Your order will be prepared with care.
-              </p>
+                <p className="text-[8px] font-bold uppercase tracking-[0.12em]">
+                  Payment Method
+                </p>
 
-              <p className="mt-4 text-[8px] font-bold tracking-[0.2em]">
-                MOON CANDLES
-              </p>
+                <p className="mt-1 text-[9px] font-bold">
+                  CASH ON DELIVERY
+                </p>
+              </div>
 
+              {/* NOTES */}
+              {placedOrder.customer.notes && (
+                <>
+                  <div
+                    className="my-5 border-t border-dashed"
+                    style={{
+                      borderColor: "rgba(0,0,0,0.35)",
+                    }}
+                  />
+
+                  <div>
+                    <p className="text-[8px] font-bold uppercase tracking-[0.12em]">
+                      Delivery Notes
+                    </p>
+
+                    <p
+                      className="mt-1.5 text-[8px] leading-4"
+                      style={{
+                        color: "rgba(0,0,0,0.65)",
+                      }}
+                    >
+                      {placedOrder.customer.notes}
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* FOOTER DIVIDER */}
+              <div
+                className="my-6 border-t border-dashed"
+                style={{
+                  borderColor: "rgba(0,0,0,0.45)",
+                }}
+              />
+
+              {/* RECEIPT FOOTER */}
+              <div className="text-center">
+                <p className="text-[10px] font-bold">THANK YOU!</p>
+
+                <p
+                  className="mt-1.5 text-[8px] leading-3.5"
+                  style={{
+                    color: "rgba(0,0,0,0.55)",
+                  }}
+                >
+                  Thank you for choosing Moon.
+                  <br />
+                  Your order will be prepared with care.
+                </p>
+
+                <p className="mt-4 text-[8px] font-bold tracking-[0.2em]">
+                  MOON CANDLES
+                </p>
+              </div>
             </div>
 
+            {/* ================= TORN PAPER EDGE ================= */}
+
+            <div
+              className="h-4 w-full"
+              style={{
+                background:
+                  "linear-gradient(135deg, transparent 6px, #ffffff 0) 0 0 / 12px 12px repeat-x",
+              }}
+            />
           </div>
 
-          {/* ================= TORN PAPER EDGE ================= */}
+          {/* CONTINUE SHOPPING */}
+          <div className="mt-7 w-full max-w-[390px] font-sans">
+            <Link
+              href="/shop"
+              className="block w-full px-6 py-3.5 text-center text-sm font-semibold transition-opacity hover:opacity-80"
+              style={{
+                backgroundColor: ACCENT,
+                color: WHITE,
+              }}
+            >
+              Continue Shopping
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
-          <div
-            className="h-4 w-full"
-            style={{
-              background:
-                "linear-gradient(135deg, transparent 6px, #ffffff 0) 0 0 / 12px 12px repeat-x",
-            }}
-          />
-
-        </div>
-
-        {/* CONTINUE SHOPPING */}
-        <div
-          className="mt-7 w-full max-w-[390px] font-sans"
-        >
-          <Link
-            href="/shop"
-            className="block w-full px-6 py-3.5 text-center text-sm font-semibold transition-opacity hover:opacity-80"
-            style={{
-              backgroundColor: ACCENT,
-              color: WHITE,
-            }}
-          >
-            Continue Shopping
-          </Link>
-        </div>
-
-      </main>
-    </div>
-  );
-}
   /* ---------------- EMPTY CART ---------------- */
 
   if (items.length === 0) {
@@ -577,6 +610,8 @@ if (placedOrder) {
 
   /* ---------------- CHECKOUT ---------------- */
 
+  const hasErrors = Object.keys(errors).length > 0;
+
   return (
     <div
       className="min-h-full flex-1 font-sans"
@@ -585,21 +620,19 @@ if (placedOrder) {
       <main className="mx-auto w-full max-w-5xl px-5 py-10 md:px-10 md:py-14">
         {/* Top */}
         <div className="mb-10">
-      <button
-  onClick={() => router.back()}
-  aria-label="Go back"
-  className="group mb-6 flex items-center gap-2 text-sm font-medium transition-opacity hover:opacity-60"
-  style={{ color: BLACK }}
->
-  <ArrowLeft
-    size={20}
-    strokeWidth={1.8}
-    className="transition-transform duration-200 group-hover:-translate-x-1"
-  />
-  <span>Back</span>
-</button>
-
-
+          <button
+            onClick={() => router.back()}
+            aria-label="Go back"
+            className="group mb-6 flex items-center gap-2 text-sm font-medium transition-opacity hover:opacity-60"
+            style={{ color: BLACK }}
+          >
+            <ArrowLeft
+              size={20}
+              strokeWidth={1.8}
+              className="transition-transform duration-200 group-hover:-translate-x-1"
+            />
+            <span>Back</span>
+          </button>
 
           <h1
             className="text-3xl font-bold uppercase tracking-wide md:text-4xl"
@@ -633,58 +666,65 @@ if (placedOrder) {
                 Delivery Details
               </p>
 
-            
+              <p
+                className="mt-1 text-[11px]"
+                style={{ color: "rgba(0,0,0,0.5)" }}
+              >
+                <span style={{ color: ERROR }}>*</span> All fields
+                marked are required.
+              </p>
             </div>
 
             <form
               onSubmit={handleSubmit}
+              noValidate
               className="flex flex-col gap-4"
             >
               <Field
+                id="field-fullName"
                 label="Full Name"
+                required
                 value={form.fullName}
-                onChange={(v) =>
-                  updateField("fullName", v)
-                }
+                onChange={(v) => updateField("fullName", v)}
                 error={errors.fullName}
               />
 
               <Field
+                id="field-phone"
                 label="Phone Number"
+                required
                 value={form.phone}
-                onChange={(v) =>
-                  updateField("phone", v)
-                }
+                onChange={(v) => updateField("phone", v)}
                 error={errors.phone}
                 type="tel"
+                placeholder="01012345678"
               />
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <label
+                    htmlFor="field-city"
                     className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide"
                     style={{
                       color: "rgba(0,0,0,0.6)",
                     }}
                   >
-                    Delivery Zone
+                    Delivery Zone{" "}
+                    <span style={{ color: ERROR }}>*</span>
                   </label>
 
                   <select
+                    id="field-city"
                     value={form.city}
+                    aria-invalid={!!errors.city}
                     onChange={(e) =>
-                      updateField(
-                        "city",
-                        e.target.value
-                      )
+                      updateField("city", e.target.value)
                     }
                     className="w-full rounded-xl px-4 py-3 text-sm outline-none"
                     style={{
-                      border: `1px solid ${
-                        errors.city
-                          ? ACCENT
-                          : "rgba(0,0,0,0.12)"
-                      }`,
+                      border: errors.city
+                        ? `1.5px solid ${ERROR}`
+                        : "1px solid rgba(0,0,0,0.12)",
                       backgroundColor: WHITE,
                       color: form.city
                         ? BLACK
@@ -695,22 +735,18 @@ if (placedOrder) {
                       Select...
                     </option>
 
-                    {DELIVERY_ZONES.map(
-                      (zone) => (
-                        <option
-                          key={zone.name}
-                          value={zone.name}
-                        >
-                          {zone.name} — {zone.fee} EGP
-                        </option>
-                      )
-                    )}
+                    {DELIVERY_ZONES.map((zone) => (
+                      <option key={zone.name} value={zone.name}>
+                        {zone.name} — {zone.fee} EGP
+                      </option>
+                    ))}
                   </select>
 
                   {errors.city && (
                     <p
-                      className="mt-1 text-[10px]"
-                      style={{ color: ACCENT }}
+                      role="alert"
+                      className="mt-1.5 text-[11px] font-medium"
+                      style={{ color: ERROR }}
                     >
                       {errors.city}
                     </p>
@@ -719,35 +755,49 @@ if (placedOrder) {
 
                 <div>
                   <label
+                    htmlFor="field-country"
                     className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide"
                     style={{
                       color: "rgba(0,0,0,0.6)",
                     }}
                   >
-                    Country
+                    Country <span style={{ color: ERROR }}>*</span>
                   </label>
 
                   <input
-                    value="Egypt"
+                    id="field-country"
+                    value={form.country}
                     disabled
                     className="w-full rounded-xl px-4 py-3 text-sm outline-none"
                     style={{
-                      border:
-                        "1px solid rgba(0,0,0,0.10)",
+                      border: errors.country
+                        ? `1.5px solid ${ERROR}`
+                        : "1px solid rgba(0,0,0,0.10)",
                       backgroundColor: SAND,
                       color: "rgba(0,0,0,0.55)",
                     }}
                   />
+
+                  {errors.country && (
+                    <p
+                      role="alert"
+                      className="mt-1.5 text-[11px] font-medium"
+                      style={{ color: ERROR }}
+                    >
+                      {errors.country}
+                    </p>
+                  )}
                 </div>
               </div>
 
               <Field
+                id="field-address"
                 label="Address"
+                required
                 value={form.address}
-                onChange={(v) =>
-                  updateField("address", v)
-                }
+                onChange={(v) => updateField("address", v)}
                 error={errors.address}
+                placeholder="Street, building, apartment"
               />
 
               <div>
@@ -763,16 +813,12 @@ if (placedOrder) {
                 <textarea
                   value={form.notes}
                   onChange={(e) =>
-                    updateField(
-                      "notes",
-                      e.target.value
-                    )
+                    updateField("notes", e.target.value)
                   }
                   rows={3}
                   className="w-full resize-none rounded-xl px-4 py-3 text-sm outline-none"
                   style={{
-                    border:
-                      "1px solid rgba(0,0,0,0.12)",
+                    border: "1px solid rgba(0,0,0,0.12)",
                     backgroundColor: WHITE,
                   }}
                 />
@@ -813,6 +859,21 @@ if (placedOrder) {
                   </p>
                 </div>
               </div>
+
+              {hasErrors && (
+                <div
+                  role="alert"
+                  className="rounded-xl px-4 py-3 text-xs font-medium"
+                  style={{
+                    backgroundColor: "#FBEAE7",
+                    border: `1px solid ${ERROR}`,
+                    color: ERROR,
+                  }}
+                >
+                  Please complete the highlighted fields to place
+                  your order.
+                </div>
+              )}
 
               <button
                 type="submit"
@@ -886,8 +947,7 @@ if (placedOrder) {
                       <p
                         className="truncate text-[10px]"
                         style={{
-                          color:
-                            "rgba(0,0,0,0.5)",
+                          color: "rgba(0,0,0,0.5)",
                         }}
                       >
                         {[item.color, item.scent]
@@ -899,8 +959,7 @@ if (placedOrder) {
                     <p
                       className="text-[10px]"
                       style={{
-                        color:
-                          "rgba(0,0,0,0.45)",
+                        color: "rgba(0,0,0,0.45)",
                       }}
                     >
                       × {item.quantity}
@@ -986,8 +1045,6 @@ if (placedOrder) {
                 {grandTotal} EGP
               </span>
             </div>
-
-           
           </div>
         </div>
       </main>
@@ -996,42 +1053,51 @@ if (placedOrder) {
 }
 
 function Field({
+  id,
   label,
   value,
   onChange,
   error,
+  required = false,
   type = "text",
+  placeholder,
 }: {
+  id: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  required?: boolean;
   type?: string;
+  placeholder?: string;
 }) {
   return (
     <div>
       <label
+        htmlFor={id}
         className="mb-1.5 block text-[10px] font-bold uppercase tracking-wide"
         style={{
           color: "rgba(0,0,0,0.6)",
         }}
       >
         {label}
+        {required && (
+          <span style={{ color: ERROR }}> *</span>
+        )}
       </label>
 
       <input
+        id={id}
         type={type}
         value={value}
-        onChange={(e) =>
-          onChange(e.target.value)
-        }
+        placeholder={placeholder}
+        aria-invalid={!!error}
+        onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
         style={{
-          border: `1px solid ${
-            error
-              ? ACCENT
-              : "rgba(0,0,0,0.12)"
-          }`,
+          border: error
+            ? `1.5px solid ${ERROR}`
+            : "1px solid rgba(0,0,0,0.12)",
           backgroundColor: WHITE,
           color: BLACK,
         }}
@@ -1039,8 +1105,9 @@ function Field({
 
       {error && (
         <p
-          className="mt-1 text-[10px]"
-          style={{ color: ACCENT }}
+          role="alert"
+          className="mt-1.5 text-[11px] font-medium"
+          style={{ color: ERROR }}
         >
           {error}
         </p>
