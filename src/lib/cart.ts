@@ -20,6 +20,15 @@ export type MonogramCustomization = {
   monogramText: string;
   monogramImage?: string;
 };
+
+export type CandleCustomization = {
+  type: "customized-candle";
+  size: "small" | "large";
+  message: string;
+  photoUrl: string | null;
+  fontId: string;
+};
+
 export type CartItem = {
   id: string;
   productId: string | number;
@@ -43,7 +52,8 @@ export type CartItem = {
 customization?:
   | TambourineCustomization
   | FanCustomization
-  | MonogramCustomization;
+  | MonogramCustomization
+  | CandleCustomization;
 };
 
 export function getCart(): CartItem[] {
@@ -83,8 +93,12 @@ function setCart(
   );
 }
 
-export function addToCart(item: CartItem) {
+export function addToCart(
+  item: CartItem,
+  options?: { open?: boolean }
+) {
   const cart = getCart();
+  const shouldOpen = options?.open ?? true;
 
   const existingIndex = cart.findIndex(
     (cartItem) =>
@@ -102,7 +116,7 @@ export function addToCart(item: CartItem) {
     };
 
     setCart(updatedCart, {
-      open: true,
+      open: shouldOpen,
     });
 
     return;
@@ -111,7 +125,7 @@ export function addToCart(item: CartItem) {
   setCart(
     [...cart, item],
     {
-      open: true,
+      open: shouldOpen,
     }
   );
 }

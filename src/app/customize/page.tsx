@@ -6,6 +6,8 @@ import CandleLabelWrap, {
   LABEL_FONTS,
 } from "../components/CandleLabelWrap";
 import LabelPlaceholder from "../components/LabelPlaceholder";
+import { addToCart } from "@/lib/cart";
+import { useRouter } from "next/navigation";
 
 // Static "how it looks in real life" photo shown under the preview
 const SIZES = [
@@ -34,6 +36,7 @@ const MAX_MESSAGE_LEN = 50;
 type SizeId = (typeof SIZES)[number]["id"];
 
 export default function CustomizeCandlePage() {
+    const router = useRouter();
   const [size, setSize] = useState<SizeId>("small");
   const [scent, setScent] = useState<string>("");
   const [scents, setScents] = useState<string[]>([]);
@@ -85,8 +88,37 @@ export default function CustomizeCandlePage() {
       return;
     }
 
-    setPhotoUrl(URL.createObjectURL(file));
+       setPhotoUrl(URL.createObjectURL(file));
   }
+
+  // ↓↓↓ add this whole function here ↓↓↓
+    function addCandleToCart() {
+    addToCart(
+      {
+        id: `custom-candle-${Date.now()}`,
+        productId: "custom-candle",
+        productName: "Custom Candle",
+        price: selectedSize.price,
+        quantity: 1,
+        scent: scent || null,
+        color: selectedSize.label,
+        image: selectedSize.img,
+        customization: {
+          type: "customized-candle",
+          size,
+          message,
+          photoUrl,
+          fontId,
+        },
+      },
+      { open: false }
+    );
+
+        window.location.href = "/checkout";
+  }
+  // ↑↑↑ end of new function ↑↑↑
+
+
 
   return (
     <div
@@ -645,19 +677,8 @@ export default function CustomizeCandlePage() {
                 </p>
               </div>
 
-              <button
-                onClick={() => {
-                  // TODO: wire this up to your actual checkout/cart flow
-                  console.log(
-                    "Add custom candle to cart",
-                    {
-                      size,
-                      scent,
-                      message,
-                      photoUrl,
-                    }
-                  );
-                }}
+                           <button
+                onClick={addCandleToCart}
                 className="
                   mt-4
                   flex
@@ -681,7 +702,7 @@ export default function CustomizeCandlePage() {
                 }}
               >
                 Checkout
-                <span>→</span>
+               
               </button>
             </div>
 
