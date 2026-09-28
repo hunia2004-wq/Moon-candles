@@ -2,6 +2,7 @@ export type Product = {
   id: number;
   created_at: string;
   name: string;
+  category: string;
   description: string | null;
   scents: string[];
   colors: {

@@ -3,17 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CartItem } from "@/lib/cart";
+import StatusPill from "../components/StatusPill";
 
 const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
 const MUTED = "rgba(0,0,0,0.55)";
 
-const STATUS_OPTIONS = ["pending", "processing", "completed", "cancelled"] as const;
+// Matches StatusUpdater's vocabulary for custom_orders — using the
+// same set here so both order types share one consistent workflow.
+// If plain `orders` should use a different set, tell me and I'll split them.
+const STATUS_OPTIONS = ["pending", "confirmed", "in_production", "shipped", "completed", "cancelled"] as const;
 const PAYMENT_OPTIONS = ["unpaid", "paid"] as const;
-
-type OrderStatus = (typeof STATUS_OPTIONS)[number];
-type PaymentStatus = (typeof PAYMENT_OPTIONS)[number];
 
 type Order = {
   id: string;
@@ -28,31 +29,6 @@ type Order = {
   status: string | null;
   payment_status: string | null;
 };
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: "#B8862F",
-  processing: "#5A7CA8",
-  completed: "#3F8F5C",
-  cancelled: "#A34848",
-};
-
-const PAYMENT_COLORS: Record<string, string> = {
-  unpaid: "#A34848",
-  paid: "#3F8F5C",
-};
-
-function StatusPill({ value, colors }: { value: string; colors: Record<string, string> }) {
-  const color = colors[value] ?? "rgba(0,0,0,0.5)";
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-      style={{ backgroundColor: `${color}1A`, color }}
-    >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
-      {value}
-    </span>
-  );
-}
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -151,13 +127,13 @@ export default function AdminOrdersPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl px-4 py-2.5 text-sm outline-none"
+            className="rounded-xl px-4 py-2.5 text-sm outline-none capitalize"
             style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
           >
             <option value="all">All statuses</option>
             {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>
-                {s}
+              <option key={s} value={s} className="capitalize">
+                {s.replace("_", " ")}
               </option>
             ))}
           </select>
@@ -212,8 +188,8 @@ export default function AdminOrdersPage() {
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
-                    <StatusPill value={order.status ?? "pending"} colors={STATUS_COLORS} />
-                    <StatusPill value={order.payment_status ?? "unpaid"} colors={PAYMENT_COLORS} />
+                    <StatusPill status={order.status} />
+                    <StatusPill status={order.payment_status ?? "unpaid"} />
                     <span className="text-sm font-bold ml-2" style={{ color: ACCENT }}>
                       {order.total ?? 0} LE
                     </span>
@@ -310,12 +286,12 @@ export default function AdminOrdersPage() {
                           value={order.status ?? "pending"}
                           disabled={savingId === order.id}
                           onChange={(e) => updateOrder(order.id, { status: e.target.value })}
-                          className="rounded-lg px-2.5 py-1.5 text-sm outline-none"
+                          className="rounded-lg px-2.5 py-1.5 text-sm outline-none capitalize"
                           style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                         >
                           {STATUS_OPTIONS.map((s) => (
                             <option key={s} value={s}>
-                              {s}
+                              {s.replace("_", " ")}
                             </option>
                           ))}
                         </select>

@@ -6,18 +6,7 @@ import Link from "next/link";
 import type { Product } from "@/lib/supabase/types";
 import AutoCenteredImage from "./AutoCenteredImage";
 
-// Same names used in the hamburger menu's Giveaways group. Anything not
-// in this list is treated as a candle for filtering purposes.
-const GIVEAWAY_NAMES = [
-  "Mini Candles",
-  "Quack and Kiss",
-  "Tambourine",
-  "Fan",
-  "Bloom Wand",
-  "Forever Clasp",
-  "Pocket Hearts",
-  "Rustic Warmth",
-];
+
 // These products don't have one fixed price — show a range instead of
 // product.price. Matched case-insensitively against product.name.
 const PRICE_RANGE_OVERRIDES: Record<string, string> = {
@@ -41,9 +30,8 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
 
   const filteredProducts = products.filter((product) => {
     if (!category) return true;
-    const isGiveaway = GIVEAWAY_NAMES.includes(product.name);
-    if (category === "giveaways") return isGiveaway;
-    if (category === "candles") return !isGiveaway;
+    if (category === "giveaways") return product.category === "giveaway";
+    if (category === "candles") return product.category === "candle";
     return true;
   });
 

@@ -1,36 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, X, ChevronDown } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
-const SHOP_ITEMS = [
-  { name: "Marble Moon", slug: "marble-moon-candle" },
-  { name: "Dimple Moon", slug: "dimple-moon-candle" },
-  { name: "Iced Latte", slug: "iced-latte-candle" },
-  { name: "Molten Muse", slug: "molten-muse" },
-  { name: "Crystal Glow", slug: "TEST-CRYSTAL" },
-      { name: "Ocean Seashell Candle", slug: "shell" },
-  { name: "Melt Balm", slug: "melt-balm" },
-  { name: "Noor Al Qamar", slug: "Noor-Al-Qamar" },
-  { name: "Plain Candle", slug: "Plain-Candle" },
-  { name: "Jar Candle", slug: "jar-candle" },
-];
-
-const GIVEAWAY_ITEMS = [
-  { name: "Mini Candles", slug: "mini-candles" },
-  { name: "Quack and Kiss", slug: "quack-and-kiss" },
-  { name: "Tambourine", slug: "Tambourine" },
-  { name: "Fan", slug: "fan" },
-  { name: "Bloom Wand", slug: "bloom-wand" },
-  { name: "Forever Clasp", slug: "forever-clasp" },
-  { name: "Pocket Hearts", slug: "Pocket Hearts" },
-  { name: "Rustic Warmth", slug: "rustic-warmth" },
-];
+type MenuProduct = {
+  name: string;
+  category: string;
+};
 
 export default function HamburgerMenu() {
   const [open, setOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [products, setProducts] = useState<MenuProduct[]>([]);
+
+  useEffect(() => {
+    async function loadProducts() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("products")
+        .select("name, category")
+        .order("name");
+
+      setProducts(data ?? []);
+    }
+
+    loadProducts();
+  }, []);
+
+  const candleItems = products.filter((p) => p.category === "candle");
+  const giveawayItems = products.filter((p) => p.category === "giveaway");
 
   function closeAll() {
     setOpen(false);
@@ -47,7 +47,7 @@ export default function HamburgerMenu() {
         <Menu size={24} />
       </button>
 
-            {open && (
+      {open && (
         <div className="fixed inset-0 z-[999] flex">
           {/* Panel — comes first now, so it renders on the left */}
           <div
@@ -112,9 +112,9 @@ export default function HamburgerMenu() {
                     >
                       Candles
                     </Link>
-                    {SHOP_ITEMS.map((item) => (
+                    {candleItems.map((item) => (
                       <Link
-                        key={item.slug}
+                        key={item.name}
                         href={`/product/by-name/${encodeURIComponent(item.name)}`}
                         onClick={closeAll}
                         className="py-1.5"
@@ -133,9 +133,9 @@ export default function HamburgerMenu() {
                     >
                       Giveaways
                     </Link>
-                    {GIVEAWAY_ITEMS.map((item) => (
+                    {giveawayItems.map((item) => (
                       <Link
-                        key={item.slug}
+                        key={item.name}
                         href={`/product/by-name/${encodeURIComponent(item.name)}`}
                         onClick={closeAll}
                         className="py-1.5"
@@ -156,7 +156,7 @@ export default function HamburgerMenu() {
               >
                 Customize Your candle
               </Link>
-               <Link
+              <Link
                 href="/giveaways"
                 onClick={closeAll}
                 className="border-t py-3"
@@ -164,7 +164,7 @@ export default function HamburgerMenu() {
               >
                 Customize Your giveaways
               </Link>
-                    </nav>
+            </nav>
           </div>
 
           {/* Backdrop — now after the panel, filling the remaining space to its right */}

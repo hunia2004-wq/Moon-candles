@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { StatusPill } from "../page";
+import StatusPill from "../components/StatusPill";
 
 export default async function CustomOrdersPage() {
   const supabase = await createClient();
