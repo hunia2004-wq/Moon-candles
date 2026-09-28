@@ -201,7 +201,7 @@ export default function OurCollection() {
         <CollectionCard
           img={CANDLES_IMG}
           imgAlt="Shop our candles"
-          eyebrow="handmade scented"
+          eyebrow="Handmade candles"
           title="Candles"
           href="/shop?category=candles"
           ctaLabel="Shop Candles"
@@ -212,7 +212,7 @@ export default function OurCollection() {
         <CollectionCard
           img={MOON_IMG}
           imgAlt="Shop our giveaways"
-          eyebrow="for gifting joy"
+          eyebrow="Made for moments"
           title="Giveaways"
           href="/shop?category=giveaways"
           ctaLabel="Shop Giveaways"

@@ -9,7 +9,7 @@ const TITLES: Record<
 > = {
   candles: {
     title: "Candles",
-    subtitle: "Every candle, handpoured",
+    subtitle: "Handmade candles",
     accent: "#D8A1AF",
   },
   giveaways: {

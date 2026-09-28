@@ -81,6 +81,12 @@ const REVIEWS: Review[] = [
       "BTW, the candles I got last time were absolutely incredible. Everyone who walked into my room couldn't believe the scent was from a candle. They thought I had used an air freshener. Bgd thank you touhfa",
     name: "Tasnim",
   },
+  {
+    stars: 5,
+    quote:
+      "حاجه وصلت شكرا اووى يا حبيبتى تعبتك معايا اووى شكرا بجد حاجه حلوه اووى اووى ",
+    name: "Marina",
+  },
 ];
 
 export default function Testimonials() {
