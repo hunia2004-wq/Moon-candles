@@ -8,7 +8,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import type { Product } from "@/lib/supabase/types";
-import { addToCart, updateCartItemQuantity, removeCartItem } from "@/lib/cart";
+import { addToCart, updateCartItemQuantity, removeCartItem, getCart } from "@/lib/cart";
 type OrderLine = {
   id: string;
   colorName: string;
@@ -2006,18 +2006,28 @@ useEffect(() => {
     // — this is what actually makes it show in the cart drawer, and
     // keeps it deduped/in sync with everywhere else that reads the
     // cart.
-    orderLines.forEach((line) => {
-      addToCart({
-        id: line.id,
-        productId: product.id,
-        productName,
-        price: line.price,
-        quantity: line.quantity,
-        scent: null,
-        color: line.colorName,
-        image: line.image,
-      });
+        orderLines.forEach((line) => {
+      const alreadyInCart = getCart().some((c) => c.id === line.id);
+
+      if (alreadyInCart) {
+        // Set to the quantity shown on this page instead of adding on top
+        updateCartItemQuantity(line.id, line.quantity);
+      } else {
+        addToCart({
+          id: line.id,
+          productId: product.id,
+          productName,
+          price: line.price,
+          quantity: line.quantity,
+          scent: null,
+          color: line.colorName,
+          image: line.image,
+        });
+      }
     });
+
+    // updateCartItemQuantity doesn't open the drawer, so open it here
+    window.dispatchEvent(new Event("openCart"));
 
     // Don't clear orderLines — they're now the real cart lines for
     // this product, so keep them visible here too (matches how the
@@ -2593,19 +2603,19 @@ useEffect(() => {
 
           <section className="flex flex-col lg:pt-6">
 
-                        {product.description && (
-              <p
-                className="mt-1 max-w-lg text-sm leading-7"
-                style={{
-                  color:
-                    "rgba(0,0,0,0.62)",
-                }}
-              >
-                {
-                  product.description
-                }
-              </p>
-            )}
+                       {(productName === "Tambourine" || product.description) && (
+  <p
+    className="mt-1 max-w-lg text-sm leading-7"
+    style={{
+      color:
+        "rgba(0,0,0,0.62)",
+    }}
+  >
+    {productName === "Tambourine"
+      ? "A classic wooden tambourine with shiny silver jingles and a simple, timeless design. Perfect for weddings, celebrations, or as a decorative keepsake."
+      : product.description}
+  </p>
+)}
 
             {/* ==================================================
                 OPTIONS (STYLE — Unscented / Scented, etc.)

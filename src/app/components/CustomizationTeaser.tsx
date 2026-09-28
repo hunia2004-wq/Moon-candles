@@ -5,7 +5,7 @@ import Link from "next/link";
 const CANDLE_IMG =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/customization%201.jpg";
 const GIVEAWAY_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/customization%202.png";
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/custom%202.png";
 
 /**
  * Homepage teaser for both customization paths, styled as a pair of
