@@ -44,19 +44,23 @@ export default function Footer() {
         padding: "28px 6%",
       }}
     >
-      <div className="relative mx-auto flex w-full max-w-4xl items-center justify-end">
+      <div className="relative mx-auto flex min-h-12 w-full max-w-4xl items-center justify-end">
         {/*
-          NOTE: I don't have Header.tsx, so this height (h-9 / h-11) is an
-          estimate based on your screenshots, not pulled from the real
-          header logo size. Send me that file (or just the class/px value)
-          and I'll match it exactly.
+          The logo PNG has a lot of transparent padding, so the link is a
+          fixed 48px box with overflow-hidden. That keeps the logo the same
+          size but stops the invisible padding from growing the footer or
+          covering (and stealing taps from) buttons above it.
         */}
         <Link
           href="/"
-          className="absolute left-1/2 -translate-x-1/2 select-none"
           aria-label="Moon Candles home"
+          className="absolute left-1/2 flex h-12 -translate-x-1/2 items-center justify-center overflow-hidden select-none"
         >
-          <img src={LOGO_IMG} alt="Moon Candles" className="h-35 w-auto md:h-11" />
+          <img
+            src={LOGO_IMG}
+            alt="Moon Candles"
+            className="h-35 w-auto max-w-none shrink-0 md:h-11"
+          />
         </Link>
 
         {/* Icons — uniform size, no badge/background, colored to match the
