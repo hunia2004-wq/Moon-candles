@@ -764,8 +764,9 @@ export default function CustomizeTambourinePage() {
       }))
     );
 
-    cartSnapshotRef.current = JSON.stringify(getCart());
+      cartSnapshotRef.current = JSON.stringify(getCart());
 
+    setShowPreview(false);
     window.dispatchEvent(new Event("openCart"));
   }
 
