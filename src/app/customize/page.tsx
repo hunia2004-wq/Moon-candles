@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import CandleLabelWrap from "../components/CandleLabelWrap";
+import CandleLabelWrap, { LABEL_FONTS } from "../components/CandleLabelWrap";
+import LabelPlaceholder from "../components/LabelPlaceholder";
 
 // Static "how it looks in real life" photo shown under the preview —
 // not user-editable, just a fixed reference image.
-const REFERENCE_PHOTO_URL = "PASTE_YOUR_HOSTED_IMAGE_URL_HERE";
+
 const SIZES = [
   {
     id: "small",
@@ -14,6 +15,7 @@ const SIZES = [
     grams: "150 ml",
     price: 450,
     img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/150ml.png?v=2",
+    reference: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/reference%20image%20150.png",
   },
   {
     id: "large",
@@ -21,6 +23,7 @@ const SIZES = [
     grams: "380 ml",
     price: 680,
     img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/380ml.png",
+    reference: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/reference%20image%20380.png",
   },
 ] as const;
 
@@ -34,7 +37,8 @@ export default function CustomizeCandlePage() {
   const [scent, setScent] = useState<string>("");
   const [scents, setScents] = useState<string[]>([]);
   const [message, setMessage] = useState("");
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+    const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [fontId, setFontId] = useState<string>(LABEL_FONTS[0].id);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -83,8 +87,18 @@ export default function CustomizeCandlePage() {
     <div style={{ backgroundColor: "#FFF4E6" }} className="w-full min-h-screen">
                  {/* ---------------- TOP: live preview, curved/wrapped ---------------- */}
       <div ref={previewRef} className="relative flex items-center justify-center px-6 pt-2 pb-4">
-       <CandleLabelWrap candleImg={selectedSize.img} photoUrl={photoUrl} message={message} curved={false} />
-      </div>
+ <CandleLabelWrap
+  size={selectedSize}
+  candleImg={selectedSize.img}
+  photoUrl={photoUrl}
+  message={message}
+  onMessageChange={setMessage}
+  onPhotoZoneClick={() => fileInputRef.current?.click()}
+  fontId={fontId}
+  onFontChange={setFontId}
+  maxLen={MAX_MESSAGE_LEN}
+/>
+</div>
          
       {/* ---------------- BELOW: form ---------------- */}
       <div className="px-6 md:px-12 py-4 md:py-16 flex flex-col max-w-2xl mx-auto">
@@ -150,19 +164,7 @@ export default function CustomizeCandlePage() {
           ))}
         </div>
 
-        <StepLabel n={3} title="Add your photo" />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="w-full flex items-center gap-3 rounded-xl px-4 py-4 mb-8 text-left transition-colors"
-          style={{ border: "1.5px dashed #DE4B33", backgroundColor: "#EFE3C4" }}
-        >
-          <PhotoUploadIcon />
-          <span className="text-xs md:text-sm" style={{ color: "rgba(0,0,0,0.62)" }}>
-            {photoUrl ? "Photo added — tap to change" : "Upload your photo"}
-            <br />
-            <span className="text-[11px]">JPG, PNG up to 5MB</span>
-          </span>
-        </button>
+       
         <input
           ref={fileInputRef}
           type="file"
@@ -171,23 +173,7 @@ export default function CustomizeCandlePage() {
           onChange={handlePhotoChange}
         />
 
-        <StepLabel n={4} title="Add your message" />
-        <div
-          className="rounded-xl px-4 py-3 mb-8"
-          style={{ border: "1.5px solid #DE4B33", backgroundColor: "#EFE3C4" }}
-        >
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value.slice(0, MAX_MESSAGE_LEN))}
-            placeholder="Write your message here..."
-            rows={3}
-            className="w-full bg-transparent outline-none resize-none text-sm"
-            style={{ color: "#000000" }}
-          />
-          <div className="text-right text-[11px]" style={{ color: "rgba(0,0,0,0.45)" }}>
-            {message.length}/{MAX_MESSAGE_LEN}
-          </div>
-        </div>
+     
 
         <div className="flex items-center gap-4 mt-auto">
           <button
@@ -208,56 +194,60 @@ export default function CustomizeCandlePage() {
       </div>
       {showPreview && (
   <div
-    className="fixed inset-0 z-[999] flex flex-col items-center justify-center px-6"
+    className="fixed inset-0 z-[999] overflow-y-auto px-6 py-10"
     style={{ backgroundColor: "#FFF4E6" }}
   >
-              <button
-  type="button"
-  onClick={() => setShowPreview(true)}
-      className="absolute top-6 right-6 text-2xl"
+    <button
+      type="button"
+      onClick={() => setShowPreview(false)}
+      className="fixed top-6 right-6 text-2xl"
       style={{ color: "#000000" }}
       aria-label="Close"
     >
       ✕
     </button>
 
-             <CandleLabelWrap
-        candleImg={selectedSize.img}
-        photoUrl={photoUrl}
-        message={message}
-        curved={false}
-        onPhotoZoneClick={() => fileInputRef.current?.click()}
-        onMessageChange={setMessage}
-      />
+    <div className="m-auto flex flex-col items-center w-full max-w-md min-h-full justify-center">
+      {/* Candle alone */}
+      <img src={selectedSize.img} alt="" className="w-48 md:w-56 object-contain" />
 
-    <img
-      src={REFERENCE_PHOTO_URL}
-      alt="How it looks in real life"
-      className="mt-6 w-full max-w-md rounded-xl"
-    />
+      {/* Placeholder beneath it: message left, photo right, fully editable */}
+      <div className="mt-6 w-full flex justify-center">
+        <LabelPlaceholder
+          message={message}
+          onMessageChange={setMessage}
+          photoUrl={photoUrl}
+          onPhotoClick={() => fileInputRef.current?.click()}
+                   maxLen={MAX_MESSAGE_LEN}
+          fontFamily={LABEL_FONTS.find((f) => f.id === fontId)?.family}
+        />
+      </div>
 
-<button
-  onClick={() => {
-    // TODO: wire this up to your actual checkout/cart flow once ready
-      console.log("Add custom candle to cart", {
-      size,
-      scent,
-      message,
-      photoUrl,
-    });
-  }}
-  className="mt-6 inline-flex items-center justify-center gap-2 px-10 py-3 rounded-full text-sm md:text-base font-medium transition-colors bg-[#DE4B33] hover:bg-[#B23A26] active:bg-[#B23A26]"
-  style={{ color: "#FFF4E6" }}
->
-  Checkout — {selectedSize.price} LE
-</button>
+      {/* Reference photo, hidden until a real URL is set */}
+           {/* Reference photo for the selected size */}
+      {selectedSize.reference && (
+        <>
+          <p className="mt-8 mb-2 text-xs uppercase tracking-[0.15em]" style={{ color: "rgba(0,0,0,0.62)" }}>
+            This is how it will look in real life
+          </p>
+          <img src={selectedSize.reference} alt="How it looks in real life" className="w-full rounded-xl" />
+        </>
+      )}
 
+      <button
+        onClick={() => {
+          // TODO: wire this up to your actual checkout/cart flow once ready
+          console.log("Add custom candle to cart", { size, scent, message, photoUrl });
+        }}
+        className="mt-6 inline-flex items-center justify-center gap-2 px-10 py-3 rounded-full text-sm md:text-base font-medium transition-colors bg-[#DE4B33] hover:bg-[#B23A26] active:bg-[#B23A26]"
+        style={{ color: "#FFF4E6" }}
+      >
+        Checkout — {selectedSize.price} LE
+      </button>
+       </div>
   </div>
-  
 )}
     </div>
-    
-    
   );
 }
 

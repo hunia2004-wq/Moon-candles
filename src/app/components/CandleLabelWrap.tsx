@@ -1,297 +1,199 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  Great_Vibes,
+  Dancing_Script,
+  Playfair_Display,
+  Caveat,
+  Lora,
+} from "next/font/google";
 
-/* ------------------------------------------------------------------ */
-/* Your actual label template — used as the BASE layer every time.     */
-/* The uploaded photo and typed message are drawn on top of its own    */
-/* zones, not reconstructed separately. Whatever's in this image       */
-/* outside those two zones (including the watermark) stays visible.    */
-/* ------------------------------------------------------------------ */
-const LABEL_TEMPLATE_IMG =
+// The full label image: white plate, sky photo square and Instagram handle.
+const PLACEHOLDER_IMG_URL =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/cust%20placeholder/candle%20placeholder.jpg";
 
-/* ------------------------------------------------------------------ */
-/* TUNABLE CONSTANTS — where the label sits on the candle photo, and   */
-/* the label's own internal layout (photo zone left, text zone right,  */
-/* matching the real reference photo). Nudge these once you see it     */
-/* live against your actual candle image.                              */
-/* ------------------------------------------------------------------ */
+// Width / height of the label image. ~3:1 from your screenshot. If the plate
+// looks squashed or too tall, tweak this number (e.g. 3.2 or 2.8).
+const LABEL_ASPECT = 3;
 
-const LABEL_LEFT_PCT = 9;    // label's left edge, as % of candle image width
-const LABEL_TOP_PCT = 45;    // label's top edge, as % of candle image height
-const LABEL_WIDTH_PCT = 82;  // label's width, as % of candle image width
-const LABEL_ASPECT = 3.08;   // matches the real candle placeholder.jpg proportions
+const greatVibes = Great_Vibes({ subsets: ["latin"], weight: "400" });
+const dancing = Dancing_Script({ subsets: ["latin"] });
+const playfair = Playfair_Display({ subsets: ["latin"] });
+const caveat = Caveat({ subsets: ["latin"] });
+const lora = Lora({ subsets: ["latin"], style: "italic" });
 
-// Within the label itself (0-100% of the label's own box) — derived
-// directly from the real template's own pixel layout.
-const PHOTO_ZONE = { left: 4, top: 8, width: 42, height: 84 };
-const TEXT_ZONE = { left: 50, top: 10, width: 46, height: 80 };
+export const LABEL_FONTS = [
+  { id: "elegant", name: "Elegant", family: greatVibes.style.fontFamily },
+  { id: "flow", name: "Flow", family: dancing.style.fontFamily },
+  { id: "classic", name: "Classic", family: playfair.style.fontFamily },
+  { id: "hand", name: "Hand", family: caveat.style.fontFamily },
+  { id: "soft", name: "Soft", family: lora.style.fontFamily },
+] as const;
 
-const LABEL_CANVAS_W = 900; // internal render resolution for the composite
-const LABEL_CANVAS_H = Math.round(LABEL_CANVAS_W / LABEL_ASPECT);
+/**
+ * How big the label is on each jar, as a % of the candle image width, and
+ * where its centre sits (% from the top of the image).
+ * Adjust the numbers per size until it sits inside the glass.
+ * Use whatever keys your page uses for the sizes.
+ */
+export const LABEL_BOX: Record<string, { width: number; centerX: number; centerY: number }> = {
+  "150": { width: 75, centerX: 50, centerY: 58 },
+  "380": { width: 88, centerX: 51, centerY: 63 },
+  default: { width: 90, centerX: 50, centerY: 55 },
+};
 
-const STRIP_COUNT = 64; // more strips = smoother curve; too few = visible jagged steps
+type PlateProps = {
+  message: string;
+  onMessageChange?: (v: string) => void;
+  photoUrl: string | null;
+  onPhotoClick?: () => void;
+  fontFamily: string;
+  maxLen: number;
+};
 
-/* ------------------------------------------------------------------ */
+export function LabelPlate({ message, onMessageChange, photoUrl, onPhotoClick, fontFamily, maxLen }: PlateProps) {
+  // cqw = % of the plate's own width, so text shrinks with the plate
+  const messageStyle = {
+    fontFamily,
+    fontSize: "9cqw",
+    lineHeight: 1.15,
+    color: "#000000",
+  };
+
+  return (
+    <div
+      className="relative w-full h-full overflow-hidden rounded-lg shadow-md"
+      style={{
+        containerType: "inline-size",
+        backgroundColor: "#FFFFFF",
+        backgroundImage: `url("${PLACEHOLDER_IMG_URL}")`,
+        backgroundSize: "100% 100%",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      {/* Message: far left, above the Instagram handle that's part of the image */}
+      <div className="absolute flex items-center" style={{ left: "3%", top: "8%", width: "58%", height: "72%" }}>
+        {onMessageChange ? (
+          <textarea
+            value={message}
+            onChange={(e) => onMessageChange(e.target.value.slice(0, maxLen))}
+            placeholder="Your message here"
+            className="w-full h-full bg-transparent outline-none resize-none text-left placeholder:text-black/40"
+            style={messageStyle}
+          />
+        ) : (
+          <p className="w-full whitespace-pre-wrap break-words" style={messageStyle}>
+            {message || "Your message here"}
+          </p>
+        )}
+      </div>
+
+      {/* Photo: sits exactly over the sky square. Tap opens the photo library */}
+      <button
+        type="button"
+        onClick={onPhotoClick}
+        className="absolute overflow-hidden"
+        style={{ left: "65.8%", top: "10%", width: "27%", height: "83%" }}
+        aria-label="Add your photo"
+      >
+        {photoUrl ? (
+          <img src={photoUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center p-1">
+            <span
+              className="rounded-full px-[6%] py-[4%] font-semibold text-center leading-tight"
+              style={{
+                fontSize: "3.4cqw",
+                backgroundColor: "rgba(255,255,255,0.88)",
+                color: "#DE4B33",
+              }}
+            >
+              Add your photo here
+            </span>
+          </span>
+        )}
+      </button>
+    </div>
+  );
+}
+
+type Props = {
+  candleImg: string;
+  photoUrl: string | null;
+  message: string;
+  /** Key into LABEL_BOX, e.g. "150ml" or "380ml" */
+  sizeKey?: string;
+  curved?: boolean; // accepted for compatibility, not used
+  onPhotoZoneClick?: () => void;
+  onMessageChange?: (v: string) => void;
+  fontId?: string;
+  onFontChange?: (id: string) => void;
+  maxLen?: number;
+    size?: Record<string, unknown>;
+};
 
 export default function CandleLabelWrap({
   candleImg,
   photoUrl,
   message,
-  curved = true,
+  sizeKey = "default",
+  size,                    // <-- add this line
   onPhotoZoneClick,
   onMessageChange,
-}: {
-  candleImg: string;
-  photoUrl: string | null;
-  message: string;
-  curved?: boolean;
-  onPhotoZoneClick?: () => void;
-  onMessageChange?: (value: string) => void;
-}) {
-  const [labelDataUrl, setLabelDataUrl] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // Composite the photo + text onto a flat label canvas whenever either
-  // input changes. This is the "flat label" step — the curve illusion
-  // is applied afterward, in the strip rendering below.
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    canvas.width = LABEL_CANVAS_W;
-    canvas.height = LABEL_CANVAS_H;
-
-    function drawTextZone() {
-      if (!ctx) return;
-      const zx = (TEXT_ZONE.left / 100) * LABEL_CANVAS_W;
-      const zy = (TEXT_ZONE.top / 100) * LABEL_CANVAS_H;
-      const zw = (TEXT_ZONE.width / 100) * LABEL_CANVAS_W;
-      const zh = (TEXT_ZONE.height / 100) * LABEL_CANVAS_H;
-
-      ctx.save();
-      ctx.font = `italic 600 46px "Brush Script MT", cursive`;
-      ctx.fillStyle = "#2A2A2A";
-      ctx.textBaseline = "top";
-
-      // basic word-wrap within the text zone
-      const words = (message || "Your message here").split(" ");
-      const lines: string[] = [];
-      let line = "";
-      for (const w of words) {
-        const test = line ? line + " " + w : w;
-        if (ctx.measureText(test).width > zw && line) {
-          lines.push(line);
-          line = w;
-        } else {
-          line = test;
-        }
-      }
-      if (line) lines.push(line);
-
-      const lineHeight = 56;
-      const totalH = lines.length * lineHeight;
-      let y = zy + Math.max(0, (zh - totalH) / 2);
-      for (const l of lines) {
-        ctx.fillText(l, zx, y);
-        y += lineHeight;
-      }
-      ctx.restore();
-    }
-
-    function finish() {
-      const url = canvas!.toDataURL("image/png");
-      setLabelDataUrl(url);
-    }
-
-    function drawPhotoAndFinish() {
-      if (photoUrl) {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-          const zx = (PHOTO_ZONE.left / 100) * LABEL_CANVAS_W;
-          const zy = (PHOTO_ZONE.top / 100) * LABEL_CANVAS_H;
-          const zw = (PHOTO_ZONE.width / 100) * LABEL_CANVAS_W;
-          const zh = (PHOTO_ZONE.height / 100) * LABEL_CANVAS_H;
-
-          // cover-fit crop into the photo zone
-          const srcRatio = img.width / img.height;
-          const dstRatio = zw / zh;
-          let sx = 0, sy = 0, sw = img.width, sh = img.height;
-          if (srcRatio > dstRatio) {
-            sw = img.height * dstRatio;
-            sx = (img.width - sw) / 2;
-          } else {
-            sh = img.width / dstRatio;
-            sy = (img.height - sh) / 2;
-          }
-          ctx!.drawImage(img, sx, sy, sw, sh, zx, zy, zw, zh);
-          drawTextZone();
-          finish();
-        };
-        img.onerror = () => {
-          drawTextZone();
-          finish();
-        };
-        img.src = photoUrl;
-      } else {
-        // no photo yet — leave the template's own placeholder art showing
-        // through in the photo zone, just draw the text on top of it.
-        drawTextZone();
-        finish();
-      }
-    }
-
-    // Load the REAL template image first and draw it as the base layer —
-    // this is what makes the label look like your actual product design
-    // (including anything outside the two zones) rather than a plain
-    // generic rectangle.
-    const templateImg = new Image();
-    templateImg.crossOrigin = "anonymous";
-    templateImg.onload = () => {
-      ctx.drawImage(templateImg, 0, 0, LABEL_CANVAS_W, LABEL_CANVAS_H);
-      drawPhotoAndFinish();
-    };
-    templateImg.onerror = () => {
-      // fallback if the template fails to load, so it never renders blank
-      ctx.fillStyle = "#FBF8F1";
-      ctx.fillRect(0, 0, LABEL_CANVAS_W, LABEL_CANVAS_H);
-      drawPhotoAndFinish();
-    };
-    templateImg.src = LABEL_TEMPLATE_IMG;
-  }, [photoUrl, message]);
-
-  // Flat mode: candle stays visible, but the label sits on it as a plain
-  // undistorted rectangle — same position/size as the curved version,
-  // just without the strip-wrap effect. Used while editing, so the
-  // photo/text are clear and easy to check, not bent by the curve math.
-    // Flat mode: candle stays visible, but the label sits on it as a plain
-  // undistorted rectangle. The photo zone and text zone remain interactive
-  // so the user can upload a photo and edit the message directly.
-  if (!curved) {
-    return (
-      <div className="relative w-full max-w-md mx-auto">
-        <canvas ref={canvasRef} className="hidden" />
-
-        <img
-          src={candleImg}
-          alt="Your candle"
-          className="w-full h-auto"
-        />
-
-        {labelDataUrl && (
-          <div
-            className="absolute rounded-sm shadow-md"
-            style={{
-              left: `${LABEL_LEFT_PCT}%`,
-              top: `${LABEL_TOP_PCT}%`,
-              width: `${LABEL_WIDTH_PCT}%`,
-              aspectRatio: `${LABEL_ASPECT}`,
-            }}
-          >
-            {/* Actual label design */}
-            <img
-              src={labelDataUrl}
-              alt="Your label design"
-              className="absolute inset-0 h-full w-full rounded-sm"
-            />
-
-            {/* ================================================= */}
-            {/* PHOTO UPLOAD ZONE                                */}
-            {/* ================================================= */}
-
-            <button
-              type="button"
-              onClick={onPhotoZoneClick}
-              aria-label="Add your photo"
-              className="absolute cursor-pointer bg-transparent"
-              style={{
-                left: `${PHOTO_ZONE.left}%`,
-                top: `${PHOTO_ZONE.top}%`,
-                width: `${PHOTO_ZONE.width}%`,
-                height: `${PHOTO_ZONE.height}%`,
-              }}
-            />
-
-            {/* ================================================= */}
-            {/* MESSAGE EDIT ZONE                                */}
-            {/* ================================================= */}
-
-            <textarea
-              value={message}
-              onChange={(e) =>
-                onMessageChange?.(
-                  e.target.value
-                )
-              }
-              placeholder=""
-              className="absolute resize-none bg-transparent text-center outline-none"
-              style={{
-                left: `${TEXT_ZONE.left}%`,
-                top: `${TEXT_ZONE.top}%`,
-                width: `${TEXT_ZONE.width}%`,
-                height: `${TEXT_ZONE.height}%`,
-                color: "transparent",
-                caretColor: "#2A2A2A",
-              }}
-            />
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Curved mode: the label wrapped realistically around the actual candle
-  // photo. Used only in the final Preview, matching what's really printed
-  // and physically wrapped around the jar.
+  fontId = LABEL_FONTS[0].id,
+  onFontChange,
+  maxLen = 50,
+}: Props) {
+  const font = LABEL_FONTS.find((f) => f.id === fontId) ?? LABEL_FONTS[0];
+ const { img: _ignore, ...sizeInfo } = (size ?? {}) as Record<string, unknown>;
+const sizeText = JSON.stringify(sizeInfo);
+const foundKey = Object.keys(LABEL_BOX).find((k) => k !== "default" && sizeText.includes(k));
+const box = LABEL_BOX[foundKey ?? sizeKey] ?? LABEL_BOX.default;
   return (
-    <div className="relative w-full max-w-md mx-auto">
-      {/* hidden compositing canvas — not shown directly */}
-      <canvas ref={canvasRef} className="hidden" />
-
-      <img src={candleImg} alt="Your candle" className="w-full h-auto" />
-
-      {labelDataUrl && (
+    <div className="w-full max-w-md">
+      <div className="relative w-full">
+        <img src={candleImg} alt="" className="w-full object-contain" />
+        {/* Label sits across the middle of the jar, sized per candle */}
         <div
-          className="absolute overflow-hidden"
+          className="absolute"
           style={{
-            left: `${LABEL_LEFT_PCT}%`,
-            top: `${LABEL_TOP_PCT}%`,
-            width: `${LABEL_WIDTH_PCT}%`,
-            aspectRatio: `${LABEL_ASPECT}`,
-            display: "flex",
+            left: `${box.centerX}%`,
+            top: `${box.centerY}%`,
+            width: `${box.width}%`,
+            aspectRatio: `${LABEL_ASPECT} / 1`,
+            transform: "translate(-50%, -50%)",
           }}
         >
-          {/* Fake-cylinder wrap: the flat label is sliced into thin
-              vertical strips, each showing the corresponding slice of
-              the composited image via background-position, with a
-              per-strip vertical scale following a curve — full height
-              at center, tapering at the edges. This is what reads as
-              "wrapped around a jar" without any real 3D warping. */}
-          {Array.from({ length: STRIP_COUNT }).map((_, i) => {
-            const t = (i + 0.5) / STRIP_COUNT; // 0..1 across the label
-            // cosine falloff: 1.0 at center, dips toward the edges —
-            // amplitude increased again for a more pronounced wrap.
-            const curve = 0.6 + 0.4 * Math.sin(t * Math.PI);
-            return (
-              <div
-                key={i}
-                style={{
-                  flex: "1 0 auto",
-                  height: "100%",
-                  transform: `scaleY(${curve})`,
-                  transformOrigin: "center",
-                  backgroundImage: `url(${labelDataUrl})`,
-                  backgroundSize: `${STRIP_COUNT * 100}% 100%`,
-                  backgroundPosition: `${(i / (STRIP_COUNT - 1)) * 100}% center`,
-                  backgroundRepeat: "no-repeat",
-                }}
-              />
-            );
-          })}
+          <LabelPlate
+            message={message}
+            onMessageChange={onMessageChange}
+            photoUrl={photoUrl}
+            onPhotoClick={onPhotoZoneClick}
+            fontFamily={font.family}
+            maxLen={maxLen}
+          />
+        </div>
+      </div>
+
+      {onFontChange && (
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {LABEL_FONTS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => onFontChange(f.id)}
+              className="rounded-full px-4 py-1.5 text-lg transition-colors"
+              style={{
+                fontFamily: f.family,
+                color: "#000000",
+                border: `1.5px solid ${fontId === f.id ? "#DE4B33" : "rgba(0,0,0,0.12)"}`,
+                backgroundColor: fontId === f.id ? "#EFE3C4" : "transparent",
+              }}
+              aria-label={f.name}
+            >
+              Aa
+            </button>
+          ))}
         </div>
       )}
     </div>
