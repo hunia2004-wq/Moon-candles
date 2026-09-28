@@ -764,9 +764,8 @@ export default function CustomizeTambourinePage() {
       }))
     );
 
-      cartSnapshotRef.current = JSON.stringify(getCart());
+     cartSnapshotRef.current = JSON.stringify(getCart());
 
-    setShowPreview(false);
     window.dispatchEvent(new Event("openCart"));
   }
 
@@ -1847,7 +1846,7 @@ export default function CustomizeTambourinePage() {
 
       {showPreview && (
         <div
-          className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-8 px-6 py-10 overflow-y-auto"
+          className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-8 px-6 py-10 overflow-y-auto"
           style={{
             backgroundColor: "#FFF4E6",
           }}
