@@ -10,6 +10,7 @@ const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
 const MUTED = "rgba(0,0,0,0.55)";
 
+
 // Matches StatusUpdater's vocabulary for custom_orders — using the
 // same set here so both order types share one consistent workflow.
 // If plain `orders` should use a different set, tell me and I'll split them.
@@ -38,7 +39,7 @@ export default function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
-
+const [view, setView] = useState<"active" | "cancelled" | "history">("active");
   useEffect(() => {
     loadOrders();
   }, []);
@@ -80,21 +81,28 @@ export default function AdminOrdersPage() {
   }
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+  const q = search.trim().toLowerCase();
 
-    return orders.filter((o) => {
-      if (statusFilter !== "all" && o.status !== statusFilter) return false;
+  return orders.filter((o) => {
+    const isCancelled = o.status === "cancelled";
+    const isPaid = o.payment_status === "paid";
 
-      if (!q) return true;
+    if (view === "cancelled" && !isCancelled) return false;
+    if (view === "history" && (isCancelled || !isPaid)) return false;
+    if (view === "active" && (isCancelled || isPaid)) return false;
 
-      const haystack = [o.customer_name, o.customer_phone, o.customer_email, o.id]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
+    if (statusFilter !== "all" && o.status !== statusFilter) return false;
 
-      return haystack.includes(q);
-    });
-  }, [orders, search, statusFilter]);
+    if (!q) return true;
+
+    const haystack = [o.customer_name, o.customer_phone, o.customer_email, o.id]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(q);
+  });
+}, [orders, search, statusFilter, view]);
 
   return (
     <div style={{ backgroundColor: BG }} className="min-h-screen">
@@ -113,7 +121,44 @@ export default function AdminOrdersPage() {
             Refresh
           </button>
         </div>
-
+<div className="flex gap-2 mb-4">
+  <button
+    type="button"
+    onClick={() => setView("active")}
+    className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
+    style={{
+      backgroundColor: view === "active" ? ACCENT : "transparent",
+      color: view === "active" ? "#FFFFFF" : ACCENT,
+      border: `1.5px solid ${ACCENT}`,
+    }}
+  >
+    Active
+  </button>
+  <button
+    type="button"
+    onClick={() => setView("cancelled")}
+    className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
+    style={{
+      backgroundColor: view === "cancelled" ? "#888888" : "transparent",
+      color: view === "cancelled" ? "#FFFFFF" : "#888888",
+      border: "1.5px solid #888888",
+    }}
+  >
+    Cancelled
+  </button>
+  <button
+  type="button"
+  onClick={() => setView("history")}
+  className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
+  style={{
+    backgroundColor: view === "history" ? "#3F8F5C" : "transparent",
+    color: view === "history" ? "#FFFFFF" : "#3F8F5C",
+    border: "1.5px solid #3F8F5C",
+  }}
+>
+  History
+</button>
+</div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center mb-6">
           <input
             type="text"

@@ -10,6 +10,7 @@ import {
   cartTotal,
   clearCart,
 } from "@/lib/cart";
+import { createClient } from "@/lib/supabase/client";
 
 const ACCENT = "#8FAA82";
 const ERROR = "#C0392B";
@@ -179,38 +180,49 @@ export default function CheckoutPage() {
   const subtotal = cartTotal(items);
   const grandTotal = subtotal + shippingFee;
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault();
 
-    const nextErrors = validate();
-    setErrors(nextErrors);
+  const nextErrors = validate();
+  setErrors(nextErrors);
 
-    const firstInvalid = FIELD_ORDER.find((key) => nextErrors[key]);
+  const firstInvalid = FIELD_ORDER.find((key) => nextErrors[key]);
 
-    if (firstInvalid) {
-      const el = document.getElementById(`field-${firstInvalid}`);
-
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      el?.focus({ preventScroll: true });
-
-      return;
-    }
-
-    const order: PlacedOrder = {
-      items,
-      subtotal,
-      shippingFee,
-      total: grandTotal,
-      customer: form,
-      orderNumber: `MC-${Date.now().toString().slice(-6)}`,
-      createdAt: new Date().toISOString(),
-    };
-
-    console.log("New order:", order);
-
-    clearCart();
-    setPlacedOrder(order);
+  if (firstInvalid) {
+    const el = document.getElementById(`field-${firstInvalid}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    el?.focus({ preventScroll: true });
+    return;
   }
+
+  const order: PlacedOrder = {
+    items,
+    subtotal,
+    shippingFee,
+    total: grandTotal,
+    customer: form,
+    orderNumber: `MC-${Date.now().toString().slice(-6)}`,
+    createdAt: new Date().toISOString(),
+  };
+
+  const supabase = createClient();
+  const { error } = await supabase.from("orders").insert({
+    customer_name: form.fullName,
+    customer_phone: form.phone,
+    governorate: form.city,
+    address: `${form.address}${form.notes ? ` — Note: ${form.notes}` : ""}`,
+    items,
+    total: grandTotal,
+  });
+
+  if (error) {
+    alert(`Couldn't place your order: ${error.message}`);
+    return;
+  }
+
+  clearCart();
+  setPlacedOrder(order);
+}
 
   if (!hydrated) return null;
 
