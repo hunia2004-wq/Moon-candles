@@ -9,11 +9,11 @@ export type AppliedPromotion = {
 
 export type PromotionResult = {
   discountAmount: number;
-  freeGift: { productId: number; name: string; image: string | null; price: number } | null;
+  freeGiftEligible: boolean;
   applied: AppliedPromotion[];
 };
 
-const EMPTY_RESULT: PromotionResult = { discountAmount: 0, freeGift: null, applied: [] };
+const EMPTY_RESULT: PromotionResult = { discountAmount: 0, freeGiftEligible: false, applied: [] };
 
 // Expands cart items into one "unit" per quantity, so per-item discount
 // types (bogo, bundles, tiers) can pair/group individual units rather
@@ -61,7 +61,7 @@ export async function computeCartPromotions(items: CartItem[]): Promise<Promotio
   const cartSubtotal = allUnits.reduce((sum, u) => sum + u.price, 0);
 
   let totalDiscount = 0;
-  let freeGift: PromotionResult["freeGift"] = null;
+  let freeGiftEligible = false;
   const applied: AppliedPromotion[] = [];
 
   for (const promo of promos) {
@@ -129,17 +129,9 @@ export async function computeCartPromotions(items: CartItem[]): Promise<Promotio
         break;
       }
 
-      case "free_gift": {
-        if (!freeGift && promo.free_gift_product_id && promo.min_spend_amount && cartSubtotal >= promo.min_spend_amount) {
-          const { data: product } = await supabase
-            .from("products")
-            .select("id, name, image, price")
-            .eq("id", promo.free_gift_product_id)
-            .single();
-
-          if (product) {
-            freeGift = { productId: product.id, name: product.name, image: product.image ?? null, price: product.price };
-          }
+            case "free_gift": {
+        if (promo.min_spend_amount && cartSubtotal >= promo.min_spend_amount) {
+          freeGiftEligible = true;
         }
         break;
       }
@@ -156,5 +148,5 @@ export async function computeCartPromotions(items: CartItem[]): Promise<Promotio
 
   totalDiscount = Math.min(totalDiscount, cartSubtotal);
 
-  return { discountAmount: Math.round(totalDiscount * 100) / 100, freeGift, applied };
+    return { discountAmount: Math.round(totalDiscount * 100) / 100, freeGiftEligible, applied };
 }

@@ -11,6 +11,7 @@ import {
   updateCartItemQuantity,
   removeCartItem,
 } from "@/lib/cart";
+import { computeCartPromotions, type AppliedPromotion } from "@/lib/promotions";
 
 const ACCENT = "#8FAA82";
 const CREAM = "#FFF4E6";
@@ -21,7 +22,9 @@ const BLACK = "#000000";
 export default function CartDrawer() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CartItem[]>([]);
-
+  const [promoDiscount, setPromoDiscount] = useState(0);
+    const [freeGiftEligible, setFreeGiftEligible] = useState(false);
+  const [appliedPromos, setAppliedPromos] = useState<AppliedPromotion[]>([]);
   /* -------------------------------------------------------------- */
   /* CART SYNC                                                      */
   /* -------------------------------------------------------------- */
@@ -90,7 +93,20 @@ export default function CartDrawer() {
       );
     };
   }, []);
+     useEffect(() => {
+    if (items.length === 0) {
+      setPromoDiscount(0);
+      setAppliedPromos([]);
+      setFreeGiftEligible(false);
+      return;
+    }
 
+    computeCartPromotions(items).then((result) => {
+      setPromoDiscount(result.discountAmount);
+      setAppliedPromos(result.applied);
+      setFreeGiftEligible(result.freeGiftEligible);
+    });
+  }, [items]);
   /* -------------------------------------------------------------- */
   /* BODY SCROLL                                                    */
   /* -------------------------------------------------------------- */
@@ -133,7 +149,8 @@ export default function CartDrawer() {
     setItems(getCart());
   }
 
-  const total = cartTotal(items);
+  const subtotal = cartTotal(items);
+  const total = subtotal - promoDiscount;
   const count = cartCount(items);
 
   return (
@@ -472,7 +489,7 @@ export default function CartDrawer() {
                 "rgba(0,0,0,0.08)",
             }}
           >
-            <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between">
               <span
                 className="text-sm"
                 style={{
@@ -492,9 +509,34 @@ export default function CartDrawer() {
                   color: BLACK,
                 }}
               >
-                {total} EGP
+                {subtotal} EGP
               </span>
             </div>
+
+               {promoDiscount > 0 && (
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-sm" style={{ color: "rgba(0,0,0,0.6)" }}>
+                  Promotions
+                  {appliedPromos.length > 0 && (
+                    <span className="block text-[11px]" style={{ color: "rgba(0,0,0,0.4)" }}>
+                      {appliedPromos.map((p) => p.title).join(", ")}
+                    </span>
+                  )}
+                </span>
+                <span className="text-sm font-semibold" style={{ color: ACCENT }}>
+                  −{promoDiscount.toLocaleString()} EGP
+                </span>
+              </div>
+            )}
+
+                       {freeGiftEligible && (
+              <p
+                className="mt-3 rounded-xl px-3 py-2.5 text-[12px] leading-4"
+                style={{ backgroundColor: "#EFE3C4", color: BLACK }}
+              >
+                🎁 You'll receive a free gift with this order.
+              </p>
+            )}
 
             <div className="mt-2 flex items-center justify-between">
               <span

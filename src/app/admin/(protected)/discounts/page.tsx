@@ -421,39 +421,23 @@ export default function AdminPromotionsPage() {
                 />
               </div>
             </div>
-            {form.discount_type === "free_gift" && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
-                    Minimum spend (EGP)
-                  </label>
-                  <input
-                    type="number"
-                    value={form.min_spend_amount}
-                    onChange={(e) => setForm((f) => ({ ...f, min_spend_amount: e.target.value }))}
-                    placeholder="e.g. 1000"
-                    className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
-                    style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
-                    Free gift product
-                  </label>
-                  <select
-                    value={form.free_gift_product_id}
-                    onChange={(e) => setForm((f) => ({ ...f, free_gift_product_id: e.target.value }))}
-                    className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
-                    style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-                  >
-                    <option value="">Select a product</option>
-                    {products.map((product) => (
-                      <option key={product.id} value={product.id}>
-                        {product.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                        {form.discount_type === "free_gift" && (
+              <div>
+                <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
+                  Minimum spend (EGP)
+                </label>
+                <p className="text-xs mb-2" style={{ color: MUTED }}>
+                  Customers spending over this amount will see a message that a free gift is included — no specific
+                  product needed.
+                </p>
+                <input
+                  type="number"
+                  value={form.min_spend_amount}
+                  onChange={(e) => setForm((f) => ({ ...f, min_spend_amount: e.target.value }))}
+                  placeholder="e.g. 1000"
+                  className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                  style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                />
               </div>
             )}
 

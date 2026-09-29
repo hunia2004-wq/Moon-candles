@@ -119,7 +119,7 @@ export default function CheckoutPage() {
   const [freeShippingEligible, setFreeShippingEligible] = useState(false);
   const [freeShippingBlockedNotice, setFreeShippingBlockedNotice] = useState(false);
   const [promoDiscount, setPromoDiscount] = useState(0);
-  const [freeGift, setFreeGift] = useState<{ productId: number; name: string; image: string | null; price: number } | null>(null);
+    const [freeGiftEligible, setFreeGiftEligible] = useState(false);
   const [appliedPromos, setAppliedPromos] = useState<AppliedPromotion[]>([]);
   useEffect(() => {
     setItems(getCart());
@@ -190,23 +190,22 @@ export default function CheckoutPage() {
       setFreeShippingEligible(eligible);
       setFreeShippingBlockedNotice(!eligible && blocked);
     }
-
-    checkFreeShipping();
-  }, [hydrated, items]);
-
-  useEffect(() => {
+   useEffect(() => {
     if (!hydrated || items.length === 0) {
       setPromoDiscount(0);
-      setFreeGift(null);
+      setFreeGiftEligible(false);
       setAppliedPromos([]);
       return;
     }
 
     computeCartPromotions(items).then((result) => {
       setPromoDiscount(result.discountAmount);
-      setFreeGift(result.freeGift);
+      setFreeGiftEligible(result.freeGiftEligible);
       setAppliedPromos(result.applied);
     });
+  }, [hydrated, items]);
+
+    checkFreeShipping();
   }, [hydrated, items]);
 
   function updateField(field: keyof FormState, value: string) {
@@ -293,7 +292,7 @@ export default function CheckoutPage() {
     createdAt: new Date().toISOString(),
   };
 
-  const supabase = createClient();
+   const supabase = createClient();
   const { error } = await supabase.from("orders").insert({
     customer_name: form.fullName,
     customer_phone: form.phone,
@@ -301,7 +300,6 @@ export default function CheckoutPage() {
     address: `${form.address}${form.notes ? ` — Note: ${form.notes}` : ""}`,
     items,
     promo_discount: promoDiscount,
-    free_gift_product_id: freeGift?.productId ?? null,
     total: grandTotal,
   });
 
@@ -1078,7 +1076,7 @@ export default function CheckoutPage() {
               ))}
             </div>
 
-                  <div className="mt-5 flex items-center justify-between">
+                        <div className="mt-5 flex items-center justify-between">
               <span
                 className="text-sm"
                 style={{
@@ -1112,15 +1110,13 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {freeGift && (
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-sm" style={{ color: "rgba(0,0,0,0.6)" }}>
-                  Free gift: {freeGift.name}
-                </span>
-                <span className="text-sm font-semibold" style={{ color: ACCENT }}>
-                  FREE
-                </span>
-              </div>
+            {freeGiftEligible && (
+              <p
+                className="mt-3 rounded-xl px-3 py-2.5 text-[12px] leading-4"
+                style={{ backgroundColor: SAND, color: BLACK }}
+              >
+                🎁 You'll receive a free gift with this order.
+              </p>
             )}
 
             <div className="mt-3 flex items-center justify-between">
@@ -1132,7 +1128,6 @@ export default function CheckoutPage() {
               >
                 Shipping
               </span>
-
                            {selectedZone ? (
                 freeShippingEligible ? (
                   <span className="flex items-center gap-2 text-sm font-semibold">
