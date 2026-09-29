@@ -25,6 +25,11 @@ type Promotion = {
   sort_order: number;
 };
 
+type ProductOption = {
+  id: number;
+  name: string;
+};
+
 const EMPTY_FORM = {
   title: "",
   subtitle: "",
@@ -40,6 +45,9 @@ const EMPTY_FORM = {
 
 export default function AdminPromotionsPage() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [productNamesByPromo, setProductNamesByPromo] = useState<Record<string, string[]>>({});
+  const [products, setProducts] = useState<ProductOption[]>([]);
+  const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -49,6 +57,7 @@ export default function AdminPromotionsPage() {
 
   useEffect(() => {
     load();
+    loadProducts();
   }, []);
 
   async function load() {
@@ -68,8 +77,63 @@ export default function AdminPromotionsPage() {
       return;
     }
 
-    setPromotions((data ?? []) as Promotion[]);
+    const promos = (data ?? []) as Promotion[];
+    setPromotions(promos);
     setLoading(false);
+
+    if (promos.length > 0) {
+      loadPromotionProductNames(promos.map((p) => p.id));
+    }
+  }
+
+  // Fetches which products are attached to each promotion, for display
+  // in the list. Always re-derived from promotion_products + products,
+  // so a product renamed or removed later is reflected automatically.
+  async function loadPromotionProductNames(promoIds: string[]) {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("promotion_products")
+      .select("promotion_id, products(name)")
+      .in("promotion_id", promoIds);
+
+    if (error || !data) return;
+
+    const grouped: Record<string, string[]> = {};
+    for (const row of data as any[]) {
+      const name = row.products?.name;
+      if (!name) continue;
+      if (!grouped[row.promotion_id]) grouped[row.promotion_id] = [];
+      grouped[row.promotion_id].push(name);
+    }
+    setProductNamesByPromo(grouped);
+  }
+
+  // Live product list for the picker — always current, so a product
+  // added after this page first loaded still shows up next time the
+  // form is opened (and even while it's open, since this refetches on
+  // every "+ New promotion" click via toggleForm below).
+  async function loadProducts() {
+    const supabase = createClient();
+    const { data, error } = await supabase.from("products").select("id, name").order("name", { ascending: true });
+
+    if (error || !data) return;
+    setProducts(data as ProductOption[]);
+  }
+
+  function toggleForm() {
+    setShowForm((s) => {
+      const next = !s;
+      if (next) {
+        // Refresh the product list every time the form opens, so newly
+        // added products are always available to pick from.
+        loadProducts();
+      }
+      return next;
+    });
+  }
+
+  function toggleProductSelected(id: number) {
+    setSelectedProductIds((prev) => (prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]));
   }
 
   async function handleAdd(e: React.FormEvent) {
@@ -78,26 +142,45 @@ export default function AdminPromotionsPage() {
 
     setSaving(true);
     const supabase = createClient();
-    const { error } = await supabase.from("promotions").insert({
-      title: form.title.trim(),
-      subtitle: form.subtitle.trim() || null,
-      link_url: form.link_url.trim() || null,
-      code: form.code.trim() || null,
-      discount_type: form.discount_type || null,
-      discount_value: form.discount_value ? Number(form.discount_value) : null,
-      starts_at: form.starts_at || null,
-      ends_at: form.ends_at || null,
-      usage_limit: form.usage_limit ? Number(form.usage_limit) : null,
-      show_on_homepage: form.show_on_homepage,
-    });
 
-    if (error) {
-      alert(`Couldn't add promotion: ${error.message}`);
+    const { data: inserted, error } = await supabase
+      .from("promotions")
+      .insert({
+        title: form.title.trim(),
+        subtitle: form.subtitle.trim() || null,
+        link_url: form.link_url.trim() || null,
+        code: form.code.trim() || null,
+        discount_type: form.discount_type || null,
+        discount_value: form.discount_value ? Number(form.discount_value) : null,
+        starts_at: form.starts_at || null,
+        ends_at: form.ends_at || null,
+        usage_limit: form.usage_limit ? Number(form.usage_limit) : null,
+        show_on_homepage: form.show_on_homepage,
+      })
+      .select("id")
+      .single();
+
+    if (error || !inserted) {
+      alert(`Couldn't add promotion: ${error?.message}`);
       setSaving(false);
       return;
     }
 
+    if (selectedProductIds.length > 0) {
+      const { error: linkError } = await supabase.from("promotion_products").insert(
+        selectedProductIds.map((product_id) => ({
+          promotion_id: inserted.id,
+          product_id,
+        }))
+      );
+
+      if (linkError) {
+        alert(`Promotion was created, but couldn't attach products: ${linkError.message}`);
+      }
+    }
+
     setForm(EMPTY_FORM);
+    setSelectedProductIds([]);
     setShowForm(false);
     setSaving(false);
     load();
@@ -144,7 +227,7 @@ export default function AdminPromotionsPage() {
           </h1>
           <button
             type="button"
-            onClick={() => setShowForm((s) => !s)}
+            onClick={toggleForm}
             className="rounded-full px-5 py-2 text-sm font-medium"
             style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
           >
@@ -153,6 +236,7 @@ export default function AdminPromotionsPage() {
         </div>
         <p className="text-sm mb-8" style={{ color: MUTED }}>
           Active promotions marked "Show on homepage" appear as a banner customers can tap, above the site navigation.
+          If you pick products below, their discounted price will also show directly on the shop page.
         </p>
 
         {showForm && (
@@ -188,6 +272,50 @@ export default function AdminPromotionsPage() {
                 className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
                 style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
+                Apply to specific products (optional)
+              </label>
+              <p className="text-xs mb-2" style={{ color: MUTED }}>
+                Pick which products this discount applies to. Their discounted price will show right on the shop page.
+                Leave all unchecked if this promo isn't tied to specific products.
+              </p>
+
+              <div
+                className="max-h-56 overflow-y-auto rounded-xl p-2 flex flex-col gap-1"
+                style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+              >
+                {products.length === 0 && (
+                  <p className="text-xs px-2 py-2" style={{ color: MUTED }}>
+                    No products found.
+                  </p>
+                )}
+                {products.map((product) => (
+                  <label
+                    key={product.id}
+                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm cursor-pointer"
+                    style={{
+                      backgroundColor: selectedProductIds.includes(product.id) ? "#EFE3C4" : "transparent",
+                      color: "#000000",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedProductIds.includes(product.id)}
+                      onChange={() => toggleProductSelected(product.id)}
+                    />
+                    {product.name}
+                  </label>
+                ))}
+              </div>
+
+              {selectedProductIds.length > 0 && (
+                <p className="text-xs mt-1.5" style={{ color: ACCENT }}>
+                  {selectedProductIds.length} product{selectedProductIds.length !== 1 ? "s" : ""} selected
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -337,80 +465,90 @@ export default function AdminPromotionsPage() {
         )}
 
         <div className="flex flex-col gap-3">
-          {promotions.map((p) => (
-            <div
-              key={p.id}
-              className="rounded-2xl px-5 py-4"
-              style={{
-                backgroundColor: CARD_BG,
-                border: p.is_active ? `1.5px solid ${ACCENT}` : "1px solid rgba(0,0,0,0.08)",
-                opacity: p.is_active ? 1 : 0.55,
-              }}
-            >
-              <div className="flex items-start justify-between gap-3 mb-1">
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: "#000000" }}>
-                    {p.title}
-                  </p>
-                  {p.subtitle && (
-                    <p className="text-xs" style={{ color: MUTED }}>
-                      {p.subtitle}
+          {promotions.map((p) => {
+            const productNames = productNamesByPromo[p.id] ?? [];
+
+            return (
+              <div
+                key={p.id}
+                className="rounded-2xl px-5 py-4"
+                style={{
+                  backgroundColor: CARD_BG,
+                  border: p.is_active ? `1.5px solid ${ACCENT}` : "1px solid rgba(0,0,0,0.08)",
+                  opacity: p.is_active ? 1 : 0.55,
+                }}
+              >
+                <div className="flex items-start justify-between gap-3 mb-1">
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: "#000000" }}>
+                      {p.title}
                     </p>
-                  )}
-                </div>
-                <span
-                  className="rounded-full px-2.5 py-1 text-[11px] font-semibold shrink-0"
-                  style={{
-                    backgroundColor: p.is_active ? `${ACCENT}1A` : "rgba(0,0,0,0.06)",
-                    color: p.is_active ? ACCENT : MUTED,
-                  }}
-                >
-                  {p.is_active ? "Active" : "Inactive"}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mt-2" style={{ color: MUTED }}>
-                {p.code && <span>Code: <strong>{p.code}</strong></span>}
-                {p.usage_limit != null && (
-                  <span>
-                    Used {p.times_used}/{p.usage_limit}
+                    {p.subtitle && (
+                      <p className="text-xs" style={{ color: MUTED }}>
+                        {p.subtitle}
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    className="rounded-full px-2.5 py-1 text-[11px] font-semibold shrink-0"
+                    style={{
+                      backgroundColor: p.is_active ? `${ACCENT}1A` : "rgba(0,0,0,0.06)",
+                      color: p.is_active ? ACCENT : MUTED,
+                    }}
+                  >
+                    {p.is_active ? "Active" : "Inactive"}
                   </span>
-                )}
-                {p.ends_at && <span>Ends {new Date(p.ends_at).toLocaleDateString()}</span>}
-                <span>{p.show_on_homepage ? "On homepage" : "Not on homepage"}</span>
-              </div>
+                </div>
 
-              <div className="flex flex-wrap items-center gap-4 text-xs font-semibold mt-3">
-                <button
-                  type="button"
-                  disabled={busyId === p.id}
-                  onClick={() => toggleField(p.id, "is_active", !p.is_active)}
-                  className="underline disabled:opacity-40"
-                  style={{ color: ACCENT }}
-                >
-                  {p.is_active ? "Deactivate" : "Activate"}
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === p.id}
-                  onClick={() => toggleField(p.id, "show_on_homepage", !p.show_on_homepage)}
-                  className="underline disabled:opacity-40"
-                  style={{ color: "#000000" }}
-                >
-                  {p.show_on_homepage ? "Remove from homepage" : "Show on homepage"}
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === p.id}
-                  onClick={() => handleDelete(p.id)}
-                  className="underline disabled:opacity-40 ml-auto"
-                  style={{ color: "#A34848" }}
-                >
-                  Delete
-                </button>
+                {productNames.length > 0 && (
+                  <p className="text-xs mt-1" style={{ color: ACCENT }}>
+                    Applies to: {productNames.join(", ")}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mt-2" style={{ color: MUTED }}>
+                  {p.code && <span>Code: <strong>{p.code}</strong></span>}
+                  {p.usage_limit != null && (
+                    <span>
+                      Used {p.times_used}/{p.usage_limit}
+                    </span>
+                  )}
+                  {p.ends_at && <span>Ends {new Date(p.ends_at).toLocaleDateString()}</span>}
+                  <span>{p.show_on_homepage ? "On homepage" : "Not on homepage"}</span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-4 text-xs font-semibold mt-3">
+                  <button
+                    type="button"
+                    disabled={busyId === p.id}
+                    onClick={() => toggleField(p.id, "is_active", !p.is_active)}
+                    className="underline disabled:opacity-40"
+                    style={{ color: ACCENT }}
+                  >
+                    {p.is_active ? "Deactivate" : "Activate"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyId === p.id}
+                    onClick={() => toggleField(p.id, "show_on_homepage", !p.show_on_homepage)}
+                    className="underline disabled:opacity-40"
+                    style={{ color: "#000000" }}
+                  >
+                    {p.show_on_homepage ? "Remove from homepage" : "Show on homepage"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busyId === p.id}
+                    onClick={() => handleDelete(p.id)}
+                    className="underline disabled:opacity-40 ml-auto"
+                    style={{ color: "#A34848" }}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
