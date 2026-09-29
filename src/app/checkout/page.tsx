@@ -11,7 +11,7 @@ import {
   clearCart,
 } from "@/lib/cart";
 import { createClient } from "@/lib/supabase/client";
-
+import { computeCartPromotions, type AppliedPromotion } from "@/lib/promotions";
 const ACCENT = "#8FAA82";
 const ERROR = "#C0392B";
 const CREAM = "#FFF4E6";
@@ -116,11 +116,98 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [placedOrder, setPlacedOrder] =
     useState<PlacedOrder | null>(null);
-
+  const [freeShippingEligible, setFreeShippingEligible] = useState(false);
+  const [freeShippingBlockedNotice, setFreeShippingBlockedNotice] = useState(false);
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [freeGift, setFreeGift] = useState<{ productId: number; name: string; image: string | null; price: number } | null>(null);
+  const [appliedPromos, setAppliedPromos] = useState<AppliedPromotion[]>([]);
   useEffect(() => {
     setItems(getCart());
     setHydrated(true);
   }, []);
+
+  // Checks active free_shipping promotions against what's actually in the
+  // cart. A promo with no products attached applies store-wide. A promo
+  // tied to specific products only waives shipping if every cart item is
+  // one of those products — otherwise we show a notice instead of
+  // silently charging full shipping with no explanation.
+  useEffect(() => {
+    if (!hydrated || items.length === 0) return;
+
+    async function checkFreeShipping() {
+      const supabase = createClient();
+      const nowIso = new Date().toISOString();
+
+      const { data: promos, error: promosError } = await supabase
+        .from("promotions")
+        .select("id")
+        .eq("discount_type", "free_shipping")
+        .eq("is_active", true)
+        .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+        .or(`ends_at.is.null,ends_at.gte.${nowIso}`);
+
+      if (promosError || !promos || promos.length === 0) {
+        setFreeShippingEligible(false);
+        setFreeShippingBlockedNotice(false);
+        return;
+      }
+
+      const { data: links } = await supabase
+        .from("promotion_products")
+        .select("promotion_id, product_id")
+        .in("promotion_id", promos.map((p) => p.id));
+
+      const linksByPromo: Record<string, (string | number)[]> = {};
+      (links ?? []).forEach((row: any) => {
+        if (!linksByPromo[row.promotion_id]) linksByPromo[row.promotion_id] = [];
+        linksByPromo[row.promotion_id].push(row.product_id);
+      });
+
+      const cartProductIds = items.map((i) => i.productId);
+
+      let eligible = false;
+      let blocked = false;
+
+      for (const promo of promos) {
+        const productIds = linksByPromo[promo.id];
+
+        if (!productIds || productIds.length === 0) {
+          // Store-wide — no products attached, applies to everything.
+          eligible = true;
+          continue;
+        }
+
+        const allCovered = cartProductIds.every((id) => productIds.includes(id));
+        const anyCovered = cartProductIds.some((id) => productIds.includes(id));
+
+        if (allCovered) {
+          eligible = true;
+        } else if (anyCovered) {
+          blocked = true;
+        }
+      }
+
+      setFreeShippingEligible(eligible);
+      setFreeShippingBlockedNotice(!eligible && blocked);
+    }
+
+    checkFreeShipping();
+  }, [hydrated, items]);
+
+  useEffect(() => {
+    if (!hydrated || items.length === 0) {
+      setPromoDiscount(0);
+      setFreeGift(null);
+      setAppliedPromos([]);
+      return;
+    }
+
+    computeCartPromotions(items).then((result) => {
+      setPromoDiscount(result.discountAmount);
+      setFreeGift(result.freeGift);
+      setAppliedPromos(result.applied);
+    });
+  }, [hydrated, items]);
 
   function updateField(field: keyof FormState, value: string) {
     setForm((prev) => ({
@@ -176,9 +263,10 @@ export default function CheckoutPage() {
   const selectedZone = DELIVERY_ZONES.find(
     (z) => z.name === form.city
   );
-  const shippingFee = selectedZone?.fee ?? 0;
+  const baseShippingFee = selectedZone?.fee ?? 0;
+  const shippingFee = freeShippingEligible ? 0 : baseShippingFee;
   const subtotal = cartTotal(items);
-  const grandTotal = subtotal + shippingFee;
+  const grandTotal = subtotal - promoDiscount + shippingFee;
 
   async function handleSubmit(e: React.FormEvent) {
   e.preventDefault();
@@ -212,6 +300,8 @@ export default function CheckoutPage() {
     governorate: form.city,
     address: `${form.address}${form.notes ? ` — Note: ${form.notes}` : ""}`,
     items,
+    promo_discount: promoDiscount,
+    free_gift_product_id: freeGift?.productId ?? null,
     total: grandTotal,
   });
 
@@ -988,7 +1078,7 @@ export default function CheckoutPage() {
               ))}
             </div>
 
-            <div className="mt-5 flex items-center justify-between">
+                  <div className="mt-5 flex items-center justify-between">
               <span
                 className="text-sm"
                 style={{
@@ -1006,6 +1096,33 @@ export default function CheckoutPage() {
               </span>
             </div>
 
+            {promoDiscount > 0 && (
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-sm" style={{ color: "rgba(0,0,0,0.6)" }}>
+                  Promotions
+                  {appliedPromos.length > 0 && (
+                    <span className="block text-[10px]" style={{ color: "rgba(0,0,0,0.4)" }}>
+                      {appliedPromos.map((p) => p.title).join(", ")}
+                    </span>
+                  )}
+                </span>
+                <span className="text-sm font-semibold" style={{ color: ACCENT }}>
+                  −{promoDiscount.toLocaleString()} EGP
+                </span>
+              </div>
+            )}
+
+            {freeGift && (
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-sm" style={{ color: "rgba(0,0,0,0.6)" }}>
+                  Free gift: {freeGift.name}
+                </span>
+                <span className="text-sm font-semibold" style={{ color: ACCENT }}>
+                  FREE
+                </span>
+              </div>
+            )}
+
             <div className="mt-3 flex items-center justify-between">
               <span
                 className="text-sm"
@@ -1016,13 +1133,27 @@ export default function CheckoutPage() {
                 Shipping
               </span>
 
-              {selectedZone ? (
-                <span
-                  className="text-sm font-semibold"
-                  style={{ color: BLACK }}
-                >
-                  {shippingFee} EGP
-                </span>
+                           {selectedZone ? (
+                freeShippingEligible ? (
+                  <span className="flex items-center gap-2 text-sm font-semibold">
+                    <span
+                      style={{
+                        color: "rgba(0,0,0,0.4)",
+                        textDecoration: "line-through",
+                      }}
+                    >
+                      {baseShippingFee} EGP
+                    </span>
+                    <span style={{ color: ACCENT }}>FREE</span>
+                  </span>
+                ) : (
+                  <span
+                    className="text-sm font-semibold"
+                    style={{ color: BLACK }}
+                  >
+                    {shippingFee} EGP
+                  </span>
+                )
               ) : (
                 <span
                   className="text-[11px]"
@@ -1034,6 +1165,18 @@ export default function CheckoutPage() {
                 </span>
               )}
             </div>
+
+            {freeShippingBlockedNotice && (
+              <div
+                className="mt-3 rounded-xl px-3 py-2.5 text-[11px] leading-4"
+                style={{
+                  backgroundColor: "#FBEAE7",
+                  color: ERROR,
+                }}
+              >
+                Free delivery won't be applied to this order, since your cart contains products that aren't included in the offer.
+              </div>
+            )}
 
             <div
               className="my-5 h-px"

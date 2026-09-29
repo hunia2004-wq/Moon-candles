@@ -11,7 +11,7 @@ import {
   cartTotal,
   cartCount,
 } from "@/lib/cart";
-
+import { computeCartPromotions, type AppliedPromotion } from "@/lib/promotions";
 const ACCENT = "#8FAA82";
 const CREAM = "#FFF4E6";
 const SAND = "#EFE3C4";
@@ -22,7 +22,8 @@ export default function CartPage() {
   const router = useRouter();
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
-
+  const [promoDiscount, setPromoDiscount] = useState(0);
+  const [appliedPromos, setAppliedPromos] = useState<AppliedPromotion[]>([]);
   function refresh() {
     setItems(getCart());
   }
@@ -39,8 +40,21 @@ export default function CartPage() {
       window.removeEventListener("storage", refresh);
     };
   }, []);
+    useEffect(() => {
+    if (!hydrated || items.length === 0) {
+      setPromoDiscount(0);
+      setAppliedPromos([]);
+      return;
+    }
 
-  const total = cartTotal(items);
+    computeCartPromotions(items).then((result) => {
+      setPromoDiscount(result.discountAmount);
+      setAppliedPromos(result.applied);
+    });
+  }, [hydrated, items]);
+
+  const subtotal = cartTotal(items);
+  const total = subtotal - promoDiscount;
   const count = cartCount(items);
 
   if (!hydrated) return null;
@@ -308,7 +322,7 @@ export default function CartPage() {
                 style={{ backgroundColor: "rgba(0,0,0,0.08)" }}
               />
 
-              <div className="flex items-center justify-between">
+                           <div className="flex items-center justify-between">
                 <span
                   className="text-sm"
                   style={{ color: "rgba(0,0,0,0.6)" }}
@@ -320,9 +334,25 @@ export default function CartPage() {
                   className="text-sm font-semibold"
                   style={{ color: BLACK }}
                 >
-                  {total} EGP
+                  {subtotal} EGP
                 </span>
               </div>
+
+              {promoDiscount > 0 && (
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-sm" style={{ color: "rgba(0,0,0,0.6)" }}>
+                    Promotions
+                    {appliedPromos.length > 0 && (
+                      <span className="block text-[10px]" style={{ color: "rgba(0,0,0,0.4)" }}>
+                        {appliedPromos.map((p) => p.title).join(", ")}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-sm font-semibold" style={{ color: ACCENT }}>
+                    −{promoDiscount.toLocaleString()} EGP
+                  </span>
+                </div>
+              )}
 
               <div className="mt-3 flex items-center justify-between">
                 <span

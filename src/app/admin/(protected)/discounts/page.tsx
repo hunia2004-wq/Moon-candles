@@ -23,6 +23,11 @@ type Promotion = {
   is_active: boolean;
   show_on_homepage: boolean;
   sort_order: number;
+  min_spend_amount: number | null;
+  free_gift_product_id: number | null;
+  bundle_quantity: number | null;
+  bundle_price: number | null;
+  tiered_min_qty: number | null;
 };
 
 type ProductOption = {
@@ -41,6 +46,11 @@ const EMPTY_FORM = {
   ends_at: "",
   usage_limit: "",
   show_on_homepage: true,
+  min_spend_amount: "",
+  free_gift_product_id: "",
+  bundle_quantity: "",
+  bundle_price: "",
+  tiered_min_qty: "",
 };
 
 export default function AdminPromotionsPage() {
@@ -143,7 +153,7 @@ export default function AdminPromotionsPage() {
     setSaving(true);
     const supabase = createClient();
 
-    const { data: inserted, error } = await supabase
+        const { data: inserted, error } = await supabase
       .from("promotions")
       .insert({
         title: form.title.trim(),
@@ -152,10 +162,15 @@ export default function AdminPromotionsPage() {
         code: form.code.trim() || null,
         discount_type: form.discount_type || null,
         discount_value: form.discount_value ? Number(form.discount_value) : null,
-        starts_at: form.starts_at || null,
-        ends_at: form.ends_at || null,
+        starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
+        ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
         usage_limit: form.usage_limit ? Number(form.usage_limit) : null,
         show_on_homepage: form.show_on_homepage,
+        min_spend_amount: form.min_spend_amount ? Number(form.min_spend_amount) : null,
+        free_gift_product_id: form.free_gift_product_id ? Number(form.free_gift_product_id) : null,
+        bundle_quantity: form.bundle_quantity ? Number(form.bundle_quantity) : null,
+        bundle_price: form.bundle_price ? Number(form.bundle_price) : null,
+        tiered_min_qty: form.tiered_min_qty ? Number(form.tiered_min_qty) : null,
       })
       .select("id")
       .single();
@@ -319,20 +334,26 @@ export default function AdminPromotionsPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+                                        <div>
                 <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
                   Links to
                 </label>
-                <input
-                  type="text"
+                <select
                   value={form.link_url}
                   onChange={(e) => setForm((f) => ({ ...f, link_url: e.target.value }))}
-                  placeholder="/shop"
                   className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
                   style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-                />
+                >
+                  <option value="/shop">Shop — all products</option>
+                  <option value="/shop?category=candles">Shop — candles only</option>
+                  <option value="/shop?category=giveaways">Shop — giveaways only</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={`/product/${product.id}`}>
+                      {product.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-
               <div>
                 <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
                   Discount code (optional)
@@ -359,10 +380,15 @@ export default function AdminPromotionsPage() {
                   className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
                   style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                 >
-                  <option value="">None</option>
+                                                 <option value="">None</option>
                   <option value="percentage">Percentage off</option>
                   <option value="fixed">Fixed amount off</option>
                   <option value="bogo">Buy 1 Get 1</option>
+                  <option value="second_item_percent_off">Buy 1, get 2nd at X% off</option>
+                  <option value="free_gift">Free gift with min. spend</option>
+                  <option value="min_spend_percent_off">X% off orders over min. spend</option>
+                  <option value="bundle_price">Bundle price (any N for fixed price)</option>
+                  <option value="tiered_quantity_percent_off">Buy N+, get X% off</option>
                   <option value="free_shipping">Free shipping</option>
                 </select>
               </div>
@@ -395,7 +421,114 @@ export default function AdminPromotionsPage() {
                 />
               </div>
             </div>
+            {form.discount_type === "free_gift" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
+                    Minimum spend (EGP)
+                  </label>
+                  <input
+                    type="number"
+                    value={form.min_spend_amount}
+                    onChange={(e) => setForm((f) => ({ ...f, min_spend_amount: e.target.value }))}
+                    placeholder="e.g. 1000"
+                    className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                    style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
+                    Free gift product
+                  </label>
+                  <select
+                    value={form.free_gift_product_id}
+                    onChange={(e) => setForm((f) => ({ ...f, free_gift_product_id: e.target.value }))}
+                    className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                    style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                  >
+                    <option value="">Select a product</option>
+                    {products.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
 
+            {form.discount_type === "min_spend_percent_off" && (
+              <div>
+                <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
+                  Minimum spend (EGP)
+                </label>
+                <p className="text-xs mb-2" style={{ color: MUTED }}>
+                  Use the Value field above for the percentage off (e.g. 10 for 10%).
+                </p>
+                <input
+                  type="number"
+                  value={form.min_spend_amount}
+                  onChange={(e) => setForm((f) => ({ ...f, min_spend_amount: e.target.value }))}
+                  placeholder="e.g. 1000"
+                  className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                  style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                />
+              </div>
+            )}
+
+            {form.discount_type === "bundle_price" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
+                    Bundle quantity
+                  </label>
+                  <input
+                    type="number"
+                    value={form.bundle_quantity}
+                    onChange={(e) => setForm((f) => ({ ...f, bundle_quantity: e.target.value }))}
+                    placeholder="e.g. 2"
+                    className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                    style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
+                    Bundle price (EGP)
+                  </label>
+                  <input
+                    type="number"
+                    value={form.bundle_price}
+                    onChange={(e) => setForm((f) => ({ ...f, bundle_price: e.target.value }))}
+                    placeholder="e.g. 900"
+                    className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                    style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                  />
+                </div>
+                <p className="text-xs sm:col-span-2" style={{ color: MUTED }}>
+                  Applies to the products checked above — e.g. pick your candles, set quantity 2 and price 900 EGP for
+                  "any 2 candles for 900 EGP."
+                </p>
+              </div>
+            )}
+
+            {form.discount_type === "tiered_quantity_percent_off" && (
+              <div>
+                <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
+                  Minimum quantity
+                </label>
+                <p className="text-xs mb-2" style={{ color: MUTED }}>
+                  Use the Value field above for the percentage off (e.g. 15 for 15%).
+                </p>
+                <input
+                  type="number"
+                  value={form.tiered_min_qty}
+                  onChange={(e) => setForm((f) => ({ ...f, tiered_min_qty: e.target.value }))}
+                  placeholder="e.g. 3"
+                  className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                  style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                />
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -14,8 +14,6 @@ type Promo = {
 export default function PromoBanner() {
   const router = useRouter();
   const [promos, setPromos] = useState<Promo[]>([]);
-  const [index, setIndex] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -37,47 +35,39 @@ export default function PromoBanner() {
     load();
   }, []);
 
-  // Auto-rotate through multiple active promos every 5s.
-  useEffect(() => {
-    if (promos.length <= 1) return;
-
-    timerRef.current = setInterval(() => {
-      setIndex((i) => (i + 1) % promos.length);
-    }, 5000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [promos.length]);
-
   if (promos.length === 0) return null;
 
-  const current = promos[index];
-
-  function handleClick() {
-    if (current.link_url) router.push(current.link_url);
-  }
-
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-center transition-colors"
-      style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
+    <div
+      className="flex w-full gap-2 overflow-x-auto px-3 py-2.5"
+      style={{
+        backgroundColor: "#DE4B33",
+        scrollbarWidth: "none",
+        WebkitOverflowScrolling: "touch",
+      }}
     >
-      <span className="text-xs sm:text-sm font-semibold tracking-wide">
-        {current.title}
-      </span>
-      {current.subtitle && (
-        <span className="hidden sm:inline text-xs opacity-90">
-          — {current.subtitle}
-        </span>
-      )}
-      {current.link_url && (
-        <span className="text-xs underline underline-offset-2 ml-1 shrink-0">
-          Shop now
-        </span>
-      )}
-    </button>
+      {promos.map((promo) => (
+        <button
+          key={promo.id}
+          type="button"
+          onClick={() => {
+            if (promo.link_url) router.push(promo.link_url);
+          }}
+          className="flex flex-shrink-0 items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors"
+          style={{
+            backgroundColor: "rgba(255,255,255,0.15)",
+            color: "#FFF4E6",
+          }}
+        >
+          <span className="tracking-wide">{promo.title}</span>
+          {promo.subtitle && (
+            <span className="hidden opacity-80 sm:inline">— {promo.subtitle}</span>
+          )}
+          {promo.link_url && (
+            <span className="underline underline-offset-2">Shop now</span>
+          )}
+        </button>
+      ))}
+    </div>
   );
 }

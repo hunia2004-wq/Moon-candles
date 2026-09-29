@@ -58,18 +58,17 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
       return;
     }
 
-    if (!data) return;
+      if (!data) return;
+
+    console.log("promotion_products raw data:", JSON.stringify(data, null, 2));
 
     const map: Record<number, ActiveDiscount> = {};
 
     for (const row of data as any[]) {
       const promo = row.promotions;
-      if (!promo || !promo.is_active) continue;
+            if (!promo || !promo.is_active) continue;
       if (promo.starts_at && promo.starts_at > nowIso) continue;
       if (promo.ends_at && promo.ends_at < nowIso) continue;
-      // Only percentage/fixed discounts change the displayed price — a
-      // BOGO or free-shipping promo doesn't have a per-unit price to show.
-      if (promo.discount_type !== "percentage" && promo.discount_type !== "fixed") continue;
 
       map[row.product_id] = {
         type: promo.discount_type,
@@ -98,7 +97,6 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
         const isTarget = product.name === targetProduct;
         const priceOverride = PRICE_RANGE_OVERRIDES[product.name.toLowerCase()];
         const discount = discountsByProduct[product.id];
-
         let discountedPrice: number | null = null;
         if (discount && !priceOverride) {
           if (discount.type === "percentage" && discount.value != null) {
@@ -106,6 +104,20 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
           } else if (discount.type === "fixed" && discount.value != null) {
             discountedPrice = Math.max(0, product.price - discount.value);
           }
+        }
+
+        // Badge label for every discount type — percentage/fixed also get
+        // a recalculated price above; BOGO and free shipping are
+        // badge-only, since there's no single-item price to change.
+        let badgeLabel: string | null = null;
+        if (discount?.type === "percentage" && discount.value != null) {
+          badgeLabel = `${discount.value}% OFF`;
+        } else if (discount?.type === "fixed" && discount.value != null) {
+          badgeLabel = `${discount.value} EGP OFF`;
+        } else if (discount?.type === "bogo") {
+          badgeLabel = "BUY 1 GET 1";
+        } else if (discount?.type === "free_shipping") {
+          badgeLabel = "FREE SHIPPING";
         }
 
         return (
@@ -131,12 +143,12 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
                   className="h-full w-full object-contain"
                 />
               )}
-              {discountedPrice != null && (
+                           {badgeLabel && (
                 <span
                   className="absolute top-2 left-2 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide"
                   style={{ backgroundColor: "#DE4B33", color: "#FFFFFF" }}
                 >
-                  {discount!.type === "percentage" ? `${discount!.value}% OFF` : `${discount!.value} EGP OFF`}
+                  {badgeLabel}
                 </span>
               )}
             </div>
