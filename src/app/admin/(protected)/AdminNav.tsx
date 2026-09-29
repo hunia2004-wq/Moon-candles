@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/admin/custom-orders", label: "Custom Orders" },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/customers", label: "Customers" },
+  { href: "/admin/reviews", label: "Reviews" },
 ];
 
 export default function AdminNav({ email }: { email: string }) {

@@ -2,13 +2,17 @@
 
 import { useRef, useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, BadgeCheck } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const ACCENT = "#47684b";
 
 /*
  * ============================================================
- * REVIEW DATA
+ * FALLBACK REVIEW DATA
  * ============================================================
+ * Shown only until you feature at least one review in the admin
+ * panel (Reviews → Feature). Once a featured review exists in
+ * Supabase, this list is ignored automatically.
  *
  * `name` is optional — leave it out (or use an empty string) for
  * any review you don't have a name for yet, and it'll fall back to
@@ -22,7 +26,7 @@ type Review = {
   name?: string;
 };
 
-const REVIEWS: Review[] = [
+const FALLBACK_REVIEWS: Review[] = [
   {
     stars: 5,
     quote:
@@ -75,7 +79,7 @@ const REVIEWS: Review[] = [
       "Waslo bgd to7faaaa. Dol fo2 el too7faaa bgd wlhahy 5teraaa",
     name: "Shahd",
   },
-{
+  {
     stars: 5,
     quote:
       "BTW, the candles I got last time were absolutely incredible. Everyone who walked into my room couldn't believe the scent was from a candle. They thought I had used an air freshener. Bgd thank you touhfa",
@@ -93,9 +97,34 @@ export default function Testimonials() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [reviews, setReviews] = useState<Review[]>(FALLBACK_REVIEWS);
+
+  useEffect(() => {
+  async function loadFeaturedReviews() {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("reviews")
+      .select("customer_name, rating, body")
+      .eq("is_published", true)
+      .eq("is_featured", true)
+      .order("created_at", { ascending: false });
+
+    if (error || !data || data.length === 0) return;
+
+const featuredReviews: Review[] = data.map((r) => ({
+  stars: r.rating,
+  quote: r.body,
+  name: r.customer_name,
+}));
+
+setReviews([...FALLBACK_REVIEWS, ...featuredReviews]);
+  }
+
+  loadFeaturedReviews();
+}, []);
 
   function scrollToIndex(index: number) {
-    const safeIndex = Math.max(0, Math.min(index, REVIEWS.length - 1));
+    const safeIndex = Math.max(0, Math.min(index, reviews.length - 1));
     const container = scrollRef.current;
     const card = cardRefs.current[safeIndex];
 
@@ -114,11 +143,11 @@ export default function Testimonials() {
   }
 
   function previous() {
-    scrollToIndex(activeIndex <= 0 ? REVIEWS.length - 1 : activeIndex - 1);
+    scrollToIndex(activeIndex <= 0 ? reviews.length - 1 : activeIndex - 1);
   }
 
   function next() {
-    scrollToIndex(activeIndex >= REVIEWS.length - 1 ? 0 : activeIndex + 1);
+    scrollToIndex(activeIndex >= reviews.length - 1 ? 0 : activeIndex + 1);
   }
 
   // Keep the dots/arrows in sync if someone swipes instead of tapping.
@@ -160,7 +189,9 @@ export default function Testimonials() {
 
     container.addEventListener("scroll", onScroll, { passive: true });
     return () => container.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [reviews]);
+
+  if (reviews.length === 0) return null;
 
   return (
     <section
@@ -230,7 +261,7 @@ export default function Testimonials() {
               WebkitOverflowScrolling: "touch",
             }}
           >
-            {REVIEWS.map((review, index) => (
+            {reviews.map((review, index) => (
               <div
                 key={index}
                 ref={(el) => {
@@ -298,7 +329,7 @@ export default function Testimonials() {
             ============================================================ */}
 
         <div className="mt-6 flex justify-center gap-2">
-          {REVIEWS.map((_, index) => (
+          {reviews.map((_, index) => (
             <button
               key={index}
               type="button"

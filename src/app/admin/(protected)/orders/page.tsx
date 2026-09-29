@@ -14,7 +14,7 @@ const MUTED = "rgba(0,0,0,0.55)";
 // Matches StatusUpdater's vocabulary for custom_orders — using the
 // same set here so both order types share one consistent workflow.
 // If plain `orders` should use a different set, tell me and I'll split them.
-const STATUS_OPTIONS = ["pending", "confirmed", "in_production", "shipped", "completed", "cancelled"] as const;
+const STATUS_OPTIONS = ["pending", "confirmed", "shipped", "completed", "cancelled"] as const;
 const PAYMENT_OPTIONS = ["unpaid", "paid"] as const;
 
 type Order = {
@@ -122,38 +122,38 @@ const [view, setView] = useState<"active" | "cancelled" | "history">("active");
           </button>
         </div>
 <div className="flex gap-2 mb-4">
-  <button
-    type="button"
-    onClick={() => setView("active")}
-    className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
-    style={{
-      backgroundColor: view === "active" ? ACCENT : "transparent",
-      color: view === "active" ? "#FFFFFF" : ACCENT,
-      border: `1.5px solid ${ACCENT}`,
-    }}
-  >
-    Active
-  </button>
-  <button
-    type="button"
-    onClick={() => setView("cancelled")}
-    className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
-    style={{
-      backgroundColor: view === "cancelled" ? "#888888" : "transparent",
-      color: view === "cancelled" ? "#FFFFFF" : "#888888",
-      border: "1.5px solid #888888",
-    }}
-  >
-    Cancelled
-  </button>
-  <button
+<button
+  type="button"
+  onClick={() => setView("active")}
+  className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
+  style={{
+    backgroundColor: view === "active" ? "#3F8F5C" : "transparent",
+    color: view === "active" ? "#FFFFFF" : "#3F8F5C",
+    border: "1.5px solid #3F8F5C",
+  }}
+>
+  Active
+</button>
+<button
+  type="button"
+  onClick={() => setView("cancelled")}
+  className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
+  style={{
+    backgroundColor: view === "cancelled" ? "#A34848" : "transparent",
+    color: view === "cancelled" ? "#FFFFFF" : "#A34848",
+    border: "1.5px solid #A34848",
+  }}
+>
+  Cancelled
+</button>
+<button
   type="button"
   onClick={() => setView("history")}
   className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
   style={{
-    backgroundColor: view === "history" ? "#3F8F5C" : "transparent",
-    color: view === "history" ? "#FFFFFF" : "#3F8F5C",
-    border: "1.5px solid #3F8F5C",
+    backgroundColor: view === "history" ? ACCENT : "transparent",
+    color: view === "history" ? "#FFFFFF" : ACCENT,
+    border: `1.5px solid ${ACCENT}`,
   }}
 >
   History
