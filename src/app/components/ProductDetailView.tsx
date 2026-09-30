@@ -113,6 +113,7 @@ const RIBBON_COLORS = [
   { id: "dark-purple", label: "Dark Purple", hex: "#4B2E6F" },
 ] as const;
 
+
 type RibbonColorId = (typeof RIBBON_COLORS)[number]["id"];
 
 const QUACK_IMAGES = {
@@ -412,6 +413,8 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     );
       const scrollSyncing = useRef(false);
         const committedNoorIds = useRef<Set<string>>(new Set());
+        const selectedImageIndexRef = useRef(selectedImageIndex);
+const selectedColorIndexRef = useRef(selectedColorIndex);
 
   const hasColors =
     (product.colors?.length ?? 0) > 0;
@@ -509,11 +512,26 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     searchParams,
   ]);
 
-  /*
+    /*
    * ============================================================
    * URL COLOR CHANGE
    * ============================================================
+   *
+   * BUG FIX: this effect used to include selectedColorIndex in its
+   * dependency array, which meant it re-ran on every swipe — and each
+   * time, it re-read the SAME original ?color= URL value (swiping
+   * never updates the URL) and forcibly snapped the color back to it.
+   * That caused the "snaps back and forth on its own" bug whenever a
+   * product page was opened with a ?color= param (e.g. from the
+   * homepage Best Sellers carousel).
+   *
+   * Fix: track the last URL color value we've already synced to, in a
+   * ref. Only act when the URL's color value actually CHANGES (e.g.
+   * real navigation), not every time selectedColorIndex changes from
+   * the user's own swiping.
    */
+
+  const lastSyncedUrlColor = useRef<string | null>(null);
 
   useEffect(() => {
     if (!product.colors?.length) {
@@ -527,6 +545,12 @@ const [plainQuantity, setPlainQuantity] = useState(1);
       return;
     }
 
+    if (colorFromUrl === lastSyncedUrlColor.current) {
+      return;
+    }
+
+    lastSyncedUrlColor.current = colorFromUrl;
+
     const foundIndex =
       product.colors.findIndex(
         (color) =>
@@ -534,11 +558,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
           colorFromUrl.toLowerCase()
       );
 
-    if (
-      foundIndex >= 0 &&
-      foundIndex !==
-        selectedColorIndex
-    ) {
+    if (foundIndex >= 0) {
       setSelectedColorIndex(
         foundIndex
       );
@@ -559,7 +579,6 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     searchParams,
     product.id,
     product.colors,
-    selectedColorIndex,
     isColorScrollProduct,
   ]);
 
@@ -707,10 +726,21 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     } else if (selectedColor) {
       // Products with nested options (e.g. Bloom Wand): unchanged —
       // gallery stays scoped to the selected color/option's own photos.
-            if (hasOptions && selectedOption) {
-        addImages(selectedOption.image_urls, selectedColor.name);
-        addImage(selectedOption.image_url, selectedColor.name);
-      }
+    if (hasOptions && selectedOption) {
+  addImages(selectedOption.image_urls, selectedColor.name);
+  addImage(selectedOption.image_url, selectedColor.name);
+
+  // If this option alone doesn't give more than one image, pull in
+  // the color's other option(s) too, so the gallery — and its
+  // arrows — still has something to browse.
+  if (items.length <= 1) {
+    selectedColor.options?.forEach((opt) => {
+      if (opt === selectedOption) return;
+      addImages(opt.image_urls, selectedColor.name);
+      addImage(opt.image_url, selectedColor.name);
+    });
+  }
+}
 
       // Plain Candle: if the selected size already has its own photo,
       // don't also add the color's default photo (that's the other
@@ -862,63 +892,59 @@ const [plainQuantity, setPlainQuantity] = useState(1);
       }
     }
   }
+useEffect(() => {
+  selectedImageIndexRef.current = selectedImageIndex;
+}, [selectedImageIndex]);
 
+useEffect(() => {
+  selectedColorIndexRef.current = selectedColorIndex;
+}, [selectedColorIndex]);
   /*
    * ============================================================
    * HANDLE GALLERY SCROLL
    * ============================================================
    */
 
-  function handleGalleryScroll() {
+const scrollSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+function handleGalleryScroll() {
   const container = imageScrollRef.current;
+  if (!container || gallery.length <= 1) return;
 
-  if (!container || gallery.length <= 1) {
-    return;
-  }
+  // Clear any pending settle check — we're still actively scrolling.
+  if (scrollSettleTimer.current) clearTimeout(scrollSettleTimer.current);
 
-  const containerCenter =
-    container.scrollLeft + container.clientWidth / 2;
+  scrollSettleTimer.current = setTimeout(() => {
+    const containerCenter = container.scrollLeft + container.clientWidth / 2;
 
-  let closestIndex = 0;
-  let closestDistance = Infinity;
+    let closestIndex = 0;
+    let closestDistance = Infinity;
 
-  imageRefs.current.forEach((slide, index) => {
-    if (!slide) return;
-
-    const slideCenter =
-      slide.offsetLeft + slide.clientWidth / 2;
-
-    const distance = Math.abs(
-      slideCenter - containerCenter
-    );
-
-    if (distance < closestDistance) {
-      closestDistance = distance;
-      closestIndex = index;
-    }
-  });
-
-  if (closestIndex !== selectedImageIndex) {
-    setSelectedImageIndex(closestIndex);
-
-    // Keep the swatch/price in sync with
-    // whichever color's photo is centered.
-    if (isColorScrollProduct) {
-      const item = galleryItems[closestIndex];
-
-      if (
-        item &&
-        item.colorIndex >= 0 &&
-        item.colorIndex !== selectedColorIndex
-      ) {
-        scrollSyncing.current = true;
-
-        setSelectedColorIndex(item.colorIndex);
-        setSelectedOptionIndex(0);
+    imageRefs.current.forEach((slide, index) => {
+      if (!slide) return;
+      const slideCenter = slide.offsetLeft + slide.clientWidth / 2;
+      const distance = Math.abs(slideCenter - containerCenter);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
       }
+    });
+
+if (closestIndex !== selectedImageIndexRef.current) {
+  setSelectedImageIndex(closestIndex);
+
+  if (isColorScrollProduct) {
+    const item = galleryItems[closestIndex];
+    if (item && item.colorIndex >= 0 && item.colorIndex !== selectedColorIndexRef.current) {
+      scrollSyncing.current = true;
+      setSelectedColorIndex(item.colorIndex);
+      setSelectedOptionIndex(0);
     }
   }
-}  /*
+}
+  }, 100); // waits until scrolling has paused for 100ms
+}
+/*
    * ============================================================
    * NEXT / PREVIOUS
    * ============================================================
@@ -1468,12 +1494,10 @@ const [plainQuantity, setPlainQuantity] = useState(1);
         onScroll
       );
     };
-  }, [
-    gallery.length,
-    isColorScrollProduct,
-    selectedColorIndex,
-    selectedImageIndex,
-  ]);
+ }, [
+  gallery.length,
+  isColorScrollProduct,
+]);
 
   /*
    * ============================================================
@@ -1881,9 +1905,11 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     // the one actually selected. Prefer the selected option/color's
     // own image first, and only fall back to the gallery for
     // products where gallery genuinely is scoped to one color.
-    const lineImage =
+        const lineImage =
       selectedOption?.image_url ??
+      selectedOption?.image_urls?.[0] ??
       selectedColor?.image_url ??
+      selectedColor?.image_urls?.[0] ??
       gallery[0] ??
       "";
 
@@ -1891,13 +1917,16 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     // filled in (typed initials or an uploaded image). Always
     // undefined for every other product since this section only
     // renders for Pocket Hearts.
-      const monogramTextToUse =
-      productName === "Pocket Hearts" && monogramText.trim()
+          const isMonogramProduct =
+      productName === "Pocket Hearts" || productName === "Rustic Warmth";
+
+    const monogramTextToUse =
+      isMonogramProduct && monogramText.trim()
         ? monogramText.trim()
         : undefined;
 
     const monogramImageToUse =
-      productName === "Pocket Hearts" && monogramImageUrl
+      isMonogramProduct && monogramImageUrl
         ? monogramImageUrl
         : undefined;
 
@@ -1958,9 +1987,9 @@ const [plainQuantity, setPlainQuantity] = useState(1);
       ];
     });
 
-    // Personalization is entered fresh per line — clear it after
+      // Personalization is entered fresh per line — clear it after
     // adding so a follow-up click doesn't silently reuse it.
-    if (productName === "Pocket Hearts") {
+    if (isMonogramProduct) {
       setMonogramText("");
       setMonogramImageUrl(null);
     }
@@ -2215,23 +2244,19 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                             "center",
                         }}
                       >
-                                                 <img
-                          src={url}
-                          alt={`${productName} ${
-                            galleryColorNames[
-                              index
-                            ] ?? ""
-                          } image ${
-                            index + 1
-                          }`}
-                          className="h-full w-full select-none object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.10)]"
-                                                   style={{
-                            transform: `translateY(${getGalleryImageOffsetY(index)}px) scale(${getGalleryImageScale(index)})`,
-                          }}
-                          draggable={
-                            false
-                          }
-                        />
+                                               <img
+  src={url}
+  alt={`${productName} ${
+    galleryColorNames[index] ?? ""
+  } image ${index + 1}`}
+  loading="lazy"
+  decoding="async"
+  className="h-full w-full select-none object-contain drop-shadow-[0_20px_25px_rgba(0,0,0,0.10)]"
+  style={{
+    transform: `translateY(${getGalleryImageOffsetY(index)}px) scale(${getGalleryImageScale(index)})`,
+  }}
+  draggable={false}
+/>
                       </div>
                     )
                   )
@@ -2466,11 +2491,10 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                         color,
                         index
                       ) => {
-                        const swatchImg =
-                          color
-                            .options?.[0]
-                            ?.image_url ??
-                          color.image_url;
+                      const swatchImg =
+  color.options?.[0]?.image_url ??
+  color.image_url ??
+  color.image_urls?.[0];
 
                         const selected =
                           index ===
@@ -3279,7 +3303,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                 POCKET HEARTS — PERSONALIZATION (optional)
                 ================================================== */}
 
-            {productName === "Pocket Hearts" && (
+               {(productName === "Pocket Hearts" || productName === "Rustic Warmth") && (
               <div className="mt-5">
                 <p
                   className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
@@ -3288,13 +3312,12 @@ const [plainQuantity, setPlainQuantity] = useState(1);
                   Personalize (Optional)
                 </p>
 
-                <p
+                              <p
                   className="mb-3 text-xs"
                   style={{ color: "rgba(0,0,0,0.55)" }}
                 >
-                  Add initials to your hearts — like &quot;S &amp; H&quot;
-                  in the example photo. Type them, or upload an image
-                  if you'd like a specific lettering style.
+                  Add your initials like in the example photo. Type them, or upload an image if you'd
+                  like a specific lettering style.
                 </p>
 
                 <input

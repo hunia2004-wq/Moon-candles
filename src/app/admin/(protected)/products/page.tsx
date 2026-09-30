@@ -14,7 +14,11 @@ const GIVEAWAY_NAMES = [
 ];
 
 function ProductCard({ product }: { product: Product }) {
-  const thumb = product.image_urls?.[0] ?? product.colors?.[0]?.image_url ?? null;
+   const thumb =
+    product.image_urls?.[0] ??
+    product.colors?.[0]?.image_urls?.[0] ??
+    product.colors?.[0]?.image_url ??
+    null;
 
   return (
     <Link

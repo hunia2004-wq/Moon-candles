@@ -51,22 +51,23 @@ if (collectionError) {
 }
 
   const candles: CarouselCandle[] =
-  marble?.colors?.map(
-    (color: {
-      name: string;
-      hex: string | null;
-      image_url?: string;
-    }) => ({
-      productId: marble.id,
-      colorName: color.name,
-      name: color.name,
-      description: marble.description,
-      price: marble.price,
-      size_ml: marble.size_ml,
-      scents: marble.scents,
-      image: color.image_url ?? null,
-    })
-  ) ?? [];
+ marble?.colors?.map(
+  (color: {
+    name: string;
+    hex: string | null;
+    image_url?: string;
+    image_urls?: string[];
+  }) => ({
+    productId: marble.id,
+    colorName: color.name,
+    name: color.name,
+    description: marble.description,
+    price: marble.price,
+    size_ml: marble.size_ml,
+    scents: marble.scents,
+    image: color.image_urls?.[0] ?? color.image_url ?? null,
+  })
+) ?? [];
 
   return (
     <div

@@ -736,27 +736,25 @@ export default function CustomizeTambourinePage() {
         return;
       }
 
-      addToCart({
-        id: line.id,
-        productId: "custom-tambourine",
-        productName: "Tambourine",
-        price: lineSize.price,
-        quantity: line.quantity,
-        scent: null,
-        color: `${lineSize.label} · ${
-          RIBBON_COLORS.find((c) => c.id === line.ribbonColor)!.label
-        } Ribbon`,
-        image: lineSize.img,
-        customization: {
-          type: "customized-tambourine",
-          size: line.size,
-          sizeCm: lineSize.cm,
-          ribbonColor: line.ribbonColor,
-          layers,
-        },
-      });
-    });
-
+    addToCart({
+  id: line.id,
+  productId: "custom-tambourine",
+  productName: "Tambourine",
+  price: lineSize.price,
+  quantity: line.quantity,
+  scent: null,
+  color: `${lineSize.label} · ${RIBBON_COLORS.find((c) => c.id === line.ribbonColor)!.label} Ribbon`,
+  image: lineSize.img,
+  productRefId: 31,   // add this line
+  customization: {
+    type: "customized-tambourine",
+    size: line.size,
+    sizeCm: lineSize.cm,
+    ribbonColor: line.ribbonColor,
+    layers,
+  },
+});
+  });
     setOrderLines((prev) =>
       prev.map((line) => ({
         ...line,

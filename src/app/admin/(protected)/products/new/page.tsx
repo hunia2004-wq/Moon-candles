@@ -288,7 +288,7 @@ export default function NewProductPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
           />
         </div>
 
@@ -301,7 +301,7 @@ export default function NewProductPage() {
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
             className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
           />
         </div>
 
@@ -315,7 +315,7 @@ export default function NewProductPage() {
               onChange={(e) => setPrice(e.target.value)}
               inputMode="numeric"
               className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
             />
           </div>
 
@@ -328,7 +328,7 @@ export default function NewProductPage() {
               onChange={(e) => setSizeMl(e.target.value)}
               inputMode="numeric"
               className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
             />
           </div>
         </div>
@@ -341,7 +341,7 @@ export default function NewProductPage() {
           {existingScents.length > 0 && (
             <div
               className="mb-3 flex flex-col gap-2 rounded-xl p-3"
-              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
             >
               <label
                 className="flex items-center gap-3 pb-2"
@@ -399,7 +399,7 @@ export default function NewProductPage() {
               }}
               placeholder="Add a new scent not listed above"
               className="flex-1 rounded-xl px-4 py-3 text-sm outline-none"
-              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
             />
             <button
               type="button"
@@ -439,7 +439,7 @@ export default function NewProductPage() {
             value={category}
             onChange={(e) => setCategory(e.target.value as "candle" | "giveaway")}
             className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
           >
             <option value="candle">Candle</option>
             <option value="giveaway">Giveaway</option>
@@ -539,7 +539,7 @@ export default function NewProductPage() {
                       onChange={(e) => updateColor(color.key, { name: e.target.value })}
                       placeholder="Color name (e.g. White)"
                       className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
-                      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+                      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                     />
                     <input
                       value={color.price}
@@ -547,7 +547,7 @@ export default function NewProductPage() {
                       placeholder="Price (optional)"
                       inputMode="numeric"
                       className="w-28 rounded-xl px-3 py-2 text-sm outline-none"
-                      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+                      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                     />
                     <button
                       type="button"
@@ -599,7 +599,7 @@ export default function NewProductPage() {
                               }
                               placeholder="Option name (e.g. Small)"
                               className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
-                              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+                              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                             />
                             <input
                               value={option.price}
@@ -609,7 +609,7 @@ export default function NewProductPage() {
                               placeholder="Price (optional)"
                               inputMode="numeric"
                               className="w-28 rounded-lg px-3 py-2 text-sm outline-none"
-                              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+                              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                             />
                             <button
                               type="button"

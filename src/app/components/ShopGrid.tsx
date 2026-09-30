@@ -8,13 +8,31 @@ import { createClient } from "@/lib/supabase/client";
 import AutoCenteredImage from "./AutoCenteredImage";
 
 
-// These products don't have one fixed price — show a range instead of
-// product.price. Matched case-insensitively against product.name.
-const PRICE_RANGE_OVERRIDES: Record<string, string> = {
-  "forever clasp": "85-95 EGP",
-  "pocket hearts": "40-50 EGP",
-  "rustic warmth": "65-75 EGP",
-};
+// For products with per-option pricing (e.g. Unscented/Scented at
+// different prices), compute the real min–max range from the
+// product's actual color/option prices instead of a hardcoded string.
+function getPriceRange(product: Product): string | null {
+  const prices: number[] = [];
+
+  product.colors?.forEach((color) => {
+    if (color.options?.length) {
+      color.options.forEach((option) => {
+        if (option.price != null) prices.push(option.price);
+      });
+    } else if (color.price != null) {
+      prices.push(color.price);
+    }
+  });
+
+  if (prices.length === 0) return null;
+
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+
+  if (min === max) return null;
+
+  return `${min}-${max} EGP`;
+}
 
 type ActiveDiscount = {
   type: string | null;
@@ -79,12 +97,13 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
     setDiscountsByProduct(map);
   }
 
-  const filteredProducts = products.filter((product) => {
-    if (!category) return true;
-    if (category === "giveaways") return product.category === "giveaway";
-    if (category === "candles") return product.category === "candle";
-    return true;
-  });
+ const filteredProducts = products.filter((product) => {
+  if (product.category === "customizable") return false; // add this line
+  if (!category) return true;
+  if (category === "giveaways") return product.category === "giveaway";
+  if (category === "candles") return product.category === "candle";
+  return true;
+});
 
   if (filteredProducts.length === 0) {
     return <p style={{ color: "#000000" }}>No products available yet.</p>;
@@ -93,9 +112,9 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6">
       {filteredProducts.map((product) => {
-        const cover = product.image_urls?.[0] ?? product.colors?.[0]?.image_url;
+       const cover = product.image_urls?.[0] ?? product.colors?.[0]?.image_urls?.[0];
         const isTarget = product.name === targetProduct;
-        const priceOverride = PRICE_RANGE_OVERRIDES[product.name.toLowerCase()];
+        const priceOverride = getPriceRange(product);
         const discount = discountsByProduct[product.id];
         let discountedPrice: number | null = null;
         if (discount && !priceOverride) {

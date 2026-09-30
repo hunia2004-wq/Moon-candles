@@ -27,7 +27,9 @@ type Promotion = {
   free_gift_product_id: number | null;
   bundle_quantity: number | null;
   bundle_price: number | null;
-  tiered_min_qty: number | null;
+   tiered_min_qty: number | null;
+  bundle_same_product_only: boolean;
+
 };
 
 type ProductOption = {
@@ -51,6 +53,8 @@ const EMPTY_FORM = {
   bundle_quantity: "",
   bundle_price: "",
   tiered_min_qty: "",
+  bundle_same_product_only: false,
+  
 };
 
 export default function AdminPromotionsPage() {
@@ -64,6 +68,7 @@ export default function AdminPromotionsPage() {
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -129,14 +134,63 @@ export default function AdminPromotionsPage() {
     if (error || !data) return;
     setProducts(data as ProductOption[]);
   }
+    async function loadProductIdsForPromotion(promoId: string): Promise<number[]> {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("promotion_products")
+      .select("product_id")
+      .eq("promotion_id", promoId);
 
-  function toggleForm() {
+    if (error || !data) return [];
+    return data.map((row: any) => row.product_id);
+  }
+    async function startEdit(promo: Promotion) {
+    await loadProducts();
+    const productIds = await loadProductIdsForPromotion(promo.id);
+
+    setForm({
+      title: promo.title,
+      subtitle: promo.subtitle ?? "",
+      link_url: promo.link_url ?? "/shop",
+      code: promo.code ?? "",
+      discount_type: promo.discount_type ?? "",
+      discount_value: promo.discount_value != null ? String(promo.discount_value) : "",
+      starts_at: promo.starts_at ? toLocalDatetimeInputValue(promo.starts_at) : "",
+      ends_at: promo.ends_at ? toLocalDatetimeInputValue(promo.ends_at) : "",
+      usage_limit: promo.usage_limit != null ? String(promo.usage_limit) : "",
+      show_on_homepage: promo.show_on_homepage,
+      min_spend_amount: promo.min_spend_amount != null ? String(promo.min_spend_amount) : "",
+      free_gift_product_id: "",
+      bundle_quantity: promo.bundle_quantity != null ? String(promo.bundle_quantity) : "",
+      bundle_price: promo.bundle_price != null ? String(promo.bundle_price) : "",
+        tiered_min_qty: promo.tiered_min_qty != null ? String(promo.tiered_min_qty) : "",
+  bundle_same_product_only: promo.bundle_same_product_only ?? false,
+});
+    setSelectedProductIds(productIds);
+    setEditingId(promo.id);
+    setShowForm(true);
+  }
+
+  // datetime-local inputs need "YYYY-MM-DDTHH:mm" in local time, but
+  // Supabase returns an ISO string in UTC — this converts between them.
+  function toLocalDatetimeInputValue(isoString: string): string {
+    const d = new Date(isoString);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+    function toggleForm() {
     setShowForm((s) => {
       const next = !s;
       if (next) {
         // Refresh the product list every time the form opens, so newly
         // added products are always available to pick from.
         loadProducts();
+      } else {
+        // Closing (Cancel) always exits edit mode and clears the form.
+        setEditingId(null);
+        setForm(EMPTY_FORM);
+        setSelectedProductIds([]);
       }
       return next;
     });
@@ -146,61 +200,94 @@ export default function AdminPromotionsPage() {
     setSelectedProductIds((prev) => (prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]));
   }
 
-  async function handleAdd(e: React.FormEvent) {
+   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim()) return;
 
     setSaving(true);
     const supabase = createClient();
 
-        const { data: inserted, error } = await supabase
-      .from("promotions")
-      .insert({
-        title: form.title.trim(),
-        subtitle: form.subtitle.trim() || null,
-        link_url: form.link_url.trim() || null,
-        code: form.code.trim() || null,
-        discount_type: form.discount_type || null,
-        discount_value: form.discount_value ? Number(form.discount_value) : null,
-        starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
-        ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
-        usage_limit: form.usage_limit ? Number(form.usage_limit) : null,
-        show_on_homepage: form.show_on_homepage,
-        min_spend_amount: form.min_spend_amount ? Number(form.min_spend_amount) : null,
-        free_gift_product_id: form.free_gift_product_id ? Number(form.free_gift_product_id) : null,
-        bundle_quantity: form.bundle_quantity ? Number(form.bundle_quantity) : null,
-        bundle_price: form.bundle_price ? Number(form.bundle_price) : null,
-        tiered_min_qty: form.tiered_min_qty ? Number(form.tiered_min_qty) : null,
-      })
-      .select("id")
-      .single();
+    const payload = {
+      title: form.title.trim(),
+      subtitle: form.subtitle.trim() || null,
+      link_url: form.link_url.trim() || null,
+      code: form.code.trim() || null,
+      discount_type: form.discount_type || null,
+      discount_value: form.discount_value ? Number(form.discount_value) : null,
+      starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
+      ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
+      usage_limit: form.usage_limit ? Number(form.usage_limit) : null,
+      show_on_homepage: form.show_on_homepage,
+      min_spend_amount: form.min_spend_amount ? Number(form.min_spend_amount) : null,
+      free_gift_product_id: form.free_gift_product_id ? Number(form.free_gift_product_id) : null,
+      bundle_quantity: form.bundle_quantity ? Number(form.bundle_quantity) : null,
+      bundle_price: form.bundle_price ? Number(form.bundle_price) : null,
+       tiered_min_qty: form.tiered_min_qty ? Number(form.tiered_min_qty) : null,
+  bundle_same_product_only: form.bundle_same_product_only,
+};
 
-    if (error || !inserted) {
-      alert(`Couldn't add promotion: ${error?.message}`);
-      setSaving(false);
-      return;
-    }
+    const promoId = editingId;
 
-    if (selectedProductIds.length > 0) {
-      const { error: linkError } = await supabase.from("promotion_products").insert(
-        selectedProductIds.map((product_id) => ({
-          promotion_id: inserted.id,
-          product_id,
-        }))
-      );
+    if (promoId) {
+      const { error } = await supabase.from("promotions").update(payload).eq("id", promoId);
 
-      if (linkError) {
-        alert(`Promotion was created, but couldn't attach products: ${linkError.message}`);
+      if (error) {
+        alert(`Couldn't update promotion: ${error.message}`);
+        setSaving(false);
+        return;
+      }
+
+      // Replace product links wholesale — simplest way to keep them in
+      // sync with whatever is checked now.
+      const { error: deleteLinkError } = await supabase
+        .from("promotion_products")
+        .delete()
+        .eq("promotion_id", promoId);
+
+      if (deleteLinkError) {
+        alert(`Promotion was updated, but couldn't refresh linked products: ${deleteLinkError.message}`);
+      } else if (selectedProductIds.length > 0) {
+        const { error: linkError } = await supabase.from("promotion_products").insert(
+          selectedProductIds.map((product_id) => ({
+            promotion_id: promoId,
+            product_id,
+          }))
+        );
+
+        if (linkError) {
+          alert(`Promotion was updated, but couldn't attach products: ${linkError.message}`);
+        }
+      }
+    } else {
+      const { data: inserted, error } = await supabase.from("promotions").insert(payload).select("id").single();
+
+      if (error || !inserted) {
+        alert(`Couldn't add promotion: ${error?.message}`);
+        setSaving(false);
+        return;
+      }
+
+      if (selectedProductIds.length > 0) {
+        const { error: linkError } = await supabase.from("promotion_products").insert(
+          selectedProductIds.map((product_id) => ({
+            promotion_id: inserted.id,
+            product_id,
+          }))
+        );
+
+        if (linkError) {
+          alert(`Promotion was created, but couldn't attach products: ${linkError.message}`);
+        }
       }
     }
 
     setForm(EMPTY_FORM);
     setSelectedProductIds([]);
+    setEditingId(null);
     setShowForm(false);
     setSaving(false);
     load();
   }
-
   async function toggleField(id: string, field: "is_active" | "show_on_homepage", value: boolean) {
     setBusyId(id);
     const supabase = createClient();
@@ -240,9 +327,19 @@ export default function AdminPromotionsPage() {
           <h1 className="text-3xl font-serif font-bold" style={{ color: "#000000" }}>
             Promotions
           </h1>
-          <button
+                  <button
             type="button"
-            onClick={toggleForm}
+            onClick={() => {
+              if (showForm) {
+                toggleForm();
+              } else {
+                setEditingId(null);
+                setForm(EMPTY_FORM);
+                setSelectedProductIds([]);
+                setShowForm(true);
+                loadProducts();
+              }
+            }}
             className="rounded-full px-5 py-2 text-sm font-medium"
             style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
           >
@@ -255,8 +352,8 @@ export default function AdminPromotionsPage() {
         </p>
 
         {showForm && (
-          <form
-            onSubmit={handleAdd}
+                  <form
+            onSubmit={handleSubmit}
             className="rounded-2xl p-5 mb-8 flex flex-col gap-4"
             style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)" }}
           >
@@ -385,6 +482,7 @@ export default function AdminPromotionsPage() {
                   <option value="fixed">Fixed amount off</option>
                   <option value="bogo">Buy 1 Get 1</option>
                   <option value="second_item_percent_off">Buy 1, get 2nd at X% off</option>
+                                    <option value="buy_x_get_y_free">Buy N, get 1 free</option>
                   <option value="free_gift">Free gift with min. spend</option>
                   <option value="min_spend_percent_off">X% off orders over min. spend</option>
                   <option value="bundle_price">Bundle price (any N for fixed price)</option>
@@ -488,9 +586,18 @@ export default function AdminPromotionsPage() {
                     style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                   />
                 </div>
+                              <label className="flex items-center gap-2 text-sm sm:col-span-2" style={{ color: "#000000" }}>
+                  <input
+                    type="checkbox"
+                    checked={form.bundle_same_product_only}
+                    onChange={(e) => setForm((f) => ({ ...f, bundle_same_product_only: e.target.checked }))}
+                  />
+                  Require the same product (not mixed)
+                </label>
                 <p className="text-xs sm:col-span-2" style={{ color: MUTED }}>
-                  Applies to the products checked above — e.g. pick your candles, set quantity 2 and price 900 EGP for
-                  "any 2 candles for 900 EGP."
+                  {form.bundle_same_product_only
+                    ? 'Requires N units of the SAME product. E.g. "Marble Moon" with quantity 2 and price 1000 EGP means 2 Marble Moons for 1000 EGP.'
+                    : "Applies to any combination of the selected products. E.g. quantity 2 and price 1000 EGP means any 2 items from the selected products together for 1000 EGP."}
                 </p>
               </div>
             )}
@@ -508,6 +615,24 @@ export default function AdminPromotionsPage() {
                   value={form.tiered_min_qty}
                   onChange={(e) => setForm((f) => ({ ...f, tiered_min_qty: e.target.value }))}
                   placeholder="e.g. 3"
+                  className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                  style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                />
+              </div>
+            )}
+                        {form.discount_type === "buy_x_get_y_free" && (
+              <div>
+                <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
+                  Quantity to buy
+                </label>
+                <p className="text-xs mb-2" style={{ color: MUTED }}>
+                  e.g. 2 for "buy 2, get 1 free." The Value field above isn't used for this type.
+                </p>
+                <input
+                  type="number"
+                  value={form.tiered_min_qty}
+                  onChange={(e) => setForm((f) => ({ ...f, tiered_min_qty: e.target.value }))}
+                  placeholder="e.g. 2"
                   className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
                   style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                 />
@@ -549,13 +674,13 @@ export default function AdminPromotionsPage() {
               Show on homepage banner
             </label>
 
-            <button
+                   <button
               type="submit"
               disabled={saving}
               className="self-start rounded-full px-6 py-2.5 text-sm font-medium transition-colors disabled:opacity-60"
               style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
             >
-              {saving ? "Adding…" : "Add promotion"}
+              {saving ? (editingId ? "Saving…" : "Adding…") : editingId ? "Save changes" : "Add promotion"}
             </button>
           </form>
         )}
@@ -634,7 +759,15 @@ export default function AdminPromotionsPage() {
                   <span>{p.show_on_homepage ? "On homepage" : "Not on homepage"}</span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-4 text-xs font-semibold mt-3">
+                               <div className="flex flex-wrap items-center gap-4 text-xs font-semibold mt-3">
+                  <button
+                    type="button"
+                    onClick={() => startEdit(p)}
+                    className="underline"
+                    style={{ color: "#000000" }}
+                  >
+                    Edit
+                  </button>
                   <button
                     type="button"
                     disabled={busyId === p.id}

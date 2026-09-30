@@ -187,10 +187,14 @@ export default function CheckoutPage() {
         }
       }
 
-      setFreeShippingEligible(eligible);
+            setFreeShippingEligible(eligible);
       setFreeShippingBlockedNotice(!eligible && blocked);
     }
-   useEffect(() => {
+
+    checkFreeShipping();
+  }, [hydrated, items]);
+
+  useEffect(() => {
     if (!hydrated || items.length === 0) {
       setPromoDiscount(0);
       setFreeGiftEligible(false);
@@ -203,9 +207,6 @@ export default function CheckoutPage() {
       setFreeGiftEligible(result.freeGiftEligible);
       setAppliedPromos(result.applied);
     });
-  }, [hydrated, items]);
-
-    checkFreeShipping();
   }, [hydrated, items]);
 
   function updateField(field: keyof FormState, value: string) {

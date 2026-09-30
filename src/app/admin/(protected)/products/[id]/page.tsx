@@ -147,22 +147,36 @@ export default function EditProductPage() {
       const productHasColors = (p.colors?.length ?? 0) > 0;
       setHasColors(productHasColors);
 
-      if (productHasColors) {
-        setColors(
-          (p.colors ?? []).map((c) => ({
+           if (productHasColors) {
+        const loadedColors = (p.colors ?? []).map((c) => ({
+          key: makeKey(),
+          name: c.name ?? "",
+          hex: c.hex ?? "#CCCCCC",
+          price: c.price != null ? String(c.price) : "",
+          images: imagesFromColorOrOption(c),
+          options: (c.options ?? []).map((o) => ({
             key: makeKey(),
-            name: c.name ?? "",
-            hex: c.hex ?? "#CCCCCC",
-            price: c.price != null ? String(c.price) : "",
-            images: imagesFromColorOrOption(c),
-            options: (c.options ?? []).map((o) => ({
-              key: makeKey(),
-              name: o.name ?? "",
-              price: o.price != null ? String(o.price) : "",
-              images: imagesFromColorOrOption(o),
-            })),
-          }))
-        );
+            name: o.name ?? "",
+            price: o.price != null ? String(o.price) : "",
+            images: imagesFromColorOrOption(o),
+          })),
+        }));
+
+        setColors(loadedColors);
+
+        // Pre-fill the top-level bulk price fields with the first
+        // color's price for each option name, so the field shows the
+        // real current value instead of starting blank.
+        const initialBulkPrices: Record<string, string> = {};
+        loadedColors.forEach((color) => {
+          color.options.forEach((option) => {
+            const key = option.name.trim();
+            if (key && !(key in initialBulkPrices)) {
+              initialBulkPrices[key] = option.price;
+            }
+          });
+        });
+        setBulkOptionPrices(initialBulkPrices);
       } else {
         setPlainImages((p.image_urls ?? []).map((url) => ({ kind: "existing", url })));
       }
@@ -184,6 +198,35 @@ export default function EditProductPage() {
   function removeScent(scent: string) {
     setScents(scents.filter((s) => s !== scent));
   }
+
+    const [bulkOptionPrices, setBulkOptionPrices] = useState<Record<string, string>>({});
+
+  // Every distinct option name currently used across all colors (e.g.
+  // "Unscented", "Scented"), so the bulk-price panel always reflects
+  // whatever's actually in this product right now.
+  const distinctOptionNames = Array.from(
+    new Set(
+      colors.flatMap((c) => c.options.map((o) => o.name.trim()).filter(Boolean))
+    )
+  );
+
+    function updateOptionPriceForAllColors(optionName: string, value: string) {
+    setBulkOptionPrices((prev) => ({ ...prev, [optionName]: value }));
+
+    if (value === "" || !isNaN(Number(value))) {
+      setColors((prev) =>
+        prev.map((color) => ({
+          ...color,
+          options: color.options.map((option) =>
+            option.name.trim().toLowerCase() === optionName.trim().toLowerCase()
+              ? { ...option, price: value }
+              : option
+          ),
+        }))
+      );
+    }
+  }
+
 
   function addColor() {
     setColors([...colors, { key: makeKey(), name: "", hex: "#CCCCCC", price: "", images: [], options: [] }]);
@@ -391,7 +434,7 @@ export default function EditProductPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
           />
         </div>
 
@@ -404,25 +447,42 @@ export default function EditProductPage() {
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
             className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
           />
         </div>
 
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
-              Price (EGP)
-            </label>
-            <input
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              inputMode="numeric"
-              className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
-            />
-          </div>
+               <div className="flex flex-wrap gap-4">
+          {hasColors && distinctOptionNames.length > 0 ? (
+            distinctOptionNames.map((optionName) => (
+              <div key={optionName} className="flex-1" style={{ minWidth: "120px" }}>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+                  {optionName} Price (EGP)
+                </label>
+                <input
+                  value={bulkOptionPrices[optionName] ?? ""}
+                  onChange={(e) => updateOptionPriceForAllColors(optionName, e.target.value)}
+                  inputMode="numeric"
+                  className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                  style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                />
+              </div>
+            ))
+          ) : (
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+                Price (EGP)
+              </label>
+              <input
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                inputMode="numeric"
+                className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+              />
+            </div>
+          )}
 
-          <div className="flex-1">
+          <div className="flex-1" style={{ minWidth: "120px" }}>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
               Size (ml) — optional
             </label>
@@ -431,7 +491,7 @@ export default function EditProductPage() {
               onChange={(e) => setSizeMl(e.target.value)}
               inputMode="numeric"
               className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
             />
           </div>
         </div>
@@ -444,7 +504,7 @@ export default function EditProductPage() {
           {existingScents.length > 0 && (
             <div
               className="mb-3 flex flex-col gap-2 rounded-xl p-3"
-              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
             >
               <label className="flex items-center gap-3 pb-2" style={{ borderBottom: "1px solid rgba(0,0,0,0.1)" }}>
                 <input
@@ -499,7 +559,7 @@ export default function EditProductPage() {
               }}
               placeholder="Add a new scent not listed above"
               className="flex-1 rounded-xl px-4 py-3 text-sm outline-none"
-              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
             />
             <button
               type="button"
@@ -539,7 +599,7 @@ export default function EditProductPage() {
             value={category}
             onChange={(e) => setCategory(e.target.value as "candle" | "giveaway")}
             className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
           >
             <option value="candle">Candle</option>
             <option value="giveaway">Giveaway</option>
@@ -608,9 +668,9 @@ export default function EditProductPage() {
           </div>
         )}
 
-        {hasColors && (
+             {hasColors && (
           <div>
-            <div className="mb-2 flex items-center justify-between">
+                        <div className="mb-2 flex items-center justify-between">
               <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
                 Colors
               </label>
@@ -643,7 +703,7 @@ export default function EditProductPage() {
                       onChange={(e) => updateColor(color.key, { name: e.target.value })}
                       placeholder="Color name (e.g. White)"
                       className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
-                      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+                      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                     />
                     <input
                       value={color.price}
@@ -651,7 +711,7 @@ export default function EditProductPage() {
                       placeholder="Price (optional)"
                       inputMode="numeric"
                       className="w-28 rounded-xl px-3 py-2 text-sm outline-none"
-                      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+                      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                     />
                     <button
                       type="button"
@@ -697,7 +757,7 @@ export default function EditProductPage() {
                               onChange={(e) => updateOption(color.key, option.key, { name: e.target.value })}
                               placeholder="Option name (e.g. Small)"
                               className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
-                              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+                              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                             />
                             <input
                               value={option.price}
@@ -705,7 +765,7 @@ export default function EditProductPage() {
                               placeholder="Price (optional)"
                               inputMode="numeric"
                               className="w-28 rounded-lg px-3 py-2 text-sm outline-none"
-                              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF" }}
+                              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                             />
                             <button
                               type="button"

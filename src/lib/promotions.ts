@@ -22,7 +22,7 @@ const EMPTY_RESULT: PromotionResult = { discountAmount: 0, freeGiftEligible: fal
 function expandUnits(items: CartItem[]) {
   const units: { productId: number; price: number }[] = [];
   for (const item of items) {
-    const productId = Number(item.productId);
+    const productId = item.productRefId ?? Number(item.productId);
     for (let i = 0; i < item.quantity; i++) {
       units.push({ productId, price: item.price });
     }
@@ -101,6 +101,19 @@ export async function computeCartPromotions(items: CartItem[]): Promise<Promotio
         }
         break;
       }
+            case "buy_x_get_y_free": {
+        // Buy N, get 1 free: for every group of (buy_qty + 1) matching
+        // units, the cheapest one in that group is free. buy_qty comes
+        // from tiered_min_qty (reused here as "how many you must buy").
+        if (promo.tiered_min_qty && promo.tiered_min_qty > 0) {
+          const groupSize = promo.tiered_min_qty + 1;
+          const sorted = [...matchingUnits].sort((a, b) => b.price - a.price);
+          for (let i = groupSize - 1; i < sorted.length; i += groupSize) {
+            promoDiscount += sorted[i].price;
+          }
+        }
+        break;
+      }
 
       case "min_spend_percent_off": {
         if (promo.discount_value && promo.min_spend_amount && cartSubtotal >= promo.min_spend_amount) {
@@ -109,25 +122,52 @@ export async function computeCartPromotions(items: CartItem[]): Promise<Promotio
         break;
       }
 
-      case "bundle_price": {
-        if (promo.bundle_quantity && promo.bundle_price != null) {
-          const sorted = [...matchingUnits].sort((a, b) => b.price - a.price);
-          for (let i = 0; i + promo.bundle_quantity <= sorted.length; i += promo.bundle_quantity) {
-            const chunk = sorted.slice(i, i + promo.bundle_quantity);
-            const chunkSum = chunk.reduce((s, u) => s + u.price, 0);
-            const saved = chunkSum - promo.bundle_price;
-            if (saved > 0) promoDiscount += saved;
-          }
-        }
-        break;
+   case "bundle_price": {
+  if (promo.bundle_quantity && promo.bundle_price != null) {
+    if (promo.bundle_same_product_only) {
+      // Requires N units of the SAME product — grouped per productId.
+      const byProduct = new Map<number, { productId: number; price: number }[]>();
+      for (const unit of matchingUnits) {
+        const arr = byProduct.get(unit.productId) ?? [];
+        arr.push(unit);
+        byProduct.set(unit.productId, arr);
       }
 
-      case "tiered_quantity_percent_off": {
-        if (promo.discount_value && promo.tiered_min_qty && matchingUnits.length >= promo.tiered_min_qty) {
-          promoDiscount = matchingSubtotal * (promo.discount_value / 100);
+      for (const units of byProduct.values()) {
+        const sorted = [...units].sort((a, b) => b.price - a.price);
+        for (let i = 0; i + promo.bundle_quantity <= sorted.length; i += promo.bundle_quantity) {
+          const chunk = sorted.slice(i, i + promo.bundle_quantity);
+          const chunkSum = chunk.reduce((s, u) => s + u.price, 0);
+          const saved = chunkSum - promo.bundle_price;
+          if (saved > 0) promoDiscount += saved;
         }
-        break;
       }
+    } else {
+      // Any mix of the promo's matching products can fill a bundle.
+      const sorted = [...matchingUnits].sort((a, b) => b.price - a.price);
+      for (let i = 0; i + promo.bundle_quantity <= sorted.length; i += promo.bundle_quantity) {
+        const chunk = sorted.slice(i, i + promo.bundle_quantity);
+        const chunkSum = chunk.reduce((s, u) => s + u.price, 0);
+        const saved = chunkSum - promo.bundle_price;
+        if (saved > 0) promoDiscount += saved;
+      }
+    }
+  }
+  break;
+}
+
+      case "tiered_quantity_percent_off": {
+  if (promo.discount_value && promo.tiered_min_qty) {
+    const groupSize = promo.tiered_min_qty;
+    const sorted = [...matchingUnits].sort((a, b) => b.price - a.price);
+    const fullGroups = Math.floor(sorted.length / groupSize);
+    const discountedCount = fullGroups * groupSize;
+    for (let i = 0; i < discountedCount; i++) {
+      promoDiscount += sorted[i].price * (promo.discount_value / 100);
+    }
+  }
+  break;
+}
 
             case "free_gift": {
         if (promo.min_spend_amount && cartSubtotal >= promo.min_spend_amount) {

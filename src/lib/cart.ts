@@ -1,6 +1,8 @@
 // Shared cart helpers.
 // The cart lives in localStorage under the "cart" key.
 
+import { createClient } from "@/lib/supabase/client";
+
 export type TambourineCustomization = {
   type: "customized-tambourine";
   size: "small" | "large";
@@ -11,6 +13,7 @@ export type TambourineCustomization = {
 
 export type FanCustomization = {
   type: "customized-fan";
+  size: string;
   tasselLabel: string;
   tasselColor: string;
   layersBySide: unknown;
@@ -54,6 +57,16 @@ customization?:
   | FanCustomization
   | MonogramCustomization
   | CandleCustomization;
+
+  // The real `products.id` this cart item should be matched against
+  // for promotions. Customized items (Fan, Tambourine, Mini Candles)
+  // have a stable product-catalog row created just so promotions can
+  // target them from the admin panel like any other product, even
+  // though their price/customization is generated at add-to-cart
+  // time rather than read straight from that row. Plain shop
+  // products don't need this — their numeric `productId` already IS
+  // the real id.
+  productRefId?: number;
 };
 
 export function getCart(): CartItem[] {
@@ -192,4 +205,104 @@ export function cartCount(
       sum + item.quantity,
     0
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* PROMOTION DISCOUNTS                                                */
+/* ------------------------------------------------------------------ */
+
+type ActiveDiscount = {
+  type: string;
+  value: number;
+};
+
+let discountCache: Record<number, ActiveDiscount> | null = null;
+let discountCachePromise: Promise<Record<number, ActiveDiscount>> | null = null;
+
+/**
+ * Fetches every active percentage/fixed promotion, keyed by the real
+ * products.id it applies to. Used by anything that needs to price a
+ * cart item against current promotions — plain shop products and
+ * customized items alike, since customized items now carry a real
+ * productRefId pointing at their own catalog row. Cached per page
+ * load; call clearDiscountCache() if you need a fresh read sooner
+ * (e.g. right after visiting a page that might have changed).
+ */
+async function loadDiscountMap(): Promise<Record<number, ActiveDiscount>> {
+  if (discountCache) return discountCache;
+  if (discountCachePromise) return discountCachePromise;
+
+  discountCachePromise = (async () => {
+    const supabase = createClient();
+    const nowIso = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from("promotion_products")
+      .select("product_id, promotions(discount_type, discount_value, is_active, starts_at, ends_at)");
+
+    const map: Record<number, ActiveDiscount> = {};
+
+    if (!error && data) {
+      for (const row of data as any[]) {
+        const promo = row.promotions;
+        if (!promo || !promo.is_active) continue;
+        if (promo.starts_at && promo.starts_at > nowIso) continue;
+        if (promo.ends_at && promo.ends_at < nowIso) continue;
+        if (promo.discount_type !== "percentage" && promo.discount_type !== "fixed") continue;
+
+        map[row.product_id] = {
+          type: promo.discount_type,
+          value: promo.discount_value,
+        };
+      }
+    }
+
+    discountCache = map;
+    return map;
+  })();
+
+  return discountCachePromise;
+}
+
+export function clearDiscountCache() {
+  discountCache = null;
+  discountCachePromise = null;
+}
+
+/**
+ * Returns the discounted unit price for a cart item, or its plain
+ * price if no active promotion applies. Matches against
+ * item.productRefId when present (customized items), falling back to
+ * item.productId when it's already numeric (plain shop products).
+ */
+export async function getDiscountedPrice(item: CartItem): Promise<number> {
+  const refId =
+    item.productRefId ??
+    (typeof item.productId === "number" ? item.productId : null);
+
+  if (refId == null) return item.price;
+
+  const map = await loadDiscountMap();
+  const discount = map[refId];
+  if (!discount) return item.price;
+
+  if (discount.type === "percentage") {
+    return Math.round(item.price * (1 - discount.value / 100));
+  }
+  if (discount.type === "fixed") {
+    return Math.max(0, item.price - discount.value);
+  }
+  return item.price;
+}
+
+/**
+ * Cart total with active promotions applied per line. Use this
+ * instead of cartTotal() wherever the customer-facing total should
+ * reflect discounts (cart drawer, checkout). cartTotal() itself stays
+ * as a plain sum, since some callers (e.g. an admin view) may want
+ * the undiscounted figure.
+ */
+export async function cartTotalWithDiscounts(items: CartItem[]): Promise<number> {
+  const prices = await Promise.all(items.map((item) => getDiscountedPrice(item)));
+  return items.reduce((sum, item, i) => sum + prices[i] * item.quantity, 0);
 }

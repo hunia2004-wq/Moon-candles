@@ -1,11 +1,37 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import HamburgerMenu from "./HamburgerMenu";
 import CartDrawer from "./CartDrawer";
+import { getCart, cartCount } from "@/lib/cart";
 
 export default function Header() {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    setCount(cartCount(getCart()));
+
+    function handleCartUpdated() {
+      setCount(cartCount(getCart()));
+    }
+
+    function handleStorage(e: StorageEvent) {
+      if (e.key === "cart") {
+        setCount(cartCount(getCart()));
+      }
+    }
+
+    window.addEventListener("cartUpdated", handleCartUpdated);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("cartUpdated", handleCartUpdated);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, []);
+
   return (
     <header
       className="sticky top-0 z-50 flex h-20 items-center justify-between px-4 md:h-24"
@@ -25,8 +51,17 @@ export default function Header() {
         />
       </Link>
 
-           <Link href="/cart" aria-label="Cart">
+      <Link href="/cart" aria-label="Cart" className="relative">
         <ShoppingCart size={20} style={{ color: "#000000" }} />
+
+        {count > 0 && (
+          <span
+            className="absolute -right-2 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold"
+            style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
+          >
+            {count}
+          </span>
+        )}
       </Link>
 
       <CartDrawer />

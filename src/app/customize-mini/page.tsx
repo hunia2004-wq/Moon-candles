@@ -226,16 +226,17 @@ export default function CustomizeMiniPage() {
           updateCartItemQuantity(lineId, quantity);
         }
       } else {
-        addToCart({
-          id: lineId,
-          productId: MINI_CANDLES_PRODUCT_ID,
-          productName: MINI_CANDLES_PRODUCT_NAME,
-          price: PRICE_PER_CANDLE,
-          quantity,
-          scent: scent || null,
-          color: colorKey,
-          image: MINI_IMG,
-        });
+      addToCart({
+  id: lineId,
+  productId: MINI_CANDLES_PRODUCT_ID,
+  productName: MINI_CANDLES_PRODUCT_NAME,
+  price: PRICE_PER_CANDLE,
+  quantity,
+  scent: scent || null,
+  color: colorKey,
+  image: MINI_IMG,
+  productRefId: 32,   // add this line
+});
       }
     });
 
