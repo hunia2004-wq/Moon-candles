@@ -1644,16 +1644,16 @@ if (closestIndex !== selectedImageIndexRef.current) {
       (item: any) => item.id !== id
     );
 
-    updatedCart.push({
-      id,
-      productId: product.id,
-      productName,
-      price: Number(displayPrice),
-      quantity: brideQuantity,
-      scent: null,
-      color: "Bride Duck",
-      image: QUACK_IMAGES.bride,
-    });
+  updatedCart.push({
+  id,
+  productId: product.id,
+  productName,
+  price: Number(displayPrice),
+  quantity: brideQuantity,
+  scent: null,
+  color: "Bride Duck",
+  image: QUACK_IMAGES.bride,
+});
 
     localStorage.setItem("cart", JSON.stringify(updatedCart));
 

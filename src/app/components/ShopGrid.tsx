@@ -112,7 +112,10 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6">
       {filteredProducts.map((product) => {
-       const cover = product.image_urls?.[0] ?? product.colors?.[0]?.image_urls?.[0];
+       const cover =
+  product.image_urls?.[0] ??
+  product.colors?.[0]?.image_url ??
+  product.colors?.[0]?.image_urls?.[0];
         const isTarget = product.name === targetProduct;
         const priceOverride = getPriceRange(product);
         const discount = discountsByProduct[product.id];
