@@ -26,7 +26,12 @@ import {
   removeCartItem,
 } from "@/lib/cart";
 import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
-import { captureAndUploadDesign, nextPaint, type DesignScene } from "@/lib/captureDesign";
+import {
+  captureAndUploadDesign,
+  nextPaint,
+  type DesignScene,
+} from "@/lib/captureDesign";
+
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: ["400"] });
 const dancingScript = Dancing_Script({ subsets: ["latin"], weight: ["700"] });
 const sacramento = Sacramento({ subsets: ["latin"], weight: ["400"] });
@@ -45,12 +50,6 @@ const permanentMarker = Permanent_Marker({ subsets: ["latin"], weight: ["400"] }
 
 const ACCENT = "#DE4B33";
 
-// Shared zoom bounds for the tambourine's uploaded photo. The circular
-// frame around it is now permanently pinned to the drum (position AND
-// size never change with pinch — see renderLayer), so this only bounds
-// the photo itself inside that fixed frame. minScale 1 keeps the photo
-// covering the frame with no blank gaps; maxScale is high so the photo
-// can be pinched in as far as the person wants.
 const PATTERN_SCALE_OPTS = { minScale: 1, maxScale: 8 };
 
 const SIZES = [
@@ -179,10 +178,6 @@ type FillLayer = BaseLayer & {
 
 type Layer = TextLayer | PatternLayer | FillLayer;
 
-// One line per size+ribbon combo the person has built. inCart tracks
-// whether this exact line currently exists in the shared cart — it's
-// read directly off the cart on every sync, never a separate tracker
-// that could fall out of sync with reality.
 type TambourineOrderLine = {
   id: string;
   size: SizeId;
@@ -197,7 +192,10 @@ function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function tambourineLineId(size: SizeId, ribbonColor: RibbonColorId) {
+function tambourineLineId(
+  size: SizeId,
+  ribbonColor: RibbonColorId
+) {
   return `custom-tambourine-${size}-${ribbonColor}`;
 }
 
@@ -216,7 +214,8 @@ function ColorWheelPicker({
       style={{
         width: size,
         height: size,
-        background: "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
+        background:
+          "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
         boxShadow: "0 0 0 1px rgba(0,0,0,0.15)",
       }}
       title="Choose any color"
@@ -230,6 +229,7 @@ function ColorWheelPicker({
           boxShadow: "0 0 0 1.5px #FFFFFF",
         }}
       />
+
       <input
         type="color"
         value={value}
@@ -255,14 +255,23 @@ function FontPicker({
     <div className="flex flex-col gap-1.5">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
         {FONT_GROUPS.map((group) => (
-          <span key={group.category} className="flex items-center gap-1">
+          <span
+            key={group.category}
+            className="flex items-center gap-1"
+          >
             <span
               className="inline-block h-1.5 w-1.5 rounded-full"
-              style={{ backgroundColor: CATEGORY_COLORS[group.category] }}
+              style={{
+                backgroundColor:
+                  CATEGORY_COLORS[group.category],
+              }}
             />
+
             <span
               className="text-[8px] font-medium"
-              style={{ color: "rgba(0,0,0,0.45)" }}
+              style={{
+                color: "rgba(0,0,0,0.45)",
+              }}
             >
               {group.category}
             </span>
@@ -284,21 +293,32 @@ function FontPicker({
                 onClick={() => onChange(f.id)}
                 className={`${f.className} flex items-center justify-center rounded-lg px-1 py-2 transition-all duration-150 hover:scale-[1.05] active:scale-[0.95]`}
                 style={{
-                  backgroundColor: isActive ? ACCENT : "#FFFFFF",
+                  backgroundColor:
+                    isActive ? ACCENT : "#FFFFFF",
                   borderTop: `2.5px solid ${
-                    isActive ? ACCENT : CATEGORY_COLORS[group.category]
+                    isActive
+                      ? ACCENT
+                      : CATEGORY_COLORS[group.category]
                   }`,
-                  borderLeft: "1px solid rgba(0,0,0,0.1)",
-                  borderRight: "1px solid rgba(0,0,0,0.1)",
-                  borderBottom: "1px solid rgba(0,0,0,0.1)",
+                  borderLeft:
+                    "1px solid rgba(0,0,0,0.1)",
+                  borderRight:
+                    "1px solid rgba(0,0,0,0.1)",
+                  borderBottom:
+                    "1px solid rgba(0,0,0,0.1)",
                 }}
                 title={f.label}
               >
                 <span
                   className="leading-none"
                   style={{
-                    fontSize: Math.min(f.previewSize, 14),
-                    color: isActive ? "#FFF4E6" : "#000000",
+                    fontSize: Math.min(
+                      f.previewSize,
+                      14
+                    ),
+                    color: isActive
+                      ? "#FFF4E6"
+                      : "#000000",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -317,49 +337,58 @@ function FontPicker({
 }
 
 export default function CustomizeTambourinePage() {
-  const [size, setSize] = useState<SizeId>("small");
-  const [ribbonColor, setRibbonColor] = useState<RibbonColorId>(
-    RIBBON_COLORS[0].id
-  );
+  const [size, setSize] =
+    useState<SizeId>("small");
 
- const [designMode, setDesignMode] = useState<
-  "upload" | "build" | null
->(null);
+  const [ribbonColor, setRibbonColor] =
+    useState<RibbonColorId>(
+      RIBBON_COLORS[0].id
+    );
+
+  const [designMode, setDesignMode] =
+    useState<"upload" | "build" | null>(null);
 
   const [layers, setLayers] = useState<Layer[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
+  const [selectedId, setSelectedId] =
+    useState<string | null>(null);
 
-  const [orderQuantity, setOrderQuantity] = useState(1);
-  const [orderLines, setOrderLines] = useState<TambourineOrderLine[]>([]);
-const [uploading, setUploading] = useState(false);
-  const stageRef = useRef<HTMLDivElement>(null);
+  const [showPreview, setShowPreview] =
+    useState(false);
+
+  const [orderQuantity, setOrderQuantity] =
+    useState(1);
+
+  const [orderLines, setOrderLines] =
+    useState<TambourineOrderLine[]>([]);
+
+  const [uploading, setUploading] =
+    useState(false);
+
+  const stageRef =
+    useRef<HTMLDivElement>(null);
+
   const nextZ = useRef(1);
-  const patternFileInputRef = useRef<HTMLInputElement>(null);
-  const cartSnapshotRef = useRef<string>("");
 
-  // Third arg: whenever a layer is pressed (drag start / pinch start),
-  // it becomes the selected layer again — this is what lets you tap a
-  // design you already placed and edit it, instead of it being stuck
-  // deselected.
-  const gestures = useLayerGestures(layers, setLayers, setSelectedId);
+  const patternFileInputRef =
+    useRef<HTMLInputElement>(null);
 
-  const selectedSize = SIZES.find((s) => s.id === size)!;
+  const cartSnapshotRef =
+    useRef<string>("");
 
-  /*
-   * A background means either:
-   * - a solid/blended color fill
-   * - an uploaded photo/pattern
-   *
-   * Only one background type is allowed at a time.
-   */
-  const hasBackground = layers.some(
-    (l) => l.type === "fill" || l.type === "pattern"
+  const gestures = useLayerGestures(
+    layers,
+    setLayers,
+    setSelectedId
   );
 
-  /* -------------------------------------------------------------- */
-  /* CART <-> ORDER LINE SYNC                                        */
-  /* -------------------------------------------------------------- */
+  const selectedSize =
+    SIZES.find((s) => s.id === size)!;
+
+  const hasBackground = layers.some(
+    (l) =>
+      l.type === "fill" ||
+      l.type === "pattern"
+  );
 
   useEffect(() => {
     function syncOrderWithCart() {
@@ -367,25 +396,26 @@ const [uploading, setUploading] = useState(false);
 
       const cartLines = cart.filter(
         (item) =>
-          item.productId === "custom-tambourine" &&
-          item.customization?.type === "customized-tambourine"
+          item.productId ===
+            "custom-tambourine" &&
+          item.customization?.type ===
+            "customized-tambourine"
       );
 
       const cartById = new Map(
-        cartLines.map((item) => [item.id, item])
+        cartLines.map((item) => [
+          item.id,
+          item,
+        ])
       );
 
       try {
-        cartSnapshotRef.current = JSON.stringify(cart);
+        cartSnapshotRef.current =
+          JSON.stringify(cart);
       } catch {
         cartSnapshotRef.current = "";
       }
 
-      // Every line marked inCart is kept in sync with the cart's own
-      // quantity, and dropped the moment it's no longer in the cart.
-      // Draft lines (not yet added) are left untouched. This reads
-      // directly off the cart — no separate tracker to fall out of
-      // sync with reality.
       setOrderLines((prev) =>
         prev
           .map((line) => {
@@ -393,7 +423,8 @@ const [uploading, setUploading] = useState(false);
               return line;
             }
 
-            const cartItem = cartById.get(line.id);
+            const cartItem =
+              cartById.get(line.id);
 
             if (!cartItem) {
               return null;
@@ -401,11 +432,15 @@ const [uploading, setUploading] = useState(false);
 
             return {
               ...line,
-              quantity: cartItem.quantity,
+              quantity:
+                cartItem.quantity,
             };
           })
           .filter(
-            (line): line is TambourineOrderLine => line !== null
+            (
+              line
+            ): line is TambourineOrderLine =>
+              line !== null
           )
       );
     }
@@ -414,81 +449,120 @@ const [uploading, setUploading] = useState(false);
       syncOrderWithCart();
     }
 
-    function handleStorage(event: StorageEvent) {
+    function handleStorage(
+      event: StorageEvent
+    ) {
       if (event.key === "cart") {
         syncOrderWithCart();
       }
     }
 
-    window.addEventListener("cartUpdated", handleCartUpdated);
-    window.addEventListener("storage", handleStorage);
+    window.addEventListener(
+      "cartUpdated",
+      handleCartUpdated
+    );
+
+    window.addEventListener(
+      "storage",
+      handleStorage
+    );
 
     syncOrderWithCart();
 
-    // Fallback in case an event is ever missed — cheap 150ms poll that
-    // only does work when the cart has actually changed.
-    const pollInterval = window.setInterval(() => {
-      let currentSnapshot = "";
+    const pollInterval =
+      window.setInterval(() => {
+        let currentSnapshot = "";
 
-      try {
-        currentSnapshot = JSON.stringify(getCart());
-      } catch {
-        currentSnapshot = "";
-      }
+        try {
+          currentSnapshot =
+            JSON.stringify(getCart());
+        } catch {
+          currentSnapshot = "";
+        }
 
-      if (currentSnapshot !== cartSnapshotRef.current) {
-        syncOrderWithCart();
-      }
-    }, 150);
+        if (
+          currentSnapshot !==
+          cartSnapshotRef.current
+        ) {
+          syncOrderWithCart();
+        }
+      }, 150);
 
     return () => {
-      window.removeEventListener("cartUpdated", handleCartUpdated);
-      window.removeEventListener("storage", handleStorage);
-      window.clearInterval(pollInterval);
+      window.removeEventListener(
+        "cartUpdated",
+        handleCartUpdated
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleStorage
+      );
+
+      window.clearInterval(
+        pollInterval
+      );
     };
   }, []);
-
-  /* -------------------------------------------------------------- */
-  /* REHYDRATE ORDER LINES FROM CART ON MOUNT                        */
-  /* -------------------------------------------------------------- */
 
   useEffect(() => {
     const cart = getCart();
 
-    const existingLines: TambourineOrderLine[] = cart
-      .filter(
-        (item) =>
-          item.productId === "custom-tambourine" &&
-          item.customization?.type === "customized-tambourine"
-      )
-      .map((item) => {
-        const customization = item.customization;
+    const existingLines: TambourineOrderLine[] =
+      cart
+        .filter(
+          (item) =>
+            item.productId ===
+              "custom-tambourine" &&
+            item.customization?.type ===
+              "customized-tambourine"
+        )
+        .map((item) => {
+          const customization =
+            item.customization;
 
-        if (!customization || customization.type !== "customized-tambourine") {
-          return null;
-        }
+          if (
+            !customization ||
+            customization.type !==
+              "customized-tambourine"
+          ) {
+            return null;
+          }
 
-       return {
-  id: item.id,
-  size: customization.size,
-  ribbonColor: customization.ribbonColor as RibbonColorId,
-  quantity: item.quantity,
-  inCart: true,
-  layers: ((customization as any).layers ?? []) as Layer[],   // add this line
-};
-      })
-      .filter((line): line is TambourineOrderLine => line !== null);
+          return {
+            id: item.id,
+            size: customization.size,
+            ribbonColor:
+              customization.ribbonColor as RibbonColorId,
+            quantity: item.quantity,
+            inCart: true,
+            layers:
+              ((customization as any)
+                .layers ?? []) as Layer[],
+          };
+        })
+        .filter(
+          (
+            line
+          ): line is TambourineOrderLine =>
+            line !== null
+        );
 
     if (existingLines.length === 0) {
       return;
     }
 
     setOrderLines((prev) => {
-      const existingIds = new Set(prev.map((line) => line.id));
+      const existingIds = new Set(
+        prev.map((line) => line.id)
+      );
 
       return [
         ...prev,
-        ...existingLines.filter((line) => !existingIds.has(line.id)),
+        ...existingLines.filter(
+          (line) =>
+            !existingIds.has(line.id)
+        ),
       ];
     });
   }, []);
@@ -520,9 +594,6 @@ const [uploading, setUploading] = useState(false);
   }
 
   function addFill() {
-    /*
-     * Prevent adding a second background if one already exists.
-     */
     if (hasBackground) return;
 
     const id = makeId();
@@ -533,9 +604,6 @@ const [uploading, setUploading] = useState(false);
         id,
         type: "fill",
         colors: [ACCENT],
-        // x/y/scale are unused for fill now — the frame is always
-        // pinned to the drum directly from selectedSize (see
-        // renderLayer). Kept only because BaseLayer requires them.
         x: 50,
         y: 50,
         scale: 1,
@@ -547,62 +615,84 @@ const [uploading, setUploading] = useState(false);
     setSelectedId(id);
   }
 
-async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
-  const file = e.target.files?.[0];
-  e.target.value = "";
-  if (!file) return;
+  async function handlePatternUpload(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
 
-  if (hasBackground) {
-    alert("Please delete the existing background before adding a new one.");
-    return;
+    if (!file) return;
+
+    if (hasBackground) {
+      alert(
+        "Please delete the existing background before adding a new one."
+      );
+      return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      alert(
+        "Please choose an image under 8MB."
+      );
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const url =
+        await uploadCustomerImage(
+          file,
+          "tambourine"
+        );
+
+      const id = makeId();
+
+      setLayers((prev) => [
+        ...prev,
+        {
+          id,
+          type: "pattern",
+          src: url,
+          tint: null,
+          x: 50,
+          y: 50,
+          scale: 1,
+          rotation: 0,
+          z: 0,
+        },
+      ]);
+
+      setSelectedId(id);
+    } catch {
+      alert(
+        "Couldn't upload your image. Please check your connection and try again."
+      );
+    } finally {
+      setUploading(false);
+    }
   }
 
-  if (file.size > 8 * 1024 * 1024) {
-    alert("Please choose an image under 8MB.");
-    return;
-  }
-
-  setUploading(true);
-  try {
-    const url = await uploadCustomerImage(file, "tambourine");
-    const id = makeId();
-
-    setLayers((prev) => [
-      ...prev,
-      {
-        id,
-        type: "pattern",
-        src: url,
-        tint: null,
-        // x/y = the photo's pan position inside the frame (50 = centered),
-        // scale = the photo's zoom (1 = covers the drum). The frame itself
-        // is always pinned to the drum — see renderLayer.
-        x: 50,
-        y: 50,
-        scale: 1,
-        rotation: 0,
-        z: 0,
-      },
-    ]);
-
-    setSelectedId(id);
-  } catch {
-    alert("Couldn't upload your image. Please check your connection and try again.");
-  } finally {
-    setUploading(false);
-  }
-}
-
-  function updateLayer(id: string, patch: Partial<Layer>) {
+  function updateLayer(
+    id: string,
+    patch: Partial<Layer>
+  ) {
     setLayers((prev) =>
       prev.map((l) =>
-        l.id === id ? ({ ...l, ...patch } as Layer) : l
+        l.id === id
+          ? ({
+              ...l,
+              ...patch,
+            } as Layer)
+          : l
       )
     );
   }
 
   function removeLayer(id: string) {
-    setLayers((prev) => prev.filter((l) => l.id !== id));
+    setLayers((prev) =>
+      prev.filter((l) => l.id !== id)
+    );
 
     if (selectedId === id) {
       setSelectedId(null);
@@ -612,10 +702,14 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
   function addFillColor(id: string) {
     setLayers((prev) =>
       prev.map((l) =>
-        l.id === id && l.type === "fill"
+        l.id === id &&
+        l.type === "fill"
           ? {
               ...l,
-              colors: [...l.colors, "#FFFFFF"],
+              colors: [
+                ...l.colors,
+                "#FFFFFF",
+              ],
             }
           : l
       )
@@ -629,7 +723,12 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
   ) {
     setLayers((prev) =>
       prev.map((l) => {
-        if (l.id !== id || l.type !== "fill") return l;
+        if (
+          l.id !== id ||
+          l.type !== "fill"
+        ) {
+          return l;
+        }
 
         const colors = [...l.colors];
         colors[index] = color;
@@ -642,120 +741,195 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
     );
   }
 
-  function removeFillColor(id: string, index: number) {
+  function removeFillColor(
+    id: string,
+    index: number
+  ) {
     setLayers((prev) =>
       prev.map((l) => {
-        if (l.id !== id || l.type !== "fill") return l;
+        if (
+          l.id !== id ||
+          l.type !== "fill"
+        ) {
+          return l;
+        }
 
-        if (l.colors.length <= 1) return l;
+        if (l.colors.length <= 1) {
+          return l;
+        }
 
         return {
           ...l,
-          colors: l.colors.filter((_, i) => i !== index),
+          colors: l.colors.filter(
+            (_, i) => i !== index
+          ),
         };
       })
     );
   }
 
   const selectedLayer =
-    layers.find((l) => l.id === selectedId) ?? null;
+    layers.find(
+      (l) => l.id === selectedId
+    ) ?? null;
 
-  /* -------------------------------------------------------------- */
-  /* ORDER LINE ACTIONS                                              */
-  /* -------------------------------------------------------------- */
+  async function addTambourineLineToOrder() {
+    const hasAnyContent =
+      layers.length > 0;
 
- async function addTambourineLineToOrder() {
-  const hasAnyContent = layers.length > 0;
-  const baseId = tambourineLineId(size, ribbonColor);
+    const baseId =
+      tambourineLineId(
+        size,
+        ribbonColor
+      );
 
-  // A designed tambourine always gets its own line, so two different
-  // designs with the same size and ribbon never merge into one.
-  const lineId = hasAnyContent ? `${baseId}-d${Date.now().toString(36)}` : baseId;
-  const designSnapshot = structuredClone(layers);
+    const lineId = hasAnyContent
+      ? `${baseId}-d${Date.now().toString(36)}`
+      : baseId;
 
-  let renderedDesignUrl: string | undefined;
+    const designSnapshot =
+      structuredClone(layers);
 
-  if (hasAnyContent && stageRef.current) {
-  setUploading(true);
-  setSelectedId(null);
-  await nextPaint();
+    let renderedDesignUrl:
+      | string
+      | undefined;
 
-  // Wide enough that the drum prints at about 300 DPI at its real size.
-  const targetWidth = Math.round(
-    ((selectedSize.cm / 2.54) * 300) / (selectedSize.drumDiameterPct / 100)
-  );
+    if (
+      hasAnyContent &&
+      stageRef.current
+    ) {
+      setUploading(true);
+      setSelectedId(null);
 
-  // ↓ the new block goes here, replacing the old capture line
-  const scene: DesignScene = {
-    baseImageUrl: selectedSize.img,
-    layers,
-    shape: {
-      kind: "circle",
-      xPct: selectedSize.drumPos.x,
-      yPct: selectedSize.drumPos.y,
-      diameterPct: selectedSize.drumDiameterPct,
-    },
-  };
+      await nextPaint();
 
-  const url = await captureAndUploadDesign(stageRef.current, "tambourine", targetWidth, scene);
-  setUploading(false);
-  if (url) renderedDesignUrl = url;
-}
+      const targetWidth = Math.round(
+        ((selectedSize.cm / 2.54) *
+          300) /
+          (selectedSize.drumDiameterPct /
+            100)
+      );
 
-  setOrderLines((prev) => {
-    const existingIndex = prev.findIndex((line) => line.id === lineId);
-
-    if (existingIndex !== -1) {
-      const updated = [...prev];
-      updated[existingIndex] = {
-        ...updated[existingIndex],
-        quantity: updated[existingIndex].quantity + orderQuantity,
+      const scene: DesignScene = {
+        baseImageUrl:
+          selectedSize.img,
+        layers,
+        shape: {
+          kind: "circle",
+          xPct:
+            selectedSize.drumPos.x,
+          yPct:
+            selectedSize.drumPos.y,
+          diameterPct:
+            selectedSize.drumDiameterPct,
+        },
       };
-      return updated;
+
+      const url =
+        await captureAndUploadDesign(
+          stageRef.current,
+          "tambourine",
+          targetWidth,
+          scene
+        );
+
+      setUploading(false);
+
+      if (url) {
+        renderedDesignUrl = url;
+      }
     }
 
-    return [
-      ...prev,
-      {
-        id: lineId,
-        size,
-        ribbonColor,
-        quantity: orderQuantity,
-        inCart: false,
-        layers: designSnapshot,
-        renderedDesignUrl,
-      },
-    ];
-  });
+    setOrderLines((prev) => {
+      const existingIndex =
+        prev.findIndex(
+          (line) =>
+            line.id === lineId
+        );
 
-  setOrderQuantity(1);
-}
+      if (existingIndex !== -1) {
+        const updated = [...prev];
+
+        updated[existingIndex] = {
+          ...updated[
+            existingIndex
+          ],
+          quantity:
+            updated[existingIndex]
+              .quantity +
+            orderQuantity,
+        };
+
+        return updated;
+      }
+
+      return [
+        ...prev,
+        {
+          id: lineId,
+          size,
+          ribbonColor,
+          quantity: orderQuantity,
+          inCart: false,
+          layers: designSnapshot,
+          renderedDesignUrl,
+        },
+      ];
+    });
+
+    setOrderQuantity(1);
+  }
 
   function updateTambourineLineQuantity(
     lineId: string,
     newQuantity: number
   ) {
     if (newQuantity <= 0) {
-      removeTambourineLine(lineId);
+      removeTambourineLine(
+        lineId
+      );
       return;
     }
 
-    const safeQuantity = Math.max(1, newQuantity);
-    const existingLine = orderLines.find((l) => l.id === lineId);
+    const safeQuantity = Math.max(
+      1,
+      newQuantity
+    );
+
+    const existingLine =
+      orderLines.find(
+        (l) => l.id === lineId
+      );
 
     setOrderLines((prev) =>
       prev.map((line) =>
-        line.id === lineId ? { ...line, quantity: safeQuantity } : line
+        line.id === lineId
+          ? {
+              ...line,
+              quantity:
+                safeQuantity,
+            }
+          : line
       )
     );
 
     if (existingLine?.inCart) {
-      updateCartItemQuantity(lineId, safeQuantity);
+      updateCartItemQuantity(
+        lineId,
+        safeQuantity
+      );
     }
   }
 
-  function removeTambourineLine(lineId: string) {
-    setOrderLines((prev) => prev.filter((line) => line.id !== lineId));
+  function removeTambourineLine(
+    lineId: string
+  ) {
+    setOrderLines((prev) =>
+      prev.filter(
+        (line) => line.id !== lineId
+      )
+    );
+
     removeCartItem(lineId);
   }
 
@@ -765,35 +939,56 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const currentCart = getCart();
 
     orderLines.forEach((line) => {
-      const lineSize = SIZES.find((s) => s.id === line.size)!;
+      const lineSize =
+        SIZES.find(
+          (s) => s.id === line.size
+        )!;
 
-      const existing = currentCart.find((item) => item.id === line.id);
+      const existing =
+        currentCart.find(
+          (item) =>
+            item.id === line.id
+        );
 
       if (existing) {
-        updateCartItemQuantity(line.id, line.quantity);
+        updateCartItemQuantity(
+          line.id,
+          line.quantity
+        );
         return;
       }
 
-     addToCart({
-  id: line.id,
-  productId: "custom-tambourine",
-  productName: "Tambourine",
-  price: lineSize.price,
-  quantity: line.quantity,
-  scent: null,
-  color: `${lineSize.label} · ${RIBBON_COLORS.find((c) => c.id === line.ribbonColor)!.label} Ribbon`,
-  image: lineSize.img,
-  productRefId: 31,
-  customization: {
-    type: "customized-tambourine",
-    size: line.size,
-    sizeCm: lineSize.cm,
-    ribbonColor: line.ribbonColor,
-    layers: line.layers,
-    renderedDesignUrl: line.renderedDesignUrl,
-  },
-});
-  });
+      addToCart({
+        id: line.id,
+        productId:
+          "custom-tambourine",
+        productName: "Tambourine",
+        price: lineSize.price,
+        quantity: line.quantity,
+        scent: null,
+        color: `${lineSize.label} · ${
+          RIBBON_COLORS.find(
+            (c) =>
+              c.id ===
+              line.ribbonColor
+          )!.label
+        } Ribbon`,
+        image: lineSize.img,
+        productRefId: 31,
+        customization: {
+          type:
+            "customized-tambourine",
+          size: line.size,
+          sizeCm: lineSize.cm,
+          ribbonColor:
+            line.ribbonColor,
+          layers: line.layers,
+          renderedDesignUrl:
+            line.renderedDesignUrl,
+        },
+      });
+    });
+
     setOrderLines((prev) =>
       prev.map((line) => ({
         ...line,
@@ -801,21 +996,31 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
       }))
     );
 
-     cartSnapshotRef.current = JSON.stringify(getCart());
+    cartSnapshotRef.current =
+      JSON.stringify(getCart());
 
-    window.dispatchEvent(new Event("openCart"));
+    window.dispatchEvent(
+      new Event("openCart")
+    );
   }
 
-  const totalQuantity = orderLines.reduce(
-    (sum, line) => sum + line.quantity,
-    0
-  );
+  const totalQuantity =
+    orderLines.reduce(
+      (sum, line) =>
+        sum + line.quantity,
+      0
+    );
 
-  const totalOrderPrice = orderLines.reduce(
-    (sum, line) =>
-      sum + SIZES.find((s) => s.id === line.size)!.price * line.quantity,
-    0
-  );
+  const totalOrderPrice =
+    orderLines.reduce(
+      (sum, line) =>
+        sum +
+        SIZES.find(
+          (s) => s.id === line.size
+        )!.price *
+          line.quantity,
+      0
+    );
 
   function bgShapeStyle(
     shape: TextLayer["bgShape"],
@@ -868,7 +1073,8 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
       case "arch":
         return {
           padding: "10px 18px 6px",
-          borderRadius: "999px 999px 6px 6px",
+          borderRadius:
+            "999px 999px 6px 6px",
         };
 
       case "heart":
@@ -910,66 +1116,75 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
     interactive: boolean
   ) {
     const isSelected =
-      interactive && layer.id === selectedId;
+      interactive &&
+      layer.id === selectedId;
 
-    /* ---------------------------------------------------------- */
-    /* Background layers (fill / pattern)                          */
-    /* ---------------------------------------------------------- */
-    /*
-     * The frame below is ALWAYS pinned to the drum's own position and
-     * size, taken directly from selectedSize — never from layer.x/y
-     * or layer.scale. This is what makes it physically impossible to
-     * drag or pinch the design off the drum or past its edge.
-     *
-     * For a pattern layer, layer.x/y/scale instead describe the PAN
-     * and ZOOM of the photo *inside* this fixed frame — so the person
-     * can pinch to zoom the photo in as far as they like, and pan it
-     * around, entirely independent of the frame itself.
-     */
-    if (layer.type === "fill" || layer.type === "pattern") {
-      const frameStyle: React.CSSProperties = {
-        position: "absolute",
-        left: `${selectedSize.drumPos.x}%`,
-        top: `${selectedSize.drumPos.y}%`,
-        width: `${selectedSize.drumDiameterPct}%`,
-        aspectRatio: "1 / 1",
-        borderRadius: "50%",
-        overflow: "hidden",
-        transform: "translate(-50%, -50%)",
-        outline: isSelected ? `1.5px dashed ${ACCENT}` : "none",
-        outlineOffset: "4px",
-        touchAction: interactive ? "none" : undefined,
-      };
+    if (
+      layer.type === "fill" ||
+      layer.type === "pattern"
+    ) {
+      const frameStyle: React.CSSProperties =
+        {
+          position: "absolute",
+          left: `${selectedSize.drumPos.x}%`,
+          top: `${selectedSize.drumPos.y}%`,
+          width: `${selectedSize.drumDiameterPct}%`,
+          aspectRatio: "1 / 1",
+          borderRadius: "50%",
+          overflow: "hidden",
+          transform:
+            "translate(-50%, -50%)",
+          outline: isSelected
+            ? `1.5px dashed ${ACCENT}`
+            : "none",
+          outlineOffset: "4px",
+          touchAction:
+            interactive
+              ? "none"
+              : undefined,
+        };
 
       if (layer.type === "fill") {
         const background =
           layer.colors.length === 1
             ? layer.colors[0]
-            : `linear-gradient(135deg, ${layer.colors.join(", ")})`;
+            : `linear-gradient(135deg, ${layer.colors.join(
+                ", "
+              )})`;
 
         return (
           <div
             key={layer.id}
             onClick={
               interactive
-                ? () => setSelectedId(layer.id)
+                ? () =>
+                    setSelectedId(
+                      layer.id
+                    )
                 : undefined
             }
             style={{
               ...frameStyle,
               background,
-              cursor: interactive ? "pointer" : "default",
+              cursor: interactive
+                ? "pointer"
+                : "default",
             }}
           />
         );
       }
 
-      // Pattern layer — photo pans/zooms independently inside the
-      // fixed frame, same technique as the fan's pattern layer.
       const zoom = layer.scale;
-      const maxPanPct = (zoom - 1) * 50;
-      const offsetX = ((layer.x - 50) / 50) * maxPanPct;
-      const offsetY = ((layer.y - 50) / 50) * maxPanPct;
+      const maxPanPct =
+        (zoom - 1) * 50;
+
+      const offsetX =
+        ((layer.x - 50) / 50) *
+        maxPanPct;
+
+      const offsetY =
+        ((layer.y - 50) / 50) *
+        maxPanPct;
 
       return (
         <div
@@ -985,20 +1200,29 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
           }
           onPointerMove={
             interactive
-              ? gestures.onPointerMove(stageRef.current)
+              ? gestures.onPointerMove(
+                  stageRef.current
+                )
               : undefined
           }
           onPointerUp={
-            interactive ? gestures.onPointerUp : undefined
+            interactive
+              ? gestures.onPointerUp
+              : undefined
           }
           onWheel={
             interactive
-              ? gestures.onWheelZoom(layer.id, PATTERN_SCALE_OPTS)
+              ? gestures.onWheelZoom(
+                  layer.id,
+                  PATTERN_SCALE_OPTS
+                )
               : undefined
           }
           style={{
             ...frameStyle,
-            cursor: interactive ? "grab" : "default",
+            cursor: interactive
+              ? "grab"
+              : "default",
           }}
         >
           <img
@@ -1010,7 +1234,8 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
               height: "100%",
               objectFit: "cover",
               transform: `translate(${offsetX}%, ${offsetY}%) scale(${zoom})`,
-              transformOrigin: "center center",
+              transformOrigin:
+                "center center",
             }}
           />
 
@@ -1019,8 +1244,10 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
               style={{
                 position: "absolute",
                 inset: 0,
-                backgroundColor: layer.tint,
-                mixBlendMode: "color",
+                backgroundColor:
+                  layer.tint,
+                mixBlendMode:
+                  "color",
                 opacity: 0.85,
               }}
             />
@@ -1028,38 +1255,48 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
         </div>
       );
     }
-    /* ---------------------------------------------------------- */
-    /* Text layer — freely draggable/pinchable, unchanged           */
-    /* ---------------------------------------------------------- */
 
-    const commonStyle: React.CSSProperties = {
-      position: "absolute",
-      left: `${layer.x}%`,
-      top: `${layer.y}%`,
-      transform: `translate(-50%, -50%) scale(${layer.scale})`,
-      cursor: interactive ? "grab" : "default",
-      outline: isSelected
-        ? `1.5px dashed ${ACCENT}`
-        : "none",
-      outlineOffset: "4px",
-      touchAction: interactive ? "none" : undefined,
-    };
+    const commonStyle: React.CSSProperties =
+      {
+        position: "absolute",
+        left: `${layer.x}%`,
+        top: `${layer.y}%`,
+        transform: `translate(-50%, -50%) scale(${layer.scale})`,
+        cursor: interactive
+          ? "grab"
+          : "default",
+        outline: isSelected
+          ? `1.5px dashed ${ACCENT}`
+          : "none",
+        outlineOffset: "4px",
+        touchAction: interactive
+          ? "none"
+          : undefined,
+      };
 
-        const hasBg = !!layer.bgColor;
-    const fontDef = getFont(layer.font);
+    const hasBg =
+      !!layer.bgColor;
+
+    const fontDef =
+      getFont(layer.font);
 
     return (
       <div
         key={layer.id}
-        data-text-layer="true"        // ← add this line
+        data-text-layer="true"
         onPointerDown={
           interactive
-            ? gestures.onPointerDown(layer.id, stageRef.current)
+            ? gestures.onPointerDown(
+                layer.id,
+                stageRef.current
+              )
             : undefined
         }
         onPointerMove={
           interactive
-            ? gestures.onPointerMove(stageRef.current)
+            ? gestures.onPointerMove(
+                stageRef.current
+              )
             : undefined
         }
         onPointerUp={
@@ -1069,19 +1306,21 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
         }
         onWheel={
           interactive
-            ? gestures.onWheelZoom(layer.id)
+            ? gestures.onWheelZoom(
+                layer.id
+              )
             : undefined
         }
         className={fontDef.className}
         style={{
-         
           ...commonStyle,
           fontSize: layer.fontSize,
           fontWeight: 500,
           color: layer.color,
           whiteSpace: "nowrap",
           backgroundColor:
-            layer.bgColor ?? "transparent",
+            layer.bgColor ??
+            "transparent",
           boxShadow: hasBg
             ? "0 1px 4px rgba(0,0,0,0.15)"
             : "none",
@@ -1101,7 +1340,9 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
 
   return (
     <div
-      style={{ backgroundColor: "#FFF4E6" }}
+      style={{
+        backgroundColor: "#FFF4E6",
+      }}
       className="w-full min-h-screen"
     >
       <div className="flex flex-col items-center px-6 py-8">
@@ -1110,10 +1351,17 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
             ref={stageRef}
             className="relative touch-none select-none"
             style={{
-              width: `${(selectedSize.cm / MAX_CM) * 100}%`,
+              width: `${
+                (selectedSize.cm /
+                  MAX_CM) *
+                100
+              }%`,
             }}
             onClick={(e) => {
-              if (e.target === stageRef.current) {
+              if (
+                e.target ===
+                stageRef.current
+              ) {
                 setSelectedId(null);
               }
             }}
@@ -1127,9 +1375,15 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
 
             {layers
               .slice()
-              .sort((a, b) => a.z - b.z)
+              .sort(
+                (a, b) =>
+                  a.z - b.z
+              )
               .map((layer) =>
-                renderLayer(layer, true)
+                renderLayer(
+                  layer,
+                  true
+                )
               )}
           </div>
         </div>
@@ -1138,25 +1392,32 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
           <div
             className="mt-4 flex w-full max-w-[320px] flex-col gap-3 rounded-xl px-4 py-3"
             style={{
-              backgroundColor: "#EFE3C4",
+              backgroundColor:
+                "#EFE3C4",
             }}
           >
-            {selectedLayer.type === "text" && (
+            {selectedLayer.type ===
+              "text" && (
               <>
                 <input
-                  value={selectedLayer.content}
+                  value={
+                    selectedLayer.content
+                  }
                   onChange={(e) =>
                     updateLayer(
                       selectedLayer.id,
                       {
-                        content: e.target.value,
+                        content:
+                          e.target
+                            .value,
                       }
                     )
                   }
                   className="w-full rounded-lg px-3 py-2 text-sm"
                   style={{
                     border: `1px solid ${ACCENT}`,
-                    backgroundColor: "#FFFFFF",
+                    backgroundColor:
+                      "#FFFFFF",
                     color: "#000000",
                   }}
                   placeholder="Your message"
@@ -1166,19 +1427,26 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                   <span
                     className="mb-1.5 block text-[11px] font-medium"
                     style={{
-                      color: "rgba(0,0,0,0.55)",
+                      color:
+                        "rgba(0,0,0,0.55)",
                     }}
                   >
                     Font
                   </span>
 
                   <FontPicker
-                    value={selectedLayer.font}
-                    previewText={selectedLayer.content}
+                    value={
+                      selectedLayer.font
+                    }
+                    previewText={
+                      selectedLayer.content
+                    }
                     onChange={(f) =>
                       updateLayer(
                         selectedLayer.id,
-                        { font: f }
+                        {
+                          font: f,
+                        }
                       )
                     }
                   />
@@ -1186,66 +1454,69 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
               </>
             )}
 
-            {/*
-              Tint control for pattern layers has been removed — the
-              only actions on an uploaded pattern now are Undo
-              (below, which removes the layer entirely once there's
-              nothing left to undo) and delete.
-            */}
-
-            {selectedLayer.type === "fill" && (
+            {selectedLayer.type ===
+              "fill" && (
               <div className="flex flex-col gap-2">
                 <span
                   className="text-[11px]"
                   style={{
-                    color: "rgba(0,0,0,0.55)",
+                    color:
+                      "rgba(0,0,0,0.55)",
                   }}
                 >
-                  {selectedLayer.colors.length === 1
+                  {selectedLayer.colors
+                    .length === 1
                     ? "Color"
                     : "Colors (blended)"}
                 </span>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {selectedLayer.colors.map((c, i) => (
-                    <div
-                      key={i}
-                      className="relative"
-                    >
-                      <ColorWheelPicker
-                        value={c}
-                        onChange={(newC) =>
-                          updateFillColor(
-                            selectedLayer.id,
-                            i,
+                  {selectedLayer.colors.map(
+                    (c, i) => (
+                      <div
+                        key={i}
+                        className="relative"
+                      >
+                        <ColorWheelPicker
+                          value={c}
+                          onChange={(
                             newC
-                          )
-                        }
-                      />
-
-                      {selectedLayer.colors.length >
-                        1 && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            removeFillColor(
+                          ) =>
+                            updateFillColor(
                               selectedLayer.id,
-                              i
+                              i,
+                              newC
                             )
                           }
-                          className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
-                          style={{
-                            backgroundColor:
-                              "#000000",
-                            color: "#FFFFFF",
-                          }}
-                          title="Remove this color"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                        />
+
+                        {selectedLayer
+                          .colors
+                          .length >
+                          1 && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removeFillColor(
+                                selectedLayer.id,
+                                i
+                              )
+                            }
+                            className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold"
+                            style={{
+                              backgroundColor:
+                                "#000000",
+                              color:
+                                "#FFFFFF",
+                            }}
+                            title="Remove this color"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    )
+                  )}
 
                   <button
                     type="button"
@@ -1256,8 +1527,10 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                     }
                     className="flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold transition-transform hover:scale-110"
                     style={{
-                      borderColor: ACCENT,
-                      color: ACCENT,
+                      borderColor:
+                        ACCENT,
+                      color:
+                        ACCENT,
                     }}
                     title="Add another color"
                   >
@@ -1268,33 +1541,41 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                 <span
                   className="text-[10px]"
                   style={{
-                    color: "rgba(0,0,0,0.45)",
+                    color:
+                      "rgba(0,0,0,0.45)",
                   }}
                 >
-                  Add more than one color to blend
-                  them together.
+                  Add more than one
+                  color to blend them
+                  together.
                 </span>
               </div>
             )}
 
-            {selectedLayer.type === "text" && (
+            {selectedLayer.type ===
+              "text" && (
               <>
                 <div className="flex items-center gap-2">
                   <span
                     className="w-14 text-[11px]"
                     style={{
-                      color: "rgba(0,0,0,0.55)",
+                      color:
+                        "rgba(0,0,0,0.55)",
                     }}
                   >
                     Color
                   </span>
 
                   <ColorWheelPicker
-                    value={selectedLayer.color}
+                    value={
+                      selectedLayer.color
+                    }
                     onChange={(c) =>
                       updateLayer(
                         selectedLayer.id,
-                        { color: c }
+                        {
+                          color: c,
+                        }
                       )
                     }
                   />
@@ -1304,7 +1585,8 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                   <span
                     className="w-14 text-[11px]"
                     style={{
-                      color: "rgba(0,0,0,0.55)",
+                      color:
+                        "rgba(0,0,0,0.55)",
                     }}
                   >
                     Backing
@@ -1316,20 +1598,26 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                       onClick={() =>
                         updateLayer(
                           selectedLayer.id,
-                          { bgColor: null }
+                          {
+                            bgColor:
+                              null,
+                          }
                         )
                       }
                       className="h-6 w-6 flex-shrink-0 rounded-full border transition-transform hover:scale-110"
                       style={{
-                        backgroundColor: "#FFFFFF",
+                        backgroundColor:
+                          "#FFFFFF",
                         backgroundImage:
                           "linear-gradient(45deg, transparent 45%, red 45%, red 55%, transparent 55%)",
                         borderColor:
-                          selectedLayer.bgColor === null
+                          selectedLayer.bgColor ===
+                          null
                             ? "#000000"
                             : "rgba(0,0,0,0.3)",
                         borderWidth:
-                          selectedLayer.bgColor === null
+                          selectedLayer.bgColor ===
+                          null
                             ? 2
                             : 1,
                       }}
@@ -1344,7 +1632,10 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                       onChange={(c) =>
                         updateLayer(
                           selectedLayer.id,
-                          { bgColor: c }
+                          {
+                            bgColor:
+                              c,
+                          }
                         )
                       }
                     />
@@ -1356,7 +1647,8 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                           "rgba(0,0,0,0.45)",
                       }}
                     >
-                      any backing color
+                      any backing
+                      color
                     </span>
                   </div>
                 </div>
@@ -1374,58 +1666,64 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                     </span>
 
                     <div className="flex flex-1 flex-wrap gap-1.5">
-                      {BG_SHAPES.map((s) => (
-                        <button
-                          type="button"
-                          key={s.id}
-                          onClick={() =>
-                            updateLayer(
-                              selectedLayer.id,
-                              {
-                                bgShape: s.id,
-                              }
-                            )
-                          }
-                          className="rounded-md px-2.5 py-1 text-[11px] transition-all"
-                          style={{
-                            backgroundColor:
-                              selectedLayer.bgShape ===
-                              s.id
-                                ? ACCENT
-                                : "#FFFFFF",
-                            color:
-                              selectedLayer.bgShape ===
-                              s.id
-                                ? "#FFF4E6"
-                                : "rgba(0,0,0,0.6)",
-                            border: `1px solid ${
-                              selectedLayer.bgShape ===
-                              s.id
-                                ? ACCENT
-                                : "rgba(0,0,0,0.15)"
-                            }`,
-                          }}
-                        >
-                          {s.label}
-                        </button>
-                      ))}
+                      {BG_SHAPES.map(
+                        (s) => (
+                          <button
+                            type="button"
+                            key={s.id}
+                            onClick={() =>
+                              updateLayer(
+                                selectedLayer.id,
+                                {
+                                  bgShape:
+                                    s.id,
+                                }
+                              )
+                            }
+                            className="rounded-md px-2.5 py-1 text-[11px] transition-all"
+                            style={{
+                              backgroundColor:
+                                selectedLayer.bgShape ===
+                                s.id
+                                  ? ACCENT
+                                  : "#FFFFFF",
+                              color:
+                                selectedLayer.bgShape ===
+                                s.id
+                                  ? "#FFF4E6"
+                                  : "rgba(0,0,0,0.6)",
+                              border: `1px solid ${
+                                selectedLayer.bgShape ===
+                                s.id
+                                  ? ACCENT
+                                  : "rgba(0,0,0,0.15)"
+                              }`,
+                            }}
+                          >
+                            {s.label}
+                          </button>
+                        )
+                      )}
                     </div>
                   </div>
                 )}
               </>
             )}
 
-            {selectedLayer.type === "pattern" ? (
-              // Patterns only get Delete — no Undo button here.
+            {selectedLayer.type ===
+            "pattern" ? (
               <div className="flex justify-end pt-1">
                 <button
                   type="button"
                   onClick={() =>
-                    removeLayer(selectedLayer.id)
+                    removeLayer(
+                      selectedLayer.id
+                    )
                   }
                   className="text-[11px] font-medium underline"
                   style={{
-                    color: "rgba(0,0,0,0.5)",
+                    color:
+                      "rgba(0,0,0,0.5)",
                   }}
                 >
                   delete
@@ -1436,14 +1734,20 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                 <button
                   type="button"
                   onClick={() => {
-                    if (gestures.canUndo()) {
+                    if (
+                      gestures.canUndo()
+                    ) {
                       gestures.undo();
                     } else {
-                      removeLayer(selectedLayer.id);
+                      removeLayer(
+                        selectedLayer.id
+                      );
                     }
                   }}
                   className="text-xs font-medium underline"
-                  style={{ color: ACCENT }}
+                  style={{
+                    color: ACCENT,
+                  }}
                 >
                   ↺ Undo
                 </button>
@@ -1451,11 +1755,14 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                 <button
                   type="button"
                   onClick={() =>
-                    removeLayer(selectedLayer.id)
+                    removeLayer(
+                      selectedLayer.id
+                    )
                   }
                   className="text-[11px] font-medium underline"
                   style={{
-                    color: "rgba(0,0,0,0.5)",
+                    color:
+                      "rgba(0,0,0,0.5)",
                   }}
                 >
                   delete
@@ -1468,11 +1775,13 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
         <p
           className="text-center text-[11px] mt-3 max-w-xs"
           style={{
-            color: "rgba(0,0,0,0.45)",
+            color:
+              "rgba(0,0,0,0.45)",
           }}
         >
-          Tap an item below to add it, then use one finger to move it and
-          two fingers to pinch-zoom it into place.
+          Tap an item below to add it, then
+          use one finger to move it and two
+          fingers to pinch-zoom it into place.
         </p>
       </div>
 
@@ -1500,24 +1809,35 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
           </span>
         </h1>
 
-                <p
+        <p
           className="text-sm md:text-base mb-10"
-          style={{ color: "rgba(0,0,0,0.62)" }}
+          style={{
+            color:
+              "rgba(0,0,0,0.62)",
+          }}
         >
-          Make your celebrations stand out with our unique wooden tambourines.
-          Each piece features a fully customized sticker with your chosen
-          design and a ribbon in your preferred color, making it a wonderful,
-          interactive keepsake for weddings and major milestones.
+          Make your celebrations stand out
+          with our unique wooden tambourines.
+          Each piece features a fully customized
+          sticker with your chosen design and a
+          ribbon in your preferred color, making
+          it a wonderful, interactive keepsake for
+          weddings and major milestones.
         </p>
 
-        <StepLabel n={1} title="Choose your size" />
+        <StepLabel
+          n={1}
+          title="Choose your size"
+        />
 
         <div className="grid grid-cols-2 gap-3 mb-8">
           {SIZES.map((s) => (
             <button
               type="button"
               key={s.id}
-              onClick={() => setSize(s.id)}
+              onClick={() =>
+                setSize(s.id)
+              }
               className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-5 transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:shadow-md"
               style={{
                 border: `1.5px solid ${
@@ -1537,17 +1857,25 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                 className="object-contain"
                 style={{
                   width: `${
-                    24 + (s.cm / MAX_CM) * 16
+                    24 +
+                    (s.cm /
+                      MAX_CM) *
+                      16
                   }px`,
                   height: `${
-                    24 + (s.cm / MAX_CM) * 16
+                    24 +
+                    (s.cm /
+                      MAX_CM) *
+                      16
                   }px`,
                 }}
               />
 
               <span
                 className="text-xs font-semibold tracking-wide"
-                style={{ color: "#000000" }}
+                style={{
+                  color: "#000000",
+                }}
               >
                 {s.label}
               </span>
@@ -1555,7 +1883,8 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
               <span
                 className="text-[11px]"
                 style={{
-                  color: "rgba(0,0,0,0.62)",
+                  color:
+                    "rgba(0,0,0,0.62)",
                 }}
               >
                 {s.price} LE
@@ -1563,13 +1892,6 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
             </button>
           ))}
         </div>
-
-        {/*
-          Ribbon color selection has moved to the preview step (see
-          below), matching the Fan customizer's Tassel flow — this
-          lets the person stack multiple ribbon colors and quantities
-          on the same design without leaving preview.
-        */}
 
         <StepLabel
           n={2}
@@ -1581,50 +1903,62 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
             <button
               type="button"
               onClick={() =>
-                setDesignMode("upload")
+                setDesignMode(
+                  "upload"
+                )
               }
               className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-6 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]"
               style={{
                 border: `1.5px dashed ${ACCENT}`,
-                backgroundColor: "#EFE3C4",
+                backgroundColor:
+                  "#EFE3C4",
               }}
             >
               <PhotoUploadIcon />
 
               <span
                 className="text-xs font-semibold"
-                style={{ color: "#000000" }}
+                style={{
+                  color: "#000000",
+                }}
               >
-                Upload your own design
+                Upload your own
+                design
               </span>
 
               <span
                 className="text-[11px]"
                 style={{
-                  color: "rgba(0,0,0,0.55)",
+                  color:
+                    "rgba(0,0,0,0.55)",
                 }}
               >
-                One finished image, shaped to
-                the drum
+                One finished image,
+                shaped to the drum
               </span>
             </button>
 
             <button
               type="button"
               onClick={() =>
-                setDesignMode("build")
+                setDesignMode(
+                  "build"
+                )
               }
               className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-6 text-center transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]"
               style={{
                 border: `1.5px dashed ${ACCENT}`,
-                backgroundColor: "#EFE3C4",
+                backgroundColor:
+                  "#EFE3C4",
               }}
             >
               <PaletteIcon />
 
               <span
                 className="text-xs font-semibold"
-                style={{ color: "#000000" }}
+                style={{
+                  color: "#000000",
+                }}
               >
                 Design it here
               </span>
@@ -1632,38 +1966,40 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
               <span
                 className="text-[11px]"
                 style={{
-                  color: "rgba(0,0,0,0.55)",
+                  color:
+                    "rgba(0,0,0,0.55)",
                 }}
               >
-                Color, photo, and message
+                Color, photo, and
+                message
               </span>
             </button>
           </div>
         ) : (
           <div className="mb-8">
-            {/*
-              Once a mode is picked, don't offer it as a choice again —
-              only offer a direct switch to the OTHER mode. Pressing
-              "Design it here" and then wanting to change your mind
-              should only ever show "upload a different design",
-              never both original cards again.
-            */}
             <button
               type="button"
               onClick={() =>
                 setDesignMode(
-                  designMode === "upload" ? "build" : "upload"
+                  designMode ===
+                    "upload"
+                    ? "build"
+                    : "upload"
                 )
               }
               className="mb-3 text-[11px] font-medium underline"
-              style={{ color: ACCENT }}
+              style={{
+                color: ACCENT,
+              }}
             >
-              {designMode === "upload"
+              {designMode ===
+              "upload"
                 ? "→ design it here instead"
                 : "→ upload a different design instead"}
             </button>
 
-            {designMode === "upload" && (
+            {designMode ===
+              "upload" && (
               <>
                 {!hasBackground && (
                   <div className="flex gap-3 mb-4">
@@ -1675,7 +2011,8 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                       className="flex-1 flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
                       style={{
                         border: `1.5px dashed ${ACCENT}`,
-                        backgroundColor: "#EFE3C4",
+                        backgroundColor:
+                          "#EFE3C4",
                       }}
                     >
                       <PhotoUploadIcon />
@@ -1687,14 +2024,19 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                             "rgba(0,0,0,0.62)",
                         }}
                       >
-                        Upload your own finished
+                        Upload your
+                        own finished
                         design
                         <br />
+
                         <span className="text-[11px]">
-                          It&apos;ll be shaped to fit
-                          the drum exactly — pinch to
-                          zoom and drag to reposition
-                          it once it&apos;s added.
+                          It&apos;ll be
+                          shaped to fit
+                          the drum exactly
+                          — pinch to zoom
+                          and drag to
+                          reposition it once
+                          it&apos;s added.
                         </span>
                       </span>
                     </button>
@@ -1705,44 +2047,62 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                   <p
                     className="mb-4 text-xs"
                     style={{
-                      color: "rgba(0,0,0,0.5)",
+                      color:
+                        "rgba(0,0,0,0.5)",
                     }}
                   >
-                    Background added — delete it
-                    from the stage above to choose a
+                    Background added —
+                    delete it from the
+                    stage above to choose a
                     different type.
                   </p>
                 )}
-{uploading && (
-  <p className="mb-3 text-xs" style={{ color: ACCENT }}>
-    Uploading your image…
-  </p>
-)}
+
+                {uploading && (
+                  <p
+                    className="mb-3 text-xs"
+                    style={{
+                      color: ACCENT,
+                    }}
+                  >
+                    Uploading your image…
+                  </p>
+                )}
+
                 <input
-                  ref={patternFileInputRef}
+                  ref={
+                    patternFileInputRef
+                  }
                   type="file"
                   accept="image/jpeg,image/png"
                   className="hidden"
-                  onChange={handlePatternUpload}
+                  onChange={
+                    handlePatternUpload
+                  }
                 />
               </>
             )}
 
-            {designMode === "build" && (
+            {designMode ===
+              "build" && (
               <div className="flex flex-col gap-6">
                 {!hasBackground && (
                   <div className="flex gap-3 mb-4">
                     <div className="flex-1">
                       <p
                         className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-                        style={{ color: ACCENT }}
+                        style={{
+                          color: ACCENT,
+                        }}
                       >
                         Color
                       </p>
 
                       <button
                         type="button"
-                        onClick={addFill}
+                        onClick={
+                          addFill
+                        }
                         className="w-full flex items-center gap-3 rounded-xl px-4 py-4 text-left transition-colors"
                         style={{
                           border: `1.5px solid ${ACCENT}`,
@@ -1765,12 +2125,14 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                               "rgba(0,0,0,0.62)",
                           }}
                         >
-                          Add a solid color or
-                          blend
+                          Add a solid
+                          color or blend
                           <br />
+
                           <span className="text-[11px]">
-                            Pick one color, or add
-                            more to blend them.
+                            Pick one color,
+                            or add more to
+                            blend them.
                           </span>
                         </span>
                       </button>
@@ -1779,7 +2141,9 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                     <div className="flex-1">
                       <p
                         className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-                        style={{ color: ACCENT }}
+                        style={{
+                          color: ACCENT,
+                        }}
                       >
                         Photo
                       </p>
@@ -1805,12 +2169,16 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                               "rgba(0,0,0,0.62)",
                           }}
                         >
-                          Add your own photo
+                          Add your own
+                          photo
                           <br />
+
                           <span className="text-[11px]">
-                            JPG, PNG up to 8MB —
-                            pinch to zoom and drag
-                            once it&apos;s added.
+                            JPG, PNG up
+                            to 8MB —
+                            pinch to zoom
+                            and drag once
+                            it&apos;s added.
                           </span>
                         </span>
                       </button>
@@ -1822,37 +2190,48 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                   <p
                     className="mb-4 text-xs"
                     style={{
-                      color: "rgba(0,0,0,0.5)",
+                      color:
+                        "rgba(0,0,0,0.5)",
                     }}
                   >
-                    Background added — delete it
-                    from the stage above to choose a
+                    Background added —
+                    delete it from the
+                    stage above to choose a
                     different type.
                   </p>
                 )}
 
                 <input
-                  ref={patternFileInputRef}
+                  ref={
+                    patternFileInputRef
+                  }
                   type="file"
                   accept="image/jpeg,image/png"
                   className="hidden"
-                  onChange={handlePatternUpload}
+                  onChange={
+                    handlePatternUpload
+                  }
                 />
 
                 <div>
                   <p
                     className="mb-3 text-xs font-semibold uppercase tracking-[0.15em]"
-                    style={{ color: ACCENT }}
+                    style={{
+                      color: ACCENT,
+                    }}
                   >
                     Message
                   </p>
 
                   <button
                     type="button"
-                    onClick={addMessage}
+                    onClick={
+                      addMessage
+                    }
                     className="w-full rounded-xl px-4 py-3 text-sm font-medium transition-all duration-150 hover:scale-[1.01] active:scale-[0.98]"
                     style={{
-                      backgroundColor: "#FFFFFF",
+                      backgroundColor:
+                        "#FFFFFF",
                       border: `1px solid ${ACCENT}`,
                       color: ACCENT,
                     }}
@@ -1868,7 +2247,9 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
         <div className="flex items-center gap-4 mt-8">
           <button
             type="button"
-            onClick={() => setShowPreview(true)}
+            onClick={() =>
+              setShowPreview(true)
+            }
             className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
             style={{
               backgroundColor: ACCENT,
@@ -1880,7 +2261,9 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
 
           <span
             className="text-lg font-semibold"
-            style={{ color: "#000000" }}
+            style={{
+              color: "#000000",
+            }}
           >
             {selectedSize.price} LE
           </span>
@@ -1894,22 +2277,43 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
             backgroundColor: "#FFF4E6",
           }}
         >
+          {/* FIXED / ALWAYS-VISIBLE CLOSE BUTTON */}
           <button
             type="button"
-            onClick={() => setShowPreview(false)}
-            className="absolute top-6 right-6 text-2xl transition-all duration-150 hover:scale-110 active:scale-90 hover:opacity-70"
-            style={{ color: "#000000" }}
-            aria-label="Close"
+            onClick={() =>
+              setShowPreview(false)
+            }
+            className="fixed right-4 top-4 z-[9999] flex h-11 w-11 items-center justify-center rounded-full text-2xl font-semibold leading-none shadow-md transition-all duration-150 hover:scale-110 active:scale-90"
+            style={{
+              backgroundColor:
+                "#FFFFFF",
+              color: "#000000",
+              border: `2px solid ${ACCENT}`,
+              boxShadow:
+                "0 4px 14px rgba(0,0,0,0.18)",
+            }}
+            aria-label="Close preview"
           >
-            ✕
+            <span
+              aria-hidden="true"
+              style={{
+                display: "block",
+                lineHeight: 1,
+                transform:
+                  "translateY(-1px)",
+              }}
+            >
+              ×
+            </span>
           </button>
 
-  <div className="relative flex w-full max-w-[220px] md:max-w-[320px] items-center justify-center">
+          <div className="relative flex w-full max-w-[220px] md:max-w-[320px] items-center justify-center">
             <div
               className="relative"
               style={{
                 width: `${
-                  (selectedSize.cm / MAX_CM) *
+                  (selectedSize.cm /
+                    MAX_CM) *
                   100
                 }%`,
               }}
@@ -1923,21 +2327,26 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
 
               {layers
                 .slice()
-                .sort((a, b) => a.z - b.z)
+                .sort(
+                  (a, b) =>
+                    a.z - b.z
+                )
                 .map((layer) =>
-                  renderLayer(layer, false)
+                  renderLayer(
+                    layer,
+                    false
+                  )
                 )}
             </div>
           </div>
 
           <div className="flex w-full max-w-sm flex-col items-center gap-4">
-
-            {/* RIBBON COLOR — moved here from the main customize page,
-                same stackable-order pattern as the Fan's Tassel picker */}
             <div className="flex w-full items-center gap-3">
               <span
                 className="text-xs font-semibold uppercase tracking-[0.15em]"
-                style={{ color: ACCENT }}
+                style={{
+                  color: ACCENT,
+                }}
               >
                 Ribbon
               </span>
@@ -1945,12 +2354,17 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
               <span
                 className="h-7 w-7 flex-shrink-0 rounded-full"
                 style={{
-                  backgroundColor: RIBBON_COLORS.find(
-                    (c) => c.id === ribbonColor
-                  )!.hex,
-                  border: "1.5px solid rgba(0,0,0,0.15)",
+                  backgroundColor:
+                    RIBBON_COLORS.find(
+                      (c) =>
+                        c.id ===
+                        ribbonColor
+                    )!.hex,
+                  border:
+                    "1.5px solid rgba(0,0,0,0.15)",
                   boxShadow:
-                    ribbonColor === "gold"
+                    ribbonColor ===
+                    "gold"
                       ? "inset 0 0 6px rgba(255,255,255,0.6)"
                       : undefined,
                 }}
@@ -1959,49 +2373,71 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
               <select
                 value={ribbonColor}
                 onChange={(e) =>
-                  setRibbonColor(e.target.value as RibbonColorId)
+                  setRibbonColor(
+                    e.target
+                      .value as RibbonColorId
+                  )
                 }
                 className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none"
                 style={{
-                  border: "1.5px solid rgba(0,0,0,0.15)",
-                  backgroundColor: "#FFFFFF",
-                  color: "#000000",
+                  border:
+                    "1.5px solid rgba(0,0,0,0.15)",
+                  backgroundColor:
+                    "#FFFFFF",
+                  color:
+                    "#000000",
                 }}
               >
-                {RIBBON_COLORS.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
+                {RIBBON_COLORS.map(
+                  (c) => (
+                    <option
+                      key={c.id}
+                      value={c.id}
+                    >
+                      {c.label}
+                    </option>
+                  )
+                )}
               </select>
             </div>
 
             <div className="flex items-center gap-4">
               <span
                 className="text-xs font-semibold uppercase tracking-[0.15em]"
-                style={{ color: ACCENT }}
+                style={{
+                  color: ACCENT,
+                }}
               >
                 Quantity
               </span>
 
-             <div
-  className="flex items-center rounded-full px-1 py-1"
-  style={{
-    backgroundColor: "#FFFFFF",
-    border: `1px solid ${ACCENT}`,
-    color: "#000000",
-    colorScheme: "light",
-  }}
->
+              <div
+                className="flex items-center rounded-full px-1 py-1"
+                style={{
+                  backgroundColor:
+                    "#FFFFFF",
+                  border: `1px solid ${ACCENT}`,
+                  color: "#000000",
+                  colorScheme: "light",
+                }}
+              >
                 <button
                   type="button"
                   onClick={() =>
-                    setOrderQuantity((q) => Math.max(1, q - 1))
+                    setOrderQuantity(
+                      (q) =>
+                        Math.max(
+                          1,
+                          q - 1
+                        )
+                    )
                   }
                   className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
                   style={{
-                    backgroundColor: "#EFE3C4",
-                    color: "#000000",
+                    backgroundColor:
+                      "#EFE3C4",
+                    color:
+                      "#000000",
                   }}
                 >
                   −
@@ -2009,18 +2445,27 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
 
                 <span
                   className="w-10 text-center text-sm font-semibold"
-                  style={{ color: "#000000" }}
+                  style={{
+                    color:
+                      "#000000",
+                  }}
                 >
                   {orderQuantity}
                 </span>
 
                 <button
                   type="button"
-                  onClick={() => setOrderQuantity((q) => q + 1)}
+                  onClick={() =>
+                    setOrderQuantity(
+                      (q) => q + 1
+                    )
+                  }
                   className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
                   style={{
-                    backgroundColor: "#EFE3C4",
-                    color: "#000000",
+                    backgroundColor:
+                      "#EFE3C4",
+                    color:
+                      "#000000",
                   }}
                 >
                   +
@@ -2030,10 +2475,13 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
 
             <button
               type="button"
-              onClick={addTambourineLineToOrder}
+              onClick={
+                addTambourineLineToOrder
+              }
               className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5"
               style={{
-                backgroundColor: "transparent",
+                backgroundColor:
+                  "transparent",
                 borderColor: ACCENT,
                 color: ACCENT,
               }}
@@ -2041,133 +2489,201 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
               + Add to Order
             </button>
 
-            {orderLines.length > 0 && (
+            {orderLines.length >
+              0 && (
               <div className="flex w-full flex-col gap-2">
-                {orderLines.map((line) => {
-                  const lineSize = SIZES.find((s) => s.id === line.size)!;
-                  const ribbon = RIBBON_COLORS.find(
-                    (c) => c.id === line.ribbonColor
-                  )!;
+                {orderLines.map(
+                  (line) => {
+                    const lineSize =
+                      SIZES.find(
+                        (s) =>
+                          s.id ===
+                          line.size
+                      )!;
 
-                  return (
-                    <div
-                      key={line.id}
-                      className="rounded-2xl p-3"
-                      style={{ backgroundColor: "#EFE3C4" }}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="h-4 w-4 rounded-full"
+                    const ribbon =
+                      RIBBON_COLORS.find(
+                        (c) =>
+                          c.id ===
+                          line.ribbonColor
+                      )!;
+
+                    return (
+                      <div
+                        key={
+                          line.id
+                        }
+                        className="rounded-2xl p-3"
+                        style={{
+                          backgroundColor:
+                            "#EFE3C4",
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-4 w-4 rounded-full"
+                              style={{
+                                backgroundColor:
+                                  ribbon.hex,
+                                border:
+                                  "1px solid rgba(0,0,0,0.15)",
+                              }}
+                            />
+
+                            <span
+                              className="text-sm font-semibold"
+                              style={{
+                                color:
+                                  "#000000",
+                              }}
+                            >
+                              {
+                                lineSize.label
+                              }{" "}
+                              ·{" "}
+                              {
+                                ribbon.label
+                              }{" "}
+                              Ribbon
+                            </span>
+                          </div>
+
+                          <div className="flex flex-shrink-0 items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateTambourineLineQuantity(
+                                  line.id,
+                                  line.quantity -
+                                    1
+                                )
+                              }
+                              className="flex h-7 w-7 items-center justify-center rounded-full text-base font-bold"
+                              style={{
+                                backgroundColor:
+                                  "#000000",
+                                color:
+                                  "#FFFFFF",
+                              }}
+                            >
+                              −
+                            </button>
+
+                            <span
+                              className="w-5 text-center text-sm font-semibold !text-black"
+                              style={{
+                                color:
+                                  "#000000",
+                                WebkitTextFillColor:
+                                  "#000000",
+                              }}
+                            >
+                              {
+                                line.quantity
+                              }
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateTambourineLineQuantity(
+                                  line.id,
+                                  line.quantity +
+                                    1
+                                )
+                              }
+                              className="flex h-7 w-7 items-center justify-center rounded-full text-base font-bold"
+                              style={{
+                                backgroundColor:
+                                  "#000000",
+                                color:
+                                  "#FFFFFF",
+                              }}
+                            >
+                              +
+                            </button>
+
+                            <span
+                              className="ml-2 min-w-[60px] text-right text-sm font-bold"
+                              style={{
+                                color:
+                                  ACCENT,
+                              }}
+                            >
+                              {lineSize.price *
+                                line.quantity}{" "}
+                              LE
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="mt-1 text-right">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              removeTambourineLine(
+                                line.id
+                              )
+                            }
+                            className="text-xs underline opacity-50 hover:opacity-100"
                             style={{
-                              backgroundColor: ribbon.hex,
-                              border: "1px solid rgba(0,0,0,0.15)",
+                              color:
+                                "#000000",
                             }}
-                          />
-
-                          <span
-                            className="text-sm font-semibold"
-                            style={{ color: "#000000" }}
                           >
-                            {lineSize.label} · {ribbon.label} Ribbon
-                          </span>
-                        </div>
-
-                        <div className="flex flex-shrink-0 items-center gap-2">
-                         <button
-  type="button"
-  onClick={() =>
-    updateTambourineLineQuantity(
-      line.id,
-      line.quantity - 1
-    )
-  }
-  className="flex h-7 w-7 items-center justify-center rounded-full text-base font-bold"
-  style={{
-    backgroundColor: "#000000",
-    color: "#FFFFFF",
-  }}
->
-  −
-</button>
-<span
-  className="w-5 text-center text-sm font-semibold !text-black"
-  style={{
-    color: "#000000",
-    WebkitTextFillColor: "#000000",
-  }}
->
-  {line.quantity}
-</span>
-
-                       <button
-  type="button"
-  onClick={() =>
-    updateTambourineLineQuantity(
-      line.id,
-      line.quantity + 1
-    )
-  }
-  className="flex h-7 w-7 items-center justify-center rounded-full text-base font-bold"
-  style={{
-    backgroundColor: "#000000",
-    color: "#FFFFFF",
-  }}
->
-  +
-</button>
-
-                          <span
-                            className="ml-2 min-w-[60px] text-right text-sm font-bold"
-                            style={{ color: ACCENT }}
-                          >
-                            {lineSize.price * line.quantity} LE
-                          </span>
+                            remove
+                          </button>
                         </div>
                       </div>
-
-                      <div className="mt-1 text-right">
-                       <button
-  type="button"
-  onClick={() => removeTambourineLine(line.id)}
-  className="text-xs underline opacity-50 hover:opacity-100"
-  style={{
-    color: "#000000",
-  }}
->
-  remove
-</button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  }
+                )}
 
                 <div
                   className="mt-1 flex items-center justify-between rounded-2xl px-5 py-3"
-                  style={{ border: `1px solid ${ACCENT}` }}
+                  style={{
+                    border: `1px solid ${ACCENT}`,
+                  }}
                 >
                   <span
                     className="text-sm font-semibold"
-                    style={{ color: "#000000" }}
+                    style={{
+                      color:
+                        "#000000",
+                    }}
                   >
-                    {totalQuantity} tambourine{totalQuantity !== 1 ? "s" : ""} total
+                    {totalQuantity}{" "}
+                    tambourine
+                    {totalQuantity !==
+                    1
+                      ? "s"
+                      : ""}{" "}
+                    total
                   </span>
 
                   <span
                     className="text-lg font-bold"
-                    style={{ color: ACCENT }}
+                    style={{
+                      color: ACCENT,
+                    }}
                   >
-                    {totalOrderPrice} LE
+                    {totalOrderPrice}{" "}
+                    LE
                   </span>
                 </div>
 
                 <button
                   type="button"
-                  onClick={addTambourineOrderToCart}
+                  onClick={
+                    addTambourineOrderToCart
+                  }
                   className="mt-1 inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90"
                   style={{
-                    backgroundColor: ACCENT,
-                    color: "#FFF4E6",
+                    backgroundColor:
+                      ACCENT,
+                    color:
+                      "#FFF4E6",
                   }}
                 >
                   Add Order to Cart
@@ -2202,7 +2718,9 @@ function StepLabel({
 
       <span
         className="uppercase tracking-[0.15em] text-[11px] font-medium"
-        style={{ color: "#000000" }}
+        style={{
+          color: "#000000",
+        }}
       >
         {title}
       </span>
