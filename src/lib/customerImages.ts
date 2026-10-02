@@ -2,9 +2,11 @@ export type CustomerImage = { label: string; url: string };
 
 export function collectCustomerImages(item: any): CustomerImage[] {
   const out: CustomerImage[] = [];
-  const add = (label: string, url: unknown) => {
-    if (typeof url === "string" && url.startsWith("http")) out.push({ label, url });
-  };
+ const add = (label: string, url: unknown) => {
+  if (typeof url === "string" && url.startsWith("http") && !out.some((i) => i.url === url)) {
+    out.push({ label, url });
+  }
+};
 
   const c = item?.customization;
 

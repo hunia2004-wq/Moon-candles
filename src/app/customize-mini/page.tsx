@@ -107,7 +107,7 @@ export default function CustomizeMiniPage() {
   const [pendingColorB, setPendingColorB] = useState<string>(COLORS[1]);
   const [scents, setScents] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-const [category, setCategory] = useState<string | null>(null);
+const [category, setCategory] = useState<string | null>("giveaway");
   useEffect(() => {
     async function loadScents() {
       const supabase = createClient();
@@ -127,14 +127,30 @@ const [category, setCategory] = useState<string | null>(null);
     }
     loadScents();
   }, []);
-useEffect(() => {
+  useEffect(() => {
   async function loadCategory() {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("products")
       .select("category")
-      .eq("id", 32)
+      .eq("name", "Mini Candles")
       .single();
+    if (error) {
+      console.error("Failed to load category:", error.message);
+      return;
+    }
+    if (data?.category) setCategory(data.category);
+  }
+  loadCategory();
+}, []);
+useEffect(() => {
+  async function loadCategory() {
+    const supabase = createClient();
+   const { data, error } = await supabase
+  .from("products")
+  .select("category")
+  .eq("name", "Mini Candles")
+  .single();
     if (error) {
       console.error("Failed to load category:", error.message);
       return;
@@ -282,8 +298,9 @@ function syncComboToCart(combo: ColorCombo) {
       scent: scent || null,
       color: colorKey,
       image: MINI_IMG,
+       category,
       productRefId: 32,
-      category,
+     
       ...(photo
         ? { customization: { type: "mini-candles", photoUrl: photo } }
         : {}),

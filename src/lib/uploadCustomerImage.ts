@@ -1,8 +1,15 @@
 import { createClient } from "@/lib/supabase/client";
 
+const ALLOWED: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+};
+
 export async function uploadCustomerImage(file: File, folder: string): Promise<string> {
+  const ext = ALLOWED[file.type];
+  if (!ext) throw new Error("Only JPG and PNG images are supported.");
+
   const supabase = createClient();
-  const ext = file.type === "image/png" ? "png" : "jpg";
   const path = `${folder}/${crypto.randomUUID()}.${ext}`;
 
   const { error } = await supabase.storage
