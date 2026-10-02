@@ -19,11 +19,8 @@ const cormorant = Cormorant_Garamond({
 });
 const STRIPE_COUNT = 21;
 
-const MOON_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section/moon%20hero.png";
-
-const CANDLES_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section/candless%20hero.png";
+const FULL_HERO_IMG =
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/hero%20section/full%20hero.png";
 
 export default async function Home() {
   const supabase = await createClient();
@@ -74,280 +71,107 @@ if (collectionError) {
       className="flex flex-col flex-1 items-center justify-center font-sans"
       style={{ backgroundColor: "#efe3c4" }}
     >
-      <div className="relative w-full overflow-hidden">
-        {/* STRIPES */}
-        <div className="absolute inset-0 flex">
-          {Array.from({ length: STRIPE_COUNT }).map((_, i) => (
-            <div
-              key={i}
-              className="flex-1"
-              style={{
-                backgroundColor:
-                  i % 2 === 0 ? "#8FAA82" : "#efe3c4",
-              }}
-            />
-          ))}
-        </div>
+    <div className="relative w-full overflow-hidden">
+  {/* STRIPES */}
+  <div className="absolute inset-0 flex">
+    {Array.from({ length: STRIPE_COUNT }).map((_, i) => (
+      <div
+        key={i}
+        className="flex-1"
+        style={{
+          backgroundColor: i % 2 === 0 ? "#8FAA82" : "#efe3c4",
+        }}
+      />
+    ))}
+  </div>
 
-        {/* ================= MOBILE HERO — FLOOR SCENE ================= */}
-        <div
-          className="relative z-10 flex md:hidden"
-          style={{
-            width: "100%",
-            height: "330px",
-            overflow: "hidden",
-          }}
-        >
-          {/* MULTIPLE LEAF SHADOWS */}
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              top: "-35px",
-              right: "-35px",
-              width: "260px",
-              height: "260px",
-              zIndex: 1,
-              opacity: 0.3,
-              filter: "blur(5px)",
-            }}
-          >
-            {/* Leaf 1 */}
-            <div
-              style={{
-                position: "absolute",
-                width: "48px",
-                height: "120px",
-                right: "45px",
-                top: "-20px",
-                background: "#46553D",
-                borderRadius: "100% 0 100% 0",
-                transform: "rotate(25deg)",
-              }}
-            />
+  {/* ================= MOBILE HERO — FLOOR SCENE ================= */}
+  <div
+    className="relative z-10 flex md:hidden"
+    style={{
+      width: "100%",
+      height: "330px",
+      overflow: "hidden",
+    }}
+  >
+    {/* MULTIPLE LEAF SHADOWS */}
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        top: "-35px",
+        right: "-35px",
+        width: "260px",
+        height: "260px",
+        zIndex: 1,
+        opacity: 0.3,
+        filter: "blur(5px)",
+      }}
+    >
+      <div style={{ position: "absolute", width: "48px", height: "120px", right: "45px", top: "-20px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(25deg)" }} />
+      <div style={{ position: "absolute", width: "42px", height: "105px", right: "95px", top: "5px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(55deg)" }} />
+      <div style={{ position: "absolute", width: "55px", height: "130px", right: "5px", top: "30px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(5deg)" }} />
+      <div style={{ position: "absolute", width: "38px", height: "95px", right: "135px", top: "45px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(75deg)" }} />
+      <div style={{ position: "absolute", width: "46px", height: "115px", right: "65px", top: "80px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(35deg)" }} />
+      <div style={{ position: "absolute", width: "35px", height: "90px", right: "145px", top: "105px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(65deg)" }} />
+      <div style={{ position: "absolute", width: "52px", height: "125px", right: "-10px", top: "105px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(-10deg)" }} />
+      <div style={{ position: "absolute", width: "32px", height: "80px", right: "105px", top: "145px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(45deg)" }} />
+    </div>
 
-            {/* Leaf 2 */}
-            <div
-              style={{
-                position: "absolute",
-                width: "42px",
-                height: "105px",
-                right: "95px",
-                top: "5px",
-                background: "#46553D",
-                borderRadius: "100% 0 100% 0",
-                transform: "rotate(55deg)",
-              }}
-            />
+    {/* FLOOR */}
+    <div
+      className="absolute"
+      style={{ left: 0, right: 0, bottom: 0, height: "40px", background: "#efe3c4", zIndex: 1 }}
+    />
 
-            {/* Leaf 3 */}
-            <div
-              style={{
-                position: "absolute",
-                width: "55px",
-                height: "130px",
-                right: "5px",
-                top: "30px",
-                background: "#46553D",
-                borderRadius: "100% 0 100% 0",
-                transform: "rotate(5deg)",
-              }}
-            />
+    {/* COMBINED CONTACT SHADOW */}
+    <div
+      className="absolute"
+      style={{
+        width: "320px",
+        height: "24px",
+        left: "50%",
+        bottom: "20px",
+        transform: "translateX(-50%)",
+        background:
+          "radial-gradient(ellipse at center, rgba(55, 48, 35, 0.42) 0%, rgba(55, 48, 35, 0.30) 35%, rgba(55, 48, 35, 0.15) 60%, rgba(55, 48, 35, 0) 85%)",
+        filter: "blur(5px)",
+        borderRadius: "50%",
+        zIndex: 2,
+      }}
+    />
 
-            {/* Leaf 4 */}
-            <div
-              style={{
-                position: "absolute",
-                width: "38px",
-                height: "95px",
-                right: "135px",
-                top: "45px",
-                background: "#46553D",
-                borderRadius: "100% 0 100% 0",
-                transform: "rotate(75deg)",
-              }}
-            />
+    {/* FULL HERO IMAGE — moon + candles combined into one asset */}
+    <img
+      src={FULL_HERO_IMG}
+      alt="Moon Candles collection"
+      style={{
+        position: "absolute",
+        width: "340px",
+        height: "auto",
+        left: "50%",
+        bottom: "0px",
+        transform: "translateX(-50%)",
+        objectFit: "contain",
+        display: "block",
+        zIndex: 3,
+        filter: "none",
+      }}
+    />
+  </div>
 
-            {/* Leaf 5 */}
-            <div
-              style={{
-                position: "absolute",
-                width: "46px",
-                height: "115px",
-                right: "65px",
-                top: "80px",
-                background: "#46553D",
-                borderRadius: "100% 0 100% 0",
-                transform: "rotate(35deg)",
-              }}
-            />
-
-            {/* Leaf 6 */}
-            <div
-              style={{
-                position: "absolute",
-                width: "35px",
-                height: "90px",
-                right: "145px",
-                top: "105px",
-                background: "#46553D",
-                borderRadius: "100% 0 100% 0",
-                transform: "rotate(65deg)",
-              }}
-            />
-
-            {/* Leaf 7 */}
-            <div
-              style={{
-                position: "absolute",
-                width: "52px",
-                height: "125px",
-                right: "-10px",
-                top: "105px",
-                background: "#46553D",
-                borderRadius: "100% 0 100% 0",
-                transform: "rotate(-10deg)",
-              }}
-            />
-
-            {/* Leaf 8 */}
-            <div
-              style={{
-                position: "absolute",
-                width: "32px",
-                height: "80px",
-                right: "105px",
-                top: "145px",
-                background: "#46553D",
-                borderRadius: "100% 0 100% 0",
-                transform: "rotate(45deg)",
-              }}
-            />
-          </div>
-
-          {/* FLOOR */}
-          <div
-            className="absolute"
-            style={{
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: "40px",
-              background: "#efe3c4",
-              zIndex: 1,
-            }}
-          />
-
-          {/* CANDLE FLOOR SHADOW */}
-          <div
-            className="absolute"
-            style={{
-              width: "350px",
-              height: "22px",
-              left: "58%",
-              bottom: "18px",
-              transform: "translateX(-50%)",
-              background:
-                "radial-gradient(ellipse at center, rgba(55, 48, 35, 0.42) 0%, rgba(55, 48, 35, 0.30) 35%, rgba(55, 48, 35, 0.15) 60%, rgba(55, 48, 35, 0) 85%)",
-              filter: "blur(5px)",
-              borderRadius: "50%",
-              zIndex: 3,
-            }}
-          />
-
-          {/* MOON HORIZONTAL CONTACT SHADOW */}
-          <div
-            className="absolute"
-            style={{
-              width: "285px",
-              height: "22px",
-              left: "125px",
-              bottom: "25px",
-              transform: "translateX(-50%)",
-              background:
-                "radial-gradient(ellipse at center, rgba(55, 48, 35, 0.40) 0%, rgba(55, 48, 35, 0.28) 30%, rgba(55, 48, 35, 0.13) 58%, rgba(55, 48, 35, 0) 85%)",
-              filter: "blur(6px)",
-              borderRadius: "50%",
-              zIndex: 2,
-            }}
-          />
-
-          {/* MOON */}
-          <img
-            src={MOON_IMG}
-            alt=""
-            style={{
-              position: "absolute",
-              height: "260px",
-              width: "auto",
-              left: "12px",
-              bottom: "24px",
-              display: "block",
-              zIndex: 3,
-              filter: "none",
-            }}
-          />
-
-          {/* CANDLES */}
-          <img
-            src={CANDLES_IMG}
-            alt="Moon Candles collection"
-            style={{
-              position: "absolute",
-              width: "280px",
-              height: "225px",
-              objectFit: "contain",
-              left: "100px",
-              bottom: "-25px",
-              zIndex: 4,
-              filter: "none",
-            }}
-          />
-        </div>
-
-        {/* ================= DESKTOP HERO — unchanged ================= */}
-        <div className="hidden md:flex relative z-10 items-center justify-center gap-8 max-w-6xl mx-auto px-12 py-16">
-          <div
-            className="relative flex-shrink-0"
-            style={{
-              height: "480px",
-              width: "auto",
-            }}
-          >
-            <img
-              src={MOON_IMG}
-              alt=""
-              style={{
-                height: "100%",
-                width: "auto",
-                display: "block",
-              }}
-            />
-
-            <div
-              className="absolute z-10 flex justify-center"
-              style={{
-                left: "11%",
-                bottom: "31%",
-                width: "40%",
-              }}
-            />
-          </div>
-
-          <div
-            className="flex-shrink-0"
-            style={{
-              width: "420px",
-              marginLeft: "-40px",
-            }}
-          >
-            <img
-              src={CANDLES_IMG}
-              alt="Moon Candles collection"
-              className="w-full h-auto object-contain"
-            />
-          </div>
-        </div>
-      </div>
+  {/* ================= DESKTOP HERO ================= */}
+  <div className="hidden md:flex relative z-10 items-center justify-center max-w-6xl mx-auto px-12 py-16">
+    <img
+      src={FULL_HERO_IMG}
+      alt="Moon Candles collection"
+      style={{
+        height: "480px",
+        width: "auto",
+        display: "block",
+      }}
+    />
+  </div>
+</div>
 
       {/* ================= SHOP NOW BUTTON ================= */}
       {/* This is now BELOW the entire stripes + moon + candles hero */}
