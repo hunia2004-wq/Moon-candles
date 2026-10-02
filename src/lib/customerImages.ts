@@ -1,19 +1,41 @@
 export type CustomerImage = {
-  label: string;
+  label: string;      // used only in the downloaded file name
   url: string;
   side?: "front" | "back";
+  heading?: string;   // small text shown above the button
 };
+
+const CANDLE_FONT_NAMES: Record<string, string> = {
+  elegant: "Elegant",
+  flow: "Flow",
+  classic: "Classic",
+  hand: "Hand",
+  soft: "Soft",
+};
+
+// "Text on candle" line for the admin pages.
+export function candleTextNote(c: any): string {
+  const text = c?.message ? `"${c.message}"` : "No text";
+  const font = CANDLE_FONT_NAMES[c?.fontId] ?? c?.fontId;
+  return `Text on candle: ${text}${font ? ` · Font: ${font}` : ""}`;
+}
 
 export function collectCustomerImages(item: any): CustomerImage[] {
   const out: CustomerImage[] = [];
 
-  const add = (label: string, url: unknown, side?: "front" | "back") => {
+  const add = (
+    label: string,
+    url: unknown,
+    side?: "front" | "back",
+    heading?: string
+  ) => {
     if (typeof url === "string" && url.startsWith("http")) {
-      out.push({ label, url, side });
+      out.push({ label, url, side, heading });
     }
   };
 
   const c = item?.customization;
+  const isCandle = c?.type === "customized-candle";
 
   // Fan: the finished design picture and any uploaded photo, per side
   add("design", c?.renderedDesignUrls?.front, "front");
@@ -27,8 +49,14 @@ export function collectCustomerImages(item: any): CustomerImage[] {
     }
   }
 
-  // Tambourine and older orders: not split by side
-  add("design", c?.renderedDesignUrl);
+  // Tambourine and older orders: not split by side.
+  // Custom Candle: the finished sticker, listed first.
+  add(
+    isCandle ? "sticker" : "design",
+    c?.renderedDesignUrl,
+    undefined,
+    isCandle ? "Sticker (print)" : undefined
+  );
   if (Array.isArray(c?.layers)) {
     for (const l of c.layers) {
       if (l.type === "pattern") add("photo", l.src);
@@ -36,7 +64,14 @@ export function collectCustomerImages(item: any): CustomerImage[] {
   }
 
   // Other products
-  add("photo", c?.photoUrl);
+  const photoHeading =
+    c?.type === "mini-candles"
+      ? "Initials' image on candle"
+      : isCandle
+      ? "Image on candle"
+      : undefined;
+
+  add("photo", c?.photoUrl, undefined, photoHeading);
   add("lettering", c?.monogramImage);
   add("photo", item?.photoUrlFront, "front");
   add("photo", item?.photoUrlBack, "back");

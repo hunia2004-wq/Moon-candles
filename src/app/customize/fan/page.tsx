@@ -1252,7 +1252,15 @@ function closePreview() {
               <span className="text-xs font-semibold uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
                 Quantity
               </span>
-              <div className="flex items-center rounded-full px-1 py-1" style={{ backgroundColor: "#FFFFFF", border: `1px solid ${ACCENT}` }}>
+             <div
+  className="flex items-center rounded-full px-1 py-1"
+  style={{
+    backgroundColor: "#FFFFFF",
+    border: `1px solid ${ACCENT}`,
+    color: "#000000",
+    colorScheme: "light",
+  }}
+>
                 <button
                   type="button"
                   onClick={() => setOrderQuantity((q) => Math.max(1, q - 1))}
@@ -1261,9 +1269,12 @@ function closePreview() {
                 >
                   −
                 </button>
-                <span className="w-10 text-center text-sm font-semibold" style={{ color: "#000000" }}>
-                  {orderQuantity}
-                </span>
+               <span
+  className="w-10 text-center text-sm font-semibold !text-black"
+  style={{ color: "#000000", WebkitTextFillColor: "#000000" }}
+>
+  {orderQuantity}
+</span>
                 <button
                   type="button"
                   onClick={() => setOrderQuantity((q) => q + 1)}

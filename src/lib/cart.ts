@@ -35,6 +35,7 @@ export type CandleCustomization = {
   message: string;
   photoUrl: string | null;
   fontId: string;
+  renderedDesignUrl?: string;   // ← add this
 };
 export type MiniCandlesCustomization = {
   type: "mini-candles";

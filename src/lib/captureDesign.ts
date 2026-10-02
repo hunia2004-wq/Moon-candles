@@ -255,3 +255,175 @@ export async function captureAndUploadDesign(
     return null;
   }
 }
+/* ------------------------------------------------------------------ */
+/* CANDLE STICKER                                                      */
+/* ------------------------------------------------------------------ */
+
+export type LabelInput = {
+  templateUrl: string;
+  templateWidth: number;   // 736
+  templateHeight: number;  // 238
+  photoUrl: string;
+  message: string;
+  fontFamily: string;
+  outputWidthPx?: number;  // default 2208 (3x the template)
+};
+
+// Same boxes as LabelPlate, as fractions of the plate.
+const LABEL_TEXT_BOX = { left: 0.03, top: 0.08, width: 0.58, height: 0.72 };
+const LABEL_PHOTO_BOX = { left: 0.658, top: 0.1, width: 0.27, height: 0.83 };
+
+function wrapLabelText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  const lines: string[] = [];
+
+  for (const paragraph of text.split("\n")) {
+    const words = paragraph.split(/\s+/).filter(Boolean);
+
+    if (words.length === 0) {
+      lines.push("");
+      continue;
+    }
+
+    let line = "";
+
+    for (const word of words) {
+      let w = word;
+
+      // A single word wider than the box gets broken, like break-words.
+      while (ctx.measureText(w).width > maxWidth && w.length > 1) {
+        let n = w.length - 1;
+        while (n > 1 && ctx.measureText(w.slice(0, n)).width > maxWidth) n--;
+        if (line) {
+          lines.push(line);
+          line = "";
+        }
+        lines.push(w.slice(0, n));
+        w = w.slice(n);
+      }
+
+      const test = line ? `${line} ${w}` : w;
+
+      if (ctx.measureText(test).width <= maxWidth) {
+        line = test;
+      } else {
+        lines.push(line);
+        line = w;
+      }
+    }
+
+    lines.push(line);
+  }
+
+  return lines;
+}
+
+// Draws the finished candle sticker (template + photo + text) and uploads
+// it. Returns the public URL, or null if anything fails.
+export async function captureAndUploadLabel(input: LabelInput): Promise<string | null> {
+  try {
+    const outW = input.outputWidthPx ?? 2208;
+    const outH = Math.round((outW * input.templateHeight) / input.templateWidth);
+
+    const [templateBlob, photoBlob] = await Promise.all([
+      fetchBlob(input.templateUrl),
+      fetchBlob(input.photoUrl),
+    ]);
+    const [templateBitmap, photoBitmap] = await Promise.all([
+      createImageBitmap(templateBlob),
+      createImageBitmap(photoBlob),
+    ]);
+
+    const canvas = makeCanvas(outW, outH);
+    const ctx = canvas.getContext("2d")!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+
+    // 1. Template.
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, outW, outH);
+    ctx.drawImage(templateBitmap, 0, 0, outW, outH);
+
+    // 2. Photo in its slot, cropped like object-cover.
+    const px = outW * LABEL_PHOTO_BOX.left;
+    const py = outH * LABEL_PHOTO_BOX.top;
+    const pw = outW * LABEL_PHOTO_BOX.width;
+    const ph = outH * LABEL_PHOTO_BOX.height;
+
+    const cover = Math.max(pw / photoBitmap.width, ph / photoBitmap.height);
+    const drawW = photoBitmap.width * cover;
+    const drawH = photoBitmap.height * cover;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(px, py, pw, ph);
+    ctx.clip();
+    ctx.drawImage(photoBitmap, px + (pw - drawW) / 2, py + (ph - drawH) / 2, drawW, drawH);
+    ctx.restore();
+
+    // 3. Message text, in the customer's font.
+    const message = input.message.trim();
+
+    if (message) {
+      const boxX = outW * LABEL_TEXT_BOX.left;
+      const boxY = outH * LABEL_TEXT_BOX.top;
+      const boxW = outW * LABEL_TEXT_BOX.width;
+      const boxH = outH * LABEL_TEXT_BOX.height;
+
+      let fontPx = outW * 0.09;          // 9cqw on screen
+      const minPx = fontPx * 0.55;
+
+      await document.fonts.load(`${fontPx}px ${input.fontFamily}`, message);
+      await document.fonts.ready;
+
+      let lines: string[] = [];
+
+      // Shrink a little if a long message would not fit the box.
+      for (;;) {
+        ctx.font = `${fontPx}px ${input.fontFamily}`;
+        lines = wrapLabelText(ctx, message, boxW);
+        if (lines.length * fontPx * 1.15 <= boxH || fontPx <= minPx) break;
+        fontPx *= 0.95;
+      }
+
+      const lineHeight = fontPx * 1.15;
+      const totalH = lines.length * lineHeight;
+
+      ctx.fillStyle = "#000000";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+
+      lines.forEach((l, i) => {
+        ctx.fillText(l, boxX, boxY + (boxH - totalH) / 2 + i * lineHeight + lineHeight / 2);
+      });
+    }
+
+    // 4. Upload.
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(
+        (b) => (b ? resolve(b) : reject(new Error("Could not create the sticker"))),
+        "image/png"
+      )
+    );
+
+    const supabase = createClient();
+    const path = `designs/${crypto.randomUUID()}-candle-sticker.png`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("customer-uploads")
+      .upload(path, blob, { contentType: "image/png", upsert: false });
+
+    if (uploadError) {
+      console.error("Sticker upload failed:", uploadError.message);
+      return null;
+    }
+
+    return supabase.storage.from("customer-uploads").getPublicUrl(path).data.publicUrl;
+  } catch (err) {
+    console.error("Sticker capture failed:", err);
+    return null;
+  }
+}

@@ -13,12 +13,17 @@ function ImageCard({ img, baseName }: { img: CustomerImage; baseName: string }) 
         className="h-24 w-full rounded-lg object-contain"
         style={{ backgroundColor: "#F3EBD9" }}
       />
+      {img.heading && (
+        <p className="text-[11px] font-semibold" style={{ color: "rgba(0,0,0,0.7)" }}>
+          {img.heading}
+        </p>
+      )}
       <a
         href={downloadUrl(img.url, fileName)}
         className="block rounded-full px-3 py-1.5 text-center text-[11px] font-semibold"
         style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
       >
-        Download {img.label}
+        {img.heading ? "Download image" : `Download ${img.label}`}
       </a>
     </div>
   );

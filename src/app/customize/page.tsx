@@ -4,7 +4,9 @@ import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import CandleLabelWrap, {
   LABEL_FONTS,
+  PLACEHOLDER_IMG_URL,
 } from "../components/CandleLabelWrap";
+import { captureAndUploadLabel } from "@/lib/captureDesign";
 import LabelPlaceholder from "../components/LabelPlaceholder";
 import { addToCart } from "@/lib/cart";
 import { useRouter } from "next/navigation";
@@ -45,6 +47,7 @@ export default function CustomizeCandlePage() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [fontId, setFontId] = useState<string>(LABEL_FONTS[0].id);
 const [uploading, setUploading] = useState(false);
+const [rendering, setRendering] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -99,35 +102,65 @@ const [uploading, setUploading] = useState(false);
     setUploading(false);
   }
 }
-if (uploading) {
-  alert("Your photo is still uploading, please wait a moment.");
-  return;
-}
-  // ↓↓↓ add this whole function here ↓↓↓
-    function addCandleToCart() {
-    addToCart(
-      {
-        id: `custom-candle-${Date.now()}`,
-        productId: "custom-candle",
-        productName: "Custom Candle",
-        price: selectedSize.price,
-        quantity: 1,
-        scent: scent || null,
-        color: selectedSize.label,
-        image: selectedSize.img,
-        customization: {
-          type: "customized-candle",
-          size,
-          message,
-          photoUrl,
-          fontId,
-        },
-      },
-      { open: false }
-    );
 
-        window.location.href = "/checkout";
+  // ↓↓↓ add this whole function here ↓↓↓
+   async function addCandleToCart() {
+  if (uploading || rendering) return;
+
+  if (!photoUrl) {
+    alert("Please add your photo first.");
+    return;
   }
+
+  setRendering(true);
+
+  const fontFamily =
+    LABEL_FONTS.find((f) => f.id === fontId)?.family ?? LABEL_FONTS[0].family;
+
+  const input = {
+    templateUrl: PLACEHOLDER_IMG_URL,
+    templateWidth: 736,
+    templateHeight: 238,
+    photoUrl,
+    message,
+    fontFamily,
+  };
+
+  // One automatic retry, since a first attempt can fail on a slow phone.
+  let renderedDesignUrl = await captureAndUploadLabel(input);
+  if (!renderedDesignUrl) renderedDesignUrl = await captureAndUploadLabel(input);
+
+  setRendering(false);
+
+  if (!renderedDesignUrl) {
+    alert("We couldn't prepare your sticker. Please check your connection and try again.");
+    return;
+  }
+
+  addToCart(
+    {
+      id: `custom-candle-${Date.now()}`,
+      productId: "custom-candle",
+      productName: "Custom Candle",
+      price: selectedSize.price,
+      quantity: 1,
+      scent: scent || null,
+      color: selectedSize.label,
+      image: selectedSize.img,
+      customization: {
+        type: "customized-candle",
+        size,
+        message,
+        photoUrl,
+        fontId,
+        renderedDesignUrl,
+      },
+    },
+    { open: false }
+  );
+
+  window.location.href = "/checkout";
+}
   // ↑↑↑ end of new function ↑↑↑
 
 
@@ -694,32 +727,19 @@ if (uploading) {
               </div>
 
                            <button
-                onClick={addCandleToCart}
-                className="
-                  mt-4
-                  flex
-                  w-full
-                  items-center
-                  justify-center
-                  gap-2
-                  rounded-full
-                  py-3.5
-                  text-sm
-                  font-medium
-                  transition-all
-                  duration-200
-                  hover:-translate-y-0.5
-                  hover:shadow-md
-                  active:scale-[0.98]
-                "
-                style={{
-                  backgroundColor: "#DE4B33",
-                  color: "#FFF4E6",
-                }}
-              >
-                Checkout
-               
-              </button>
+  onClick={addCandleToCart}
+  disabled={uploading || rendering || !photoUrl}
+  className="mt-4 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:hover:translate-y-0"
+  style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
+>
+  {rendering ? "Preparing your sticker…" : "Checkout"}
+</button>
+
+{!photoUrl && (
+  <p className="mt-2 text-center text-xs" style={{ color: "rgba(0,0,0,0.55)" }}>
+    Add your photo to continue.
+  </p>
+)}
             </div>
 
             <div className="h-4" />

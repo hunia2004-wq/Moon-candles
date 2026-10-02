@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CartItem } from "@/lib/cart";
 import StatusPill from "../components/StatusPill";
-import { collectCustomerImages } from "@/lib/customerImages";
+import { collectCustomerImages, candleTextNote } from "@/lib/customerImages";
 import CustomerImageDownloads from "../components/CustomerImageDownloads";
 
 const ACCENT = "#DE4B33";
@@ -16,15 +16,29 @@ const MUTED = "rgba(0,0,0,0.55)";
 // Matches StatusUpdater's vocabulary for custom_orders — using the
 // same set here so both order types share one consistent workflow.
 // If plain `orders` should use a different set, tell me and I'll split them.
-const STATUS_OPTIONS = ["pending", "confirmed", "shipped", "completed", "cancelled"] as const;
+const STATUS_OPTIONS = [
+  "pending",
+  "confirmed",
+  "shipped",
+  "completed",
+] as const;
 // Which statuses make sense to filter by, per tab — keeps the dropdown
 // from offering "completed" while on Active, etc., since that tab's
 // own filter already excludes it and picking it would show nothing.
 function statusOptionsForView(view: string): readonly string[] {
-  if (view === "active") return STATUS_OPTIONS.filter((s) => s !== "completed" && s !== "cancelled");
-  if (view === "cancelled") return ["cancelled"];
-  if (view === "completed") return ["completed"];
-  return STATUS_OPTIONS; // history: any status is possible (paid orders of any status)
+  if (view === "active") {
+    return STATUS_OPTIONS.filter((s) => s !== "completed");
+  }
+
+  if (view === "cancelled") {
+    return STATUS_OPTIONS;
+  }
+
+  if (view === "completed") {
+    return ["completed"];
+  }
+
+  return STATUS_OPTIONS;
 }
 const PAYMENT_OPTIONS = ["unpaid", "paid"] as const;
 
@@ -404,6 +418,11 @@ useEffect(() => {
                                   Customized ({item.customization.type})
                                 </p>
                               )}
+                              {item.customization?.type === "customized-candle" && (
+  <p className="text-xs" style={{ color: MUTED }}>
+    {candleTextNote(item.customization)}
+  </p>
+)}
                               <CustomerImageDownloads
   images={collectCustomerImages(item)}
   baseName={`${order.order_code ?? "order"}-${item.productName}`}

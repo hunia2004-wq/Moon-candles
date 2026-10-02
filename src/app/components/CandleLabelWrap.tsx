@@ -9,12 +9,12 @@ import {
 } from "next/font/google";
 
 // The full label image: white plate, sky photo square and Instagram handle.
-const PLACEHOLDER_IMG_URL =
+export const PLACEHOLDER_IMG_URL =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/cust%20placeholder/candle%20placeholder.jpg";
 
 // Width / height of the label image. ~3:1 from your screenshot. If the plate
 // looks squashed or too tall, tweak this number (e.g. 3.2 or 2.8).
-const LABEL_ASPECT = 3;
+const LABEL_ASPECT = 736 / 238;
 
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: "400" });
 const dancing = Dancing_Script({ subsets: ["latin"] });

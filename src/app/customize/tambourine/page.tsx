@@ -1984,13 +1984,15 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                 Quantity
               </span>
 
-              <div
-                className="flex items-center rounded-full px-1 py-1"
-                style={{
-                  backgroundColor: "#FFFFFF",
-                  border: `1px solid ${ACCENT}`,
-                }}
-              >
+             <div
+  className="flex items-center rounded-full px-1 py-1"
+  style={{
+    backgroundColor: "#FFFFFF",
+    border: `1px solid ${ACCENT}`,
+    color: "#000000",
+    colorScheme: "light",
+  }}
+>
                 <button
                   type="button"
                   onClick={() =>
@@ -2084,10 +2086,15 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                           >
                             −
                           </button>
-
-                          <span className="w-5 text-center text-sm font-semibold">
-                            {line.quantity}
-                          </span>
+<span
+  className="w-5 text-center text-sm font-semibold !text-black"
+  style={{
+    color: "#000000",
+    WebkitTextFillColor: "#000000",
+  }}
+>
+  {line.quantity}
+</span>
 
                           <button
                             type="button"
