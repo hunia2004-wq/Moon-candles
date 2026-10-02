@@ -26,6 +26,7 @@ import {
   removeCartItem,
 } from "@/lib/cart";
 import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
+import { captureAndUploadDesign, nextPaint, type DesignScene } from "@/lib/captureDesign";
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: ["400"] });
 const dancingScript = Dancing_Script({ subsets: ["latin"], weight: ["700"] });
 const sacramento = Sacramento({ subsets: ["latin"], weight: ["400"] });
@@ -188,6 +189,8 @@ type TambourineOrderLine = {
   ribbonColor: RibbonColorId;
   quantity: number;
   inCart: boolean;
+  renderedDesignUrl?: string;
+  layers: Layer[];
 };
 
 function makeId() {
@@ -465,13 +468,14 @@ const [uploading, setUploading] = useState(false);
           return null;
         }
 
-        return {
-          id: item.id,
-          size: customization.size,
-          ribbonColor: customization.ribbonColor as RibbonColorId,
-          quantity: item.quantity,
-          inCart: true,
-        };
+       return {
+  id: item.id,
+  size: customization.size,
+  ribbonColor: customization.ribbonColor as RibbonColorId,
+  quantity: item.quantity,
+  inCart: true,
+  layers: ((customization as any).layers ?? []) as Layer[],   // add this line
+};
       })
       .filter((line): line is TambourineOrderLine => line !== null);
 
@@ -660,35 +664,72 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
   /* ORDER LINE ACTIONS                                              */
   /* -------------------------------------------------------------- */
 
-  function addTambourineLineToOrder() {
-    const lineId = tambourineLineId(size, ribbonColor);
+ async function addTambourineLineToOrder() {
+  const hasAnyContent = layers.length > 0;
+  const baseId = tambourineLineId(size, ribbonColor);
 
-    setOrderLines((prev) => {
-      const existingIndex = prev.findIndex((line) => line.id === lineId);
+  // A designed tambourine always gets its own line, so two different
+  // designs with the same size and ribbon never merge into one.
+  const lineId = hasAnyContent ? `${baseId}-d${Date.now().toString(36)}` : baseId;
+  const designSnapshot = structuredClone(layers);
 
-      if (existingIndex !== -1) {
-        const updated = [...prev];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity: updated[existingIndex].quantity + orderQuantity,
-        };
-        return updated;
-      }
+  let renderedDesignUrl: string | undefined;
 
-      return [
-        ...prev,
-        {
-          id: lineId,
-          size,
-          ribbonColor,
-          quantity: orderQuantity,
-          inCart: false,
-        },
-      ];
-    });
+  if (hasAnyContent && stageRef.current) {
+  setUploading(true);
+  setSelectedId(null);
+  await nextPaint();
 
-    setOrderQuantity(1);
-  }
+  // Wide enough that the drum prints at about 300 DPI at its real size.
+  const targetWidth = Math.round(
+    ((selectedSize.cm / 2.54) * 300) / (selectedSize.drumDiameterPct / 100)
+  );
+
+  // ↓ the new block goes here, replacing the old capture line
+  const scene: DesignScene = {
+    baseImageUrl: selectedSize.img,
+    layers,
+    shape: {
+      kind: "circle",
+      xPct: selectedSize.drumPos.x,
+      yPct: selectedSize.drumPos.y,
+      diameterPct: selectedSize.drumDiameterPct,
+    },
+  };
+
+  const url = await captureAndUploadDesign(stageRef.current, "tambourine", targetWidth, scene);
+  setUploading(false);
+  if (url) renderedDesignUrl = url;
+}
+
+  setOrderLines((prev) => {
+    const existingIndex = prev.findIndex((line) => line.id === lineId);
+
+    if (existingIndex !== -1) {
+      const updated = [...prev];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        quantity: updated[existingIndex].quantity + orderQuantity,
+      };
+      return updated;
+    }
+
+    return [
+      ...prev,
+      {
+        id: lineId,
+        size,
+        ribbonColor,
+        quantity: orderQuantity,
+        inCart: false,
+        layers: designSnapshot,
+        renderedDesignUrl,
+      },
+    ];
+  });
+
+  setOrderQuantity(1);
+}
 
   function updateTambourineLineQuantity(
     lineId: string,
@@ -733,7 +774,7 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
         return;
       }
 
-    addToCart({
+     addToCart({
   id: line.id,
   productId: "custom-tambourine",
   productName: "Tambourine",
@@ -742,13 +783,14 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
   scent: null,
   color: `${lineSize.label} · ${RIBBON_COLORS.find((c) => c.id === line.ribbonColor)!.label} Ribbon`,
   image: lineSize.img,
-  productRefId: 31,   // add this line
+  productRefId: 31,
   customization: {
     type: "customized-tambourine",
     size: line.size,
     sizeCm: lineSize.cm,
     ribbonColor: line.ribbonColor,
-    layers,
+    layers: line.layers,
+    renderedDesignUrl: line.renderedDesignUrl,
   },
 });
   });
@@ -1003,12 +1045,13 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
       touchAction: interactive ? "none" : undefined,
     };
 
-    const hasBg = !!layer.bgColor;
+        const hasBg = !!layer.bgColor;
     const fontDef = getFont(layer.font);
 
     return (
       <div
         key={layer.id}
+        data-text-layer="true"        // ← add this line
         onPointerDown={
           interactive
             ? gestures.onPointerDown(layer.id, stageRef.current)
@@ -1031,6 +1074,7 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
         }
         className={fontDef.className}
         style={{
+         
           ...commonStyle,
           fontSize: layer.fontSize,
           fontWeight: 500,
@@ -1860,7 +1904,7 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
             ✕
           </button>
 
-          <div className="relative flex w-full max-w-sm md:max-w-md items-center justify-center">
+  <div className="relative flex w-full max-w-[220px] md:max-w-[320px] items-center justify-center">
             <div
               className="relative"
               style={{

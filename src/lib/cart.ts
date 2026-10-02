@@ -9,6 +9,7 @@ export type TambourineCustomization = {
   sizeCm: 12 | 20;
   ribbonColor: string;
   layers: unknown[];
+  renderedDesignUrl?: string;
 };
 
 export type FanCustomization = {
@@ -17,6 +18,10 @@ export type FanCustomization = {
   tasselLabel: string;
   tasselColor: string;
   layersBySide: unknown;
+  renderedDesignUrls?: {
+    front?: string;
+    back?: string;
+  };
 };
 export type MonogramCustomization = {
   type: "monogram";

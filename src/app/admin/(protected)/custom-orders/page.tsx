@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import StatusPill from "../components/StatusPill";
-import { collectCustomerImages, downloadUrl, type CustomerImage } from "@/lib/customerImages";
+import { collectCustomerImages, type CustomerImage } from "@/lib/customerImages";
+import CustomerImageDownloads from "../components/CustomerImageDownloads";
 
 const ACCENT = "#DE4B33";
 const CARD_BG = "#FFF9F0";
@@ -303,18 +304,10 @@ export default async function CustomOrdersPage({
                     No uploaded images on this order.
                   </p>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {o.images.map((img, n) => (
-                      <a
-                        key={n}
-                        href={downloadUrl(img.url, `${o.code ?? "order"}-${o.productTitle}-${img.label}`)}
-                        className="rounded-full px-3 py-1.5 text-[11px] font-semibold"
-                        style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
-                      >
-                        Download {img.label}
-                      </a>
-                    ))}
-                  </div>
+                 <CustomerImageDownloads
+  images={o.images}
+  baseName={`${o.code ?? "order"}-${o.productTitle}`}
+/>
                 )}
               </div>
             </div>

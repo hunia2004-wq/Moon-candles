@@ -17,6 +17,7 @@ import {
   removeCartItem,
 } from "@/lib/cart";
 import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
+import { captureAndUploadDesign, nextPaint, type DesignScene } from "@/lib/captureDesign";
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: "400" });
 const dancing = Dancing_Script({ subsets: ["latin"] });
 const playfair = Playfair_Display({ subsets: ["latin"] });
@@ -126,6 +127,7 @@ type FanOrderLine = {
   quantity: number;
   inCart: boolean;
   layersBySide: LayersBySide;
+renderedDesignUrls?: { front?: string; back?: string };
 };
 
 function makeId() {
@@ -504,16 +506,63 @@ function closePreview() {
   /* ORDER LINE ACTIONS                                             */
   /* -------------------------------------------------------------- */
 
-  function addFanLineToOrder() {
-    const lineId = makeId();
-    const designSnapshot = structuredClone(layersBySide);
+   async function addFanLineToOrder() {
+  const lineId = makeId();
+  const designSnapshot = structuredClone(layersBySide);
 
-    setFanOrderLines((prev) => [
-      ...prev,
-      { id: lineId, size, tasselColor: selectedTassel, quantity: orderQuantity, inCart: false, layersBySide: designSnapshot },
-    ]);
-    setOrderQuantity(1);
+  const hasAnyContent = layersBySide.front.length > 0 || layersBySide.back.length > 0;
+
+  let renderedDesignUrls: { front?: string; back?: string } | undefined;
+
+  if (hasAnyContent && stageRef.current) {
+    setUploading(true);
+    const originalSide = activeSide;
+    const urls: { front?: string; back?: string } = {};
+    const targetWidth = size === "small" ? 2000 : 2400;
+
+   for (const side of ["front", "back"] as SideId[]) {
+  if (layersBySide[side].length === 0) continue;
+
+  // Show this side on the editing stage with nothing selected,
+  // so the picture has no dashed selection outline.
+  setActiveSide(side);
+  setSelectedId(null);
+  await nextPaint();
+
+  // ↓ the new block goes here, replacing the old capture lines
+  const scene: DesignScene = {
+    baseImageUrl: fanImg,
+    layers: layersBySide[side],
+    shape: { kind: "mask", clipBottomPct: 24 },
+  };
+
+  let url = await captureAndUploadDesign(stageRef.current!, `fan-${side}`, targetWidth, scene);
+  if (!url) {
+    // One automatic retry, since a first attempt can fail on a slow phone.
+    url = await captureAndUploadDesign(stageRef.current!, `fan-${side}`, targetWidth, scene);
   }
+  if (url) urls[side] = url;
+}
+
+    setActiveSide(originalSide);
+    setUploading(false);
+    renderedDesignUrls = urls;
+  }
+
+  setFanOrderLines((prev) => [
+    ...prev,
+    {
+      id: lineId,
+      size,
+      tasselColor: selectedTassel,
+      quantity: orderQuantity,
+      inCart: false,
+      layersBySide: designSnapshot,
+      renderedDesignUrls,
+    },
+  ]);
+  setOrderQuantity(1);
+}
 
   function updateFanLineQuantity(lineId: string, newQuantity: number) {
     if (newQuantity <= 0) {
@@ -550,7 +599,7 @@ function closePreview() {
         return;
       }
 
-      addToCart({
+          addToCart({
         id: line.id,
         productId: "fan",
         productName: "Fan",
@@ -566,6 +615,7 @@ function closePreview() {
           tasselLabel,
           tasselColor: line.tasselColor,
           layersBySide: line.layersBySide,
+        renderedDesignUrls: line.renderedDesignUrls,
         },
       });
     });
@@ -698,11 +748,13 @@ function closePreview() {
     return (
       <div
         key={layer.id}
+        data-text-layer="true"
         onPointerDown={interactive ? gestures.onPointerDown(layer.id, stageRef.current) : undefined}
         onPointerMove={interactive ? gestures.onPointerMove(stageRef.current) : undefined}
         onPointerUp={interactive ? gestures.onPointerUp : undefined}
         onWheel={interactive ? gestures.onWheelZoom(layer.id) : undefined}
         className={fontDef.className}
+        
         style={{
           ...commonStyle,
           fontSize: layer.fontSize,
@@ -1162,7 +1214,7 @@ function closePreview() {
                 <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: ACCENT }}>
                   {id === "front" ? "Front" : "Back"}
                 </p>
-                <div className="relative w-full max-w-[240px] md:max-w-[280px]">
+               <div className="relative w-full max-w-[300px] md:max-w-[380px]">
                   <img src={fanImg} alt="" className="w-full h-auto" draggable={false} />
                   {layersBySide[id].slice().sort((a, b) => a.z - b.z).map((layer) => renderLayer(layer, false))}
                 </div>

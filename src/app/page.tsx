@@ -71,9 +71,9 @@ if (collectionError) {
       className="flex flex-col flex-1 items-center justify-center font-sans"
       style={{ backgroundColor: "#efe3c4" }}
     >
-    <div className="relative w-full overflow-hidden">
-  {/* STRIPES */}
-  <div className="absolute inset-0 flex">
+                     <div className="relative w-full overflow-hidden md:min-h-[680px]" style={{ paddingBottom: "40px" }}>
+  {/* STRIPES — fixed height, independent of the outer container's size */}
+  <div className="absolute left-0 right-0 top-0 flex h-[450px] md:h-[680px]">
     {Array.from({ length: STRIPE_COUNT }).map((_, i) => (
       <div
         key={i}
@@ -100,8 +100,8 @@ if (collectionError) {
       style={{
         top: "-35px",
         right: "-35px",
-        width: "260px",
-        height: "260px",
+        width: "60px",
+        height: "60px",
         zIndex: 1,
         opacity: 0.3,
         filter: "blur(5px)",
@@ -159,13 +159,57 @@ if (collectionError) {
     />
   </div>
 
-  {/* ================= DESKTOP HERO ================= */}
-  <div className="hidden md:flex relative z-10 items-center justify-center max-w-6xl mx-auto px-12 py-16">
+   {/* ================= DESKTOP HERO ================= */}
+    <div
+           className="hidden md:flex relative z-10 items-end justify-center max-w-6xl mx-auto px-12"
+    style={{ paddingTop: "190px", paddingBottom: "0px", transform: "translateY(50px)" }}
+  >
+        {/* COMBINED CONTACT SHADOW — desktop */}
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        width: "480px",
+        height: "32px",
+        left: "50%",
+        bottom: "-30px",
+        transform: "translateX(-50%)",
+        background:
+          "radial-gradient(ellipse at center, rgba(55, 48, 35, 0.42) 0%, rgba(55, 48, 35, 0.30) 35%, rgba(55, 48, 35, 0.15) 60%, rgba(55, 48, 35, 0) 85%)",
+        filter: "blur(7px)",
+        borderRadius: "50%",
+        zIndex: 2,
+      }}
+    />
+    {/* MULTIPLE LEAF SHADOWS — scaled up for desktop */}
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        top: "-30px",
+        right: "calc(0% - 300px)",
+        width: "300px",
+        height: "360px",
+        zIndex: 1,
+        opacity: 0.3,
+        filter: "blur(6px)",
+      }}
+    >
+      <div style={{ position: "absolute", width: "67px", height: "168px", right: "63px", top: "-28px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(25deg)" }} />
+      <div style={{ position: "absolute", width: "59px", height: "147px", right: "133px", top: "7px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(55deg)" }} />
+      <div style={{ position: "absolute", width: "77px", height: "182px", right: "7px", top: "42px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(5deg)" }} />
+      <div style={{ position: "absolute", width: "53px", height: "133px", right: "189px", top: "63px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(75deg)" }} />
+      <div style={{ position: "absolute", width: "64px", height: "161px", right: "91px", top: "112px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(35deg)" }} />
+      <div style={{ position: "absolute", width: "49px", height: "126px", right: "203px", top: "147px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(65deg)" }} />
+      <div style={{ position: "absolute", width: "73px", height: "175px", right: "-14px", top: "147px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(-10deg)" }} />
+      <div style={{ position: "absolute", width: "45px", height: "112px", right: "147px", top: "203px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(45deg)" }} />
+    </div>
+
     <img
       src={FULL_HERO_IMG}
       alt="Moon Candles collection"
       style={{
-        height: "480px",
+        position: "relative",
+        zIndex: 3,
+        height: "500px",
         width: "auto",
         display: "block",
       }}
@@ -246,10 +290,65 @@ if (collectionError) {
           brighten your space.
         </p>
 
-        <span
+                <span
           style={{
             color: "#7A9567",
             fontSize: "28px",
+            lineHeight: 1,
+          }}
+        >
+          ☾
+        </span>
+      </div>
+
+      {/* ================= DESKTOP TEXT SECTION ================= */}
+      <div
+        className="hidden md:flex flex-col items-center text-center w-full"
+        style={{
+          backgroundColor: "#efe3c4",
+          paddingTop: "10px",
+          paddingBottom: "40px",
+        }}
+      >
+        <h1
+          style={{
+            color: "#657A55",
+            fontFamily: "Georgia, serif",
+            fontSize: "44px",
+            fontWeight: 500,
+            lineHeight: 1.1,
+            margin: 0,
+          }}
+        >
+          Light up your{" "}
+          <span
+            style={{
+              fontFamily: "Georgia, serif",
+              fontSize: "44px",
+              fontWeight: 500,
+              fontStyle: "italic",
+              letterSpacing: "0.02em",
+            }}
+          >
+            Moon
+          </span>
+        </h1>
+
+        <p
+          style={{
+            color: "#7D806C",
+            fontSize: "18px",
+            lineHeight: "1.4",
+            margin: "14px 0 18px",
+          }}
+        >
+          Handcrafted scented candles made to brighten your space.
+        </p>
+
+        <span
+          style={{
+            color: "#7A9567",
+            fontSize: "32px",
             lineHeight: 1,
           }}
         >

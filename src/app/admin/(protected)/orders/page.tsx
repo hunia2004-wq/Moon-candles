@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CartItem } from "@/lib/cart";
 import StatusPill from "../components/StatusPill";
-import { collectCustomerImages, downloadUrl } from "@/lib/customerImages";
+import { collectCustomerImages } from "@/lib/customerImages";
+import CustomerImageDownloads from "../components/CustomerImageDownloads";
+
 const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
@@ -402,27 +404,10 @@ useEffect(() => {
                                   Customized ({item.customization.type})
                                 </p>
                               )}
-                              {(() => {
-  const images = collectCustomerImages(item);
-  if (images.length === 0) return null;
-  return (
-    <div className="mt-1.5 flex flex-wrap gap-2">
-      {images.map((img, n) => (
-        <a
-          key={n}
-          href={downloadUrl(
-            img.url,
-            `${order.order_code ?? "order"}-${item.productName}-${img.label}`
-          )}
-          className="rounded-full px-3 py-1 text-[11px] font-semibold"
-          style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
-        >
-          Download {img.label}
-        </a>
-      ))}
-    </div>
-  );
-})()}
+                              <CustomerImageDownloads
+  images={collectCustomerImages(item)}
+  baseName={`${order.order_code ?? "order"}-${item.productName}`}
+/>
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className="text-sm font-semibold" style={{ color: "#000000" }}>

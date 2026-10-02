@@ -1,36 +1,45 @@
-export type CustomerImage = { label: string; url: string };
+export type CustomerImage = {
+  label: string;
+  url: string;
+  side?: "front" | "back";
+};
 
 export function collectCustomerImages(item: any): CustomerImage[] {
   const out: CustomerImage[] = [];
- const add = (label: string, url: unknown) => {
-  if (typeof url === "string" && url.startsWith("http") && !out.some((i) => i.url === url)) {
-    out.push({ label, url });
-  }
-};
+
+  const add = (label: string, url: unknown, side?: "front" | "back") => {
+    if (typeof url === "string" && url.startsWith("http")) {
+      out.push({ label, url, side });
+    }
+  };
 
   const c = item?.customization;
 
-  // Fan: pattern layers on the front and back
+  // Fan: the finished design picture and any uploaded photo, per side
+  add("design", c?.renderedDesignUrls?.front, "front");
+  add("design", c?.renderedDesignUrls?.back, "back");
+
   if (c?.layersBySide) {
     for (const side of ["front", "back"] as const) {
       for (const l of c.layersBySide[side] ?? []) {
-        if (l.type === "pattern") add(side, l.src);
+        if (l.type === "pattern") add("photo", l.src, side);
       }
     }
   }
 
-  // Tambourine: pattern layers
+  // Tambourine and older orders: not split by side
+  add("design", c?.renderedDesignUrl);
   if (Array.isArray(c?.layers)) {
     for (const l of c.layers) {
-      if (l.type === "pattern") add("design", l.src);
+      if (l.type === "pattern") add("photo", l.src);
     }
   }
 
   // Other products
   add("photo", c?.photoUrl);
   add("lettering", c?.monogramImage);
-  add("front", item?.photoUrlFront);
-  add("back", item?.photoUrlBack);
+  add("photo", item?.photoUrlFront, "front");
+  add("photo", item?.photoUrlBack, "back");
 
   return out;
 }
