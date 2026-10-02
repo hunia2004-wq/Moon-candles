@@ -100,8 +100,8 @@ if (collectionError) {
       style={{
         top: "-35px",
         right: "-35px",
-        width: "60px",
-        height: "60px",
+        width: "260px",
+height: "260px",
         zIndex: 1,
         opacity: 0.3,
         filter: "blur(5px)",

@@ -2279,25 +2279,39 @@ export default function CustomizeTambourinePage() {
     }}
   >
     {/* CLOSE BUTTON */}
-    <button
-      type="button"
-      onClick={() => setShowPreview(false)}
-      aria-label="Close preview"
-      className="fixed right-4 top-4 z-[100000] flex h-12 w-12 items-center justify-center rounded-full"
-      style={{
-        backgroundColor: "#FFFFFF",
-        color: "#000000",
-        border: "2px solid #000000",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
-        fontSize: "24px",
-        lineHeight: 1,
-        fontWeight: 800,
-        WebkitTextFillColor: "#000000",
-        pointerEvents: "auto",
-      }}
-    >
-      <span aria-hidden="true">✕</span>
-    </button>
+  <button
+  type="button"
+  onClick={() => setShowPreview(false)}
+  aria-label="Close preview"
+  className="fixed right-4 top-4 z-[10000] flex h-12 w-12 items-center justify-center rounded-full transition-all duration-150 hover:scale-110 active:scale-90"
+  style={{
+    backgroundColor: "#FFFFFF",
+    color: "#000000",
+    border: "2px solid rgba(0,0,0,0.18)",
+    boxShadow: "0 4px 18px rgba(0,0,0,0.20)",
+    fontSize: "25px",
+    lineHeight: "1",
+    fontWeight: 700,
+    padding: 0,
+    minWidth: "48px",
+    minHeight: "48px",
+    WebkitTextFillColor: "#000000",
+  }}
+>
+  <span
+    aria-hidden="true"
+    style={{
+      display: "block",
+      lineHeight: 1,
+      color: "#000000",
+      WebkitTextFillColor: "#000000",
+    }}
+  >
+    ×
+  </span>
+</button>
+
+
 
     {/* PREVIEW CONTENT */}
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-6 py-16">

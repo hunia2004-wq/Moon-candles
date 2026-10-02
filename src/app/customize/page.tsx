@@ -495,33 +495,36 @@ const [rendering, setRendering] = useState(false);
           ===================================================== */}
 
           <button
-            type="button"
-            onClick={() => setShowPreview(false)}
-            className="
-              fixed
-              right-5
-              top-5
-              z-50
-              flex
-              h-10
-              w-10
-              items-center
-              justify-center
-              rounded-full
-              text-xl
-              transition-all
-              duration-200
-              hover:scale-105
-              active:scale-95
-            "
-            style={{
-              backgroundColor: "#DE4B33",
-              color: "#FFF4E6",
-            }}
-            aria-label="Close"
-          >
-            ×
-          </button>
+  type="button"
+  onClick={() => setShowPreview(false)}
+  aria-label="Close preview"
+  className="fixed right-4 top-4 z-[10000] flex h-12 w-12 items-center justify-center rounded-full transition-all duration-150 hover:scale-110 active:scale-90"
+  style={{
+    backgroundColor: "#FFFFFF",
+    color: "#000000",
+    border: "2px solid rgba(0,0,0,0.18)",
+    boxShadow: "0 4px 18px rgba(0,0,0,0.20)",
+    fontSize: "25px",
+    lineHeight: "1",
+    fontWeight: 700,
+    padding: 0,
+    minWidth: "48px",
+    minHeight: "48px",
+    WebkitTextFillColor: "#000000",
+  }}
+>
+  <span
+    aria-hidden="true"
+    style={{
+      display: "block",
+      lineHeight: 1,
+      color: "#000000",
+      WebkitTextFillColor: "#000000",
+    }}
+  >
+    ×
+  </span>
+</button>
 
           {/* =====================================================
               REVIEW CONTENT
