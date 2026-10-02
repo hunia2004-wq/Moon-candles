@@ -2074,18 +2074,22 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                         </div>
 
                         <div className="flex flex-shrink-0 items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateTambourineLineQuantity(
-                                line.id,
-                                line.quantity - 1
-                              )
-                            }
-                            className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
-                          >
-                            −
-                          </button>
+                         <button
+  type="button"
+  onClick={() =>
+    updateTambourineLineQuantity(
+      line.id,
+      line.quantity - 1
+    )
+  }
+  className="flex h-7 w-7 items-center justify-center rounded-full text-base font-bold"
+  style={{
+    backgroundColor: "#000000",
+    color: "#FFFFFF",
+  }}
+>
+  −
+</button>
 <span
   className="w-5 text-center text-sm font-semibold !text-black"
   style={{
@@ -2096,18 +2100,22 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
   {line.quantity}
 </span>
 
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updateTambourineLineQuantity(
-                                line.id,
-                                line.quantity + 1
-                              )
-                            }
-                            className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
-                          >
-                            +
-                          </button>
+                       <button
+  type="button"
+  onClick={() =>
+    updateTambourineLineQuantity(
+      line.id,
+      line.quantity + 1
+    )
+  }
+  className="flex h-7 w-7 items-center justify-center rounded-full text-base font-bold"
+  style={{
+    backgroundColor: "#000000",
+    color: "#FFFFFF",
+  }}
+>
+  +
+</button>
 
                           <span
                             className="ml-2 min-w-[60px] text-right text-sm font-bold"
@@ -2119,13 +2127,16 @@ async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
                       </div>
 
                       <div className="mt-1 text-right">
-                        <button
-                          type="button"
-                          onClick={() => removeTambourineLine(line.id)}
-                          className="text-xs underline opacity-50 hover:opacity-100"
-                        >
-                          remove
-                        </button>
+                       <button
+  type="button"
+  onClick={() => removeTambourineLine(line.id)}
+  className="text-xs underline opacity-50 hover:opacity-100"
+  style={{
+    color: "#000000",
+  }}
+>
+  remove
+</button>
                       </div>
                     </div>
                   );

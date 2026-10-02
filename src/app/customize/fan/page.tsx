@@ -1311,33 +1311,76 @@ function closePreview() {
                           </span>
                         </div>
 
-                        <div className="flex flex-shrink-0 items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateFanLineQuantity(line.id, line.quantity - 1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
-                          >
-                            −
-                          </button>
-                          <span className="w-5 text-center text-sm font-semibold">{line.quantity}</span>
-                          <button
-                            type="button"
-                            onClick={() => updateFanLineQuantity(line.id, line.quantity + 1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
-                          >
-                            +
-                          </button>
-                          <span className="ml-2 min-w-[60px] text-right text-sm font-bold" style={{ color: ACCENT }}>
-                            {lineSize.price * line.quantity} LE
-                          </span>
-                        </div>
+                        <div
+  className="flex flex-shrink-0 items-center gap-2"
+  style={{ colorScheme: "light" }}
+>
+  <button
+    type="button"
+    onClick={() => updateFanLineQuantity(line.id, line.quantity - 1)}
+    className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
+    style={{
+      color: "#000000",
+      WebkitTextFillColor: "#000000",
+      backgroundColor: "#FFFFFF",
+      colorScheme: "light",
+    }}
+  >
+    −
+  </button>
+
+  <span
+    className="w-5 text-center text-sm font-semibold"
+    style={{
+      color: "#000000",
+      WebkitTextFillColor: "#000000",
+      colorScheme: "light",
+    }}
+  >
+    {line.quantity}
+  </span>
+
+  <button
+    type="button"
+    onClick={() => updateFanLineQuantity(line.id, line.quantity + 1)}
+    className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
+    style={{
+      color: "#000000",
+      WebkitTextFillColor: "#000000",
+      backgroundColor: "#FFFFFF",
+      colorScheme: "light",
+    }}
+  >
+    +
+  </button>
+
+  <span
+    className="ml-2 min-w-[60px] text-right text-sm font-bold"
+    style={{
+      color: ACCENT,
+      WebkitTextFillColor: ACCENT,
+    }}
+  >
+    {lineSize.price * line.quantity} LE
+  </span>
+</div>
                       </div>
 
-                      <div className="mt-1 text-right">
-                        <button type="button" onClick={() => removeFanLine(line.id)} className="text-xs underline opacity-50 hover:opacity-100">
-                          remove
-                        </button>
-                      </div>
+                     <div className="mt-1 text-right" style={{ colorScheme: "light" }}>
+  <button
+    type="button"
+    onClick={() => removeFanLine(line.id)}
+    className="text-xs underline hover:opacity-100"
+    style={{
+      color: "#000000",
+      WebkitTextFillColor: "#000000",
+      opacity: 0.5,
+      colorScheme: "light",
+    }}
+  >
+    remove
+  </button>
+</div>
                     </div>
                   );
                 })}
