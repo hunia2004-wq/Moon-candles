@@ -31,6 +31,10 @@ export type CandleCustomization = {
   photoUrl: string | null;
   fontId: string;
 };
+export type MiniCandlesCustomization = {
+  type: "mini-candles";
+  photoUrl: string;
+};
 
 export type CartItem = {
   id: string;
@@ -65,7 +69,8 @@ customization?:
   | TambourineCustomization
   | FanCustomization
   | MonogramCustomization
-  | CandleCustomization;
+  | CandleCustomization
+  | MiniCandlesCustomization;
 
   // The real `products.id` this cart item should be matched against
   // for promotions. Customized items (Fan, Tambourine, Mini Candles)
@@ -92,6 +97,10 @@ export function getCart(): CartItem[] {
   } catch {
     return [];
   }
+}
+export function getMiniCandlesPhoto(item: CartItem): string | null {
+  const c = item.customization;
+  return c && c.type === "mini-candles" ? c.photoUrl : null;
 }
 
 function setCart(

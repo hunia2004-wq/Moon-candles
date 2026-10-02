@@ -303,17 +303,17 @@ if (!emailTrimmed) {
   };
 
    const supabase = createClient();
-  const { error } = await supabase.from("orders").insert({
+ const { error } = await supabase.from("orders").insert({
+  order_number: order.orderNumber,   // add this
   customer_name: form.fullName,
   customer_phone: form.phone,
-  customer_email: form.email,   // add this
+  customer_email: form.email,
   governorate: form.city,
   address: `${form.address}${form.notes ? ` — Note: ${form.notes}` : ""}`,
   items,
   promo_discount: promoDiscount,
   total: grandTotal,
 });
-
   if (error) {
     alert(`Couldn't place your order: ${error.message}`);
     return;

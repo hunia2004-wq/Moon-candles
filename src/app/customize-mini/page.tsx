@@ -7,9 +7,10 @@ import {
   getCart,
   updateCartItemQuantity,
   removeCartItem,
+  getMiniCandlesPhoto,
   type CartItem,
 } from "@/lib/cart";
-
+import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
 const MINI_CANDLES_PRODUCT_ID = "mini-candles";
 const MINI_CANDLES_PRODUCT_NAME = "Mini Candles";
 const MINI_IMG =
@@ -99,13 +100,14 @@ function buildCommittedCombosFromCart(cart: CartItem[]): ColorCombo[] {
 
 export default function CustomizeMiniPage() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [combos, setCombos] = useState<ColorCombo[]>([]);
   const [pendingColorA, setPendingColorA] = useState<string>(COLORS[0]);
   const [pendingColorB, setPendingColorB] = useState<string>(COLORS[1]);
   const [scents, setScents] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+const [category, setCategory] = useState<string | null>(null);
   useEffect(() => {
     async function loadScents() {
       const supabase = createClient();
@@ -125,7 +127,22 @@ export default function CustomizeMiniPage() {
     }
     loadScents();
   }, []);
-
+useEffect(() => {
+  async function loadCategory() {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("products")
+      .select("category")
+      .eq("id", 32)
+      .single();
+    if (error) {
+      console.error("Failed to load category:", error.message);
+      return;
+    }
+    setCategory(data?.category ?? null);
+  }
+  loadCategory();
+}, []);
   /*
    * ============================================================
    * CART SYNC
@@ -141,8 +158,15 @@ export default function CustomizeMiniPage() {
    * that are fully synced get refreshed from the cart.
    */
   useEffect(() => {
-    function syncFromCart() {
-      setCombos((prev) => {
+  function syncFromCart() {
+const photoInCart = getCart()
+  .filter((item) => item.productId === MINI_CANDLES_PRODUCT_ID)
+  .map(getMiniCandlesPhoto)
+  .find((p): p is string => p !== null);
+  if (photoInCart) setPhotoUrl((prev) => prev ?? photoInCart);
+
+  setCombos((prev) => {
+    
         const stillPending = prev.filter((c) => !c.committed);
 
         const dirty = new Map(
@@ -171,15 +195,32 @@ export default function CustomizeMiniPage() {
     return () => window.removeEventListener("cartUpdated", syncFromCart);
   }, []);
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Please choose a photo under 5MB.");
-      return;
-    }
-    setPhotoUrl(URL.createObjectURL(file));
+ async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
+
+  if (file.size > 5 * 1024 * 1024) {
+    alert("Please choose a photo under 5MB.");
+    return;
   }
+
+  setUploading(true);
+  try {
+    const url = await uploadCustomerImage(file, "mini-candles");
+    setPhotoUrl(url);
+
+    // Candles already in the cart need this photo too, so show their
+    // "Update cart" button.
+    setCombos((prev) =>
+      prev.map((c) => (c.committed ? { ...c, synced: false } : c))
+    );
+  } catch {
+    alert("Couldn't upload your photo. Please check your connection and try again.");
+  } finally {
+    setUploading(false);
+  }
+}
 
   function addCombo() {
     const defaultScent = scents[0] ?? "";
@@ -202,53 +243,60 @@ export default function CustomizeMiniPage() {
    * repeatedly; never double-adds. This is the only thing that
    * actually touches the cart/opens the drawer for an existing combo.
    */
-  function syncComboToCart(combo: ColorCombo) {
-    const colorKey = `${combo.colorA} + ${combo.colorB}`;
+function syncComboToCart(combo: ColorCombo) {
+  const colorKey = `${combo.colorA} + ${combo.colorB}`;
+  const photo = photoUrl ?? null;
 
-    const scentCounts = new Map<string, number>();
-    combo.scents.forEach((scent) => {
-      scentCounts.set(scent, (scentCounts.get(scent) ?? 0) + 1);
-    });
+  const scentCounts = new Map<string, number>();
+  combo.scents.forEach((scent) => {
+    scentCounts.set(scent, (scentCounts.get(scent) ?? 0) + 1);
+  });
 
-    const cart = getCart();
-    const existingLinesForColor = cart.filter(
-      (item) =>
-        item.productId === MINI_CANDLES_PRODUCT_ID && item.color === colorKey
-    );
+  const cart = getCart();
+  const existingLinesForColor = cart.filter(
+    (item) =>
+      item.productId === MINI_CANDLES_PRODUCT_ID && item.color === colorKey
+  );
 
-    // Create or update a line for every scent this combo currently has.
-    scentCounts.forEach((quantity, scent) => {
-      const lineId = comboLineId(combo.colorA, combo.colorB, scent);
-      const existingLine = existingLinesForColor.find((l) => l.id === lineId);
+  scentCounts.forEach((quantity, scent) => {
+    const lineId = comboLineId(combo.colorA, combo.colorB, scent);
+    const existingLine = existingLinesForColor.find((l) => l.id === lineId);
+    const linePhoto = existingLine ? getMiniCandlesPhoto(existingLine) : null;
 
-      if (existingLine) {
-        if (existingLine.quantity !== quantity) {
-          updateCartItemQuantity(lineId, quantity);
-        }
-      } else {
-      addToCart({
-  id: lineId,
-  productId: MINI_CANDLES_PRODUCT_ID,
-  productName: MINI_CANDLES_PRODUCT_NAME,
-  price: PRICE_PER_CANDLE,
-  quantity,
-  scent: scent || null,
-  color: colorKey,
-  image: MINI_IMG,
-  productRefId: 32,   // add this line
-});
+    if (existingLine && linePhoto === photo) {
+      if (existingLine.quantity !== quantity) {
+        updateCartItemQuantity(lineId, quantity);
       }
-    });
+      return;
+    }
 
-    // Remove any existing line for a scent this combo no longer has
-    // (covers scent changes, quantity decreases, and full removal).
-    existingLinesForColor.forEach((line) => {
-      const scentKey = line.scent ?? "";
-      if (!scentCounts.has(scentKey)) {
-        removeCartItem(line.id);
-      }
+    // New line, or the photo changed: (re)create the line with the photo.
+    if (existingLine) removeCartItem(lineId);
+
+    addToCart({
+      id: lineId,
+      productId: MINI_CANDLES_PRODUCT_ID,
+      productName: MINI_CANDLES_PRODUCT_NAME,
+      price: PRICE_PER_CANDLE,
+      quantity,
+      scent: scent || null,
+      color: colorKey,
+      image: MINI_IMG,
+      productRefId: 32,
+      category,
+      ...(photo
+        ? { customization: { type: "mini-candles", photoUrl: photo } }
+        : {}),
     });
-  }
+  });
+
+  existingLinesForColor.forEach((line) => {
+    const scentKey = line.scent ?? "";
+    if (!scentCounts.has(scentKey)) {
+      removeCartItem(line.id);
+    }
+  });
+}
 
   /** The Update button for a combo: pushes it to the cart and marks it synced. */
   function pushComboUpdate(combo: ColorCombo) {
@@ -435,6 +483,11 @@ function addComboOrderToCart() {
               <span className="text-[11px]">JPG, PNG up to 5MB</span>
             </span>
           </button>
+          {uploading && (
+  <p className="mt-2 text-xs" style={{ color: "#DE4B33" }}>
+    Uploading your photo…
+  </p>
+)}
           <input
             ref={fileInputRef}
             type="file"

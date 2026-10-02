@@ -16,7 +16,7 @@ import {
   updateCartItemQuantity,
   removeCartItem,
 } from "@/lib/cart";
-
+import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: "400" });
 const dancing = Dancing_Script({ subsets: ["latin"] });
 const playfair = Playfair_Display({ subsets: ["latin"] });
@@ -224,6 +224,7 @@ function FontPicker({
 
 export default function CustomizeFanPage() {
   const [size, setSize] = useState<SizeId>("small");
+  const [uploading, setUploading] = useState(false);
   const [activeSide, setActiveSide] = useState<SideId>("front");
   const [designMode, setDesignMode] = useState<"upload" | "build" | null>(null);
 
@@ -420,30 +421,36 @@ function closePreview() {
     setSelectedId(id);
   }
 
-  function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
 
-    if (hasBackground) {
-      alert("Please delete the existing background before adding a new one.");
-      e.target.value = "";
-      return;
-    }
+  if (hasBackground) {
+    alert("Please delete the existing background before adding a new one.");
+    return;
+  }
 
-    if (file.size > 8 * 1024 * 1024) {
-      alert("Please choose an image under 8MB.");
-      return;
-    }
+  if (file.size > 8 * 1024 * 1024) {
+    alert("Please choose an image under 8MB.");
+    return;
+  }
 
-    const url = URL.createObjectURL(file);
+  setUploading(true);
+  try {
+    const url = await uploadCustomerImage(file, "fan");
     const id = makeId();
     setLayers((prev) => [
       ...prev,
       { id, type: "pattern", src: url, tint: null, x: 50, y: 50, scale: 1, rotation: 0, z: 0 },
     ]);
     setSelectedId(id);
-    e.target.value = "";
+  } catch {
+    alert("Couldn't upload your image. Please check your connection and try again.");
+  } finally {
+    setUploading(false);
   }
+}
 
   function applyToBothSides(layer: Layer) {
     const copy = { ...layer, id: makeId(), z: layer.type === "text" ? nextZ.current++ : 0 } as Layer;
@@ -1104,7 +1111,11 @@ function closePreview() {
                 </div>
               </div>
             )}
-
+{uploading && (
+  <p className="mb-3 text-xs" style={{ color: ACCENT }}>
+    Uploading your image…
+  </p>
+)}
             <input
               ref={patternFileInputRef}
               type="file"

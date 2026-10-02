@@ -12,6 +12,7 @@ import {
   updateCartItemQuantity,
   removeCartItem,
 } from "@/lib/cart";
+import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
 
 type OrderLine = {
   id: string;
@@ -93,7 +94,8 @@ export default function BloomWandBuilder({
 
   const [frontPhotoUrl, setFrontPhotoUrl] =
     useState<string | null>(null);
-
+const [uploadingFront, setUploadingFront] = useState(false);
+const [uploadingBack, setUploadingBack] = useState(false);
   const [backPhotoUrl, setBackPhotoUrl] =
     useState<string | null>(null);
 
@@ -885,39 +887,51 @@ function waitForScrollEnd(
    * ============================================================
    */
 
-  function handleFrontPhotoChange(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const file =
-      e.target.files?.[0];
+async function handleFrontPhotoChange(
+  e: React.ChangeEvent<HTMLInputElement>
+) {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
 
-    if (!file) {
-      return;
-    }
-
-    setFrontPhotoUrl(
-      URL.createObjectURL(file)
-    );
-
-    e.target.value = "";
+  if (file.size > 5 * 1024 * 1024) {
+    alert("Please choose a photo under 5MB.");
+    return;
   }
 
-  function handleBackPhotoChange(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const file =
-      e.target.files?.[0];
-
-    if (!file) {
-      return;
-    }
-
-    setBackPhotoUrl(
-      URL.createObjectURL(file)
-    );
-
-    e.target.value = "";
+  setUploadingFront(true);
+  try {
+    const url = await uploadCustomerImage(file, "bloom-wand");
+    setFrontPhotoUrl(url);
+  } catch {
+    alert("Couldn't upload your photo. Please check your connection and try again.");
+  } finally {
+    setUploadingFront(false);
   }
+}
+
+async function handleBackPhotoChange(
+  e: React.ChangeEvent<HTMLInputElement>
+) {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
+
+  if (file.size > 5 * 1024 * 1024) {
+    alert("Please choose a photo under 5MB.");
+    return;
+  }
+
+  setUploadingBack(true);
+  try {
+    const url = await uploadCustomerImage(file, "bloom-wand");
+    setBackPhotoUrl(url);
+  } catch {
+    alert("Couldn't upload your photo. Please check your connection and try again.");
+  } finally {
+    setUploadingBack(false);
+  }
+}
 
   /*
    * ============================================================
@@ -1762,6 +1776,11 @@ function waitForScrollEnd(
                 </p>
               </div>
             )}
+            {(uploadingFront || uploadingBack) && (
+  <p className="mt-1 text-xs" style={{ color: ACCENT }}>
+    Uploading your photo…
+  </p>
+)}
 
             {/* QUANTITY */}
 
@@ -1819,11 +1838,11 @@ function waitForScrollEnd(
               type="button"
               onClick={addLine}
               disabled={
-                !selectedOption ||
-                (isWithPhoto &&
-                  (!frontPhotoUrl ||
-                    !backPhotoUrl))
-              }
+  !selectedOption ||
+  uploadingFront ||
+  uploadingBack ||
+  (isWithPhoto && (!frontPhotoUrl || !backPhotoUrl))
+}
               className="mt-6 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
               style={{
                 backgroundColor:

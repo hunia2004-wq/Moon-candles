@@ -25,7 +25,7 @@ import {
   updateCartItemQuantity,
   removeCartItem,
 } from "@/lib/cart";
-
+import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: ["400"] });
 const dancingScript = Dancing_Script({ subsets: ["latin"], weight: ["700"] });
 const sacramento = Sacramento({ subsets: ["latin"], weight: ["400"] });
@@ -329,7 +329,7 @@ export default function CustomizeTambourinePage() {
 
   const [orderQuantity, setOrderQuantity] = useState(1);
   const [orderLines, setOrderLines] = useState<TambourineOrderLine[]>([]);
-
+const [uploading, setUploading] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const nextZ = useRef(1);
   const patternFileInputRef = useRef<HTMLInputElement>(null);
@@ -543,27 +543,24 @@ export default function CustomizeTambourinePage() {
     setSelectedId(id);
   }
 
-  function handlePatternUpload(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const file = e.target.files?.[0];
+async function handlePatternUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
 
-    if (!file) return;
+  if (hasBackground) {
+    alert("Please delete the existing background before adding a new one.");
+    return;
+  }
 
-    if (hasBackground) {
-      alert(
-        "Please delete the existing background before adding a new one."
-      );
-      e.target.value = "";
-      return;
-    }
+  if (file.size > 8 * 1024 * 1024) {
+    alert("Please choose an image under 8MB.");
+    return;
+  }
 
-    if (file.size > 8 * 1024 * 1024) {
-      alert("Please choose an image under 8MB.");
-      return;
-    }
-
-    const url = URL.createObjectURL(file);
+  setUploading(true);
+  try {
+    const url = await uploadCustomerImage(file, "tambourine");
     const id = makeId();
 
     setLayers((prev) => [
@@ -573,13 +570,9 @@ export default function CustomizeTambourinePage() {
         type: "pattern",
         src: url,
         tint: null,
-        // x/y here are the photo's own PAN position inside the frame
-        // (50 = centered, no pan), and scale is the photo's own ZOOM
-        // (1 = fully covers the drum, so nothing is cropped until the
-        // person pinches to zoom in themselves). The circle frame
-        // itself is always fixed to the drum's position and size —
-        // pinching can never move or resize the frame, only pan/zoom
-        // the photo inside it. See renderLayer.
+        // x/y = the photo's pan position inside the frame (50 = centered),
+        // scale = the photo's zoom (1 = covers the drum). The frame itself
+        // is always pinned to the drum — see renderLayer.
         x: 50,
         y: 50,
         scale: 1,
@@ -589,8 +582,12 @@ export default function CustomizeTambourinePage() {
     ]);
 
     setSelectedId(id);
-    e.target.value = "";
+  } catch {
+    alert("Couldn't upload your image. Please check your connection and try again.");
+  } finally {
+    setUploading(false);
   }
+}
 
   function updateLayer(id: string, patch: Partial<Layer>) {
     setLayers((prev) =>
@@ -1672,7 +1669,11 @@ export default function CustomizeTambourinePage() {
                     different type.
                   </p>
                 )}
-
+{uploading && (
+  <p className="mb-3 text-xs" style={{ color: ACCENT }}>
+    Uploading your image…
+  </p>
+)}
                 <input
                   ref={patternFileInputRef}
                   type="file"

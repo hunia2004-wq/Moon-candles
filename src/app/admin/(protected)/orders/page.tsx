@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CartItem } from "@/lib/cart";
 import StatusPill from "../components/StatusPill";
-
+import { collectCustomerImages, downloadUrl } from "@/lib/customerImages";
 const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
@@ -28,6 +28,8 @@ const PAYMENT_OPTIONS = ["unpaid", "paid"] as const;
 
 type Order = {
   id: string;
+  order_no: number | null;
+  order_code: string | null;
   created_at: string;
   customer_name: string | null;
   customer_phone: string | null;
@@ -142,10 +144,17 @@ useEffect(() => {
 
     if (!q) return true;
 
-    const haystack = [o.customer_name, o.customer_phone, o.customer_email, o.id]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
+    // "12", "#12" or "moon-12" = look up that exact order. Exact only,
+    // because "1" would otherwise match every phone number containing a 1.
+    const numberQuery = /^(moon-|#)?\d{1,5}$/.test(q)
+      ? Number(q.replace(/^(moon-|#)/, ""))
+      : null;
+    if (numberQuery !== null) return o.order_no === numberQuery;
+
+  const haystack = [o.order_code, o.customer_name, o.customer_phone, o.customer_email, o.id]
+  .filter(Boolean)
+  .join(" ")
+  .toLowerCase();
 
     return haystack.includes(q);
   });
@@ -229,7 +238,7 @@ useEffect(() => {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name, phone, email, or order id"
+            placeholder="Search by order number (e.g. Moon-12), name, phone, or email"
             className="flex-1 rounded-xl px-4 py-2.5 text-sm outline-none"
             style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
           />
@@ -290,6 +299,11 @@ useEffect(() => {
                   <div className="flex flex-col gap-0.5 min-w-[160px]">
                     <span className="text-sm font-semibold" style={{ color: "#000000" }}>
                       {order.customer_name || "Unnamed customer"}
+                      {order.order_code && (
+                        <span className="ml-2 text-xs font-normal" style={{ color: MUTED }}>
+                          {order.order_code}
+                        </span>
+                      )}
                     </span>
                     <span className="text-xs" style={{ color: MUTED }}>
                       {new Date(order.created_at).toLocaleString()} · {itemCount} item
@@ -388,6 +402,27 @@ useEffect(() => {
                                   Customized ({item.customization.type})
                                 </p>
                               )}
+                              {(() => {
+  const images = collectCustomerImages(item);
+  if (images.length === 0) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-2">
+      {images.map((img, n) => (
+        <a
+          key={n}
+          href={downloadUrl(
+            img.url,
+            `${order.order_code ?? "order"}-${item.productName}-${img.label}`
+          )}
+          className="rounded-full px-3 py-1 text-[11px] font-semibold"
+          style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
+        >
+          Download {img.label}
+        </a>
+      ))}
+    </div>
+  );
+})()}
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className="text-sm font-semibold" style={{ color: "#000000" }}>

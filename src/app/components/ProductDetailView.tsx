@@ -20,7 +20,7 @@ type OrderLine = {
   monogramText?: string;
   monogramImage?: string;
 };
-
+import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
 type GalleryItem = {
   url: string;
   colorName: string | null;
@@ -416,7 +416,7 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     orderLines,
     setOrderLines,
   ] = useState<OrderLine[]>([]);
-
+const [uploadingMonogram, setUploadingMonogram] = useState(false);
   const imageScrollRef =
     useRef<HTMLDivElement>(null);
 
@@ -1872,23 +1872,31 @@ updatedCart.push({
    * ============================================================
    */
 
-  function handleMonogramImageChange(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const file = e.target.files?.[0];
+  async function handleMonogramImageChange(
+  e: React.ChangeEvent<HTMLInputElement>
+) {
+  const file = e.target.files?.[0];
+  e.target.value = "";
 
-    if (!file) {
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Please choose an image under 5MB.");
-      return;
-    }
-
-    setMonogramImageUrl(URL.createObjectURL(file));
-    e.target.value = "";
+  if (!file) {
+    return;
   }
+
+  if (file.size > 5 * 1024 * 1024) {
+    alert("Please choose an image under 5MB.");
+    return;
+  }
+
+  setUploadingMonogram(true);
+  try {
+    const url = await uploadCustomerImage(file, "monogram");
+    setMonogramImageUrl(url);
+  } catch {
+    alert("Couldn't upload your image. Please check your connection and try again.");
+  } finally {
+    setUploadingMonogram(false);
+  }
+}
 
   /*
    * ============================================================
@@ -1914,56 +1922,48 @@ updatedCart.push({
       ? null
       : selectedScent ?? null;
 
-    const lineId = createLineId(productColor, productScent);
+const baseLineId = createLineId(productColor, productScent);
 
-    // For color-scroll products (Marble Moon, Forever Clasp, etc.)
-    // `gallery` spans every color in one swipeable array, so
-    // gallery[0] is always the FIRST color's photo — not necessarily
-    // the one actually selected. Prefer the selected option/color's
-    // own image first, and only fall back to the gallery for
-    // products where gallery genuinely is scoped to one color.
-        const lineImage =
-      selectedOption?.image_url ??
-      selectedOption?.image_urls?.[0] ??
-      selectedColor?.image_url ??
-      selectedColor?.image_urls?.[0] ??
-      gallery[0] ??
-      "";
+// For color-scroll products (Marble Moon, Forever Clasp, etc.)
+// `gallery` spans every color in one swipeable array, so
+// gallery[0] is always the FIRST color's photo...
+const lineImage =
+  selectedOption?.image_url ??
+  selectedOption?.image_urls?.[0] ??
+  selectedColor?.image_url ??
+  selectedColor?.image_urls?.[0] ??
+  gallery[0] ??
+  "";
 
-    // Pocket Hearts personalization — optional, whichever the person
-    // filled in (typed initials or an uploaded image). Always
-    // undefined for every other product since this section only
-    // renders for Pocket Hearts.
-          const isMonogramProduct =
-      productName === "Pocket Hearts" || productName === "Rustic Warmth";
+const isMonogramProduct =
+  productName === "Pocket Hearts" || productName === "Rustic Warmth";
 
-    const monogramTextToUse =
-      isMonogramProduct && monogramText.trim()
-        ? monogramText.trim()
-        : undefined;
+const monogramTextToUse =
+  isMonogramProduct && monogramText.trim()
+    ? monogramText.trim()
+    : undefined;
 
-    const monogramImageToUse =
-      isMonogramProduct && monogramImageUrl
-        ? monogramImageUrl
-        : undefined;
+const monogramImageToUse =
+  isMonogramProduct && monogramImageUrl
+    ? monogramImageUrl
+    : undefined;
 
-    // Only attach personalization when this is Pocket Hearts AND the
-    // person actually filled something in — every other product (and
-    // a blank Pocket Hearts order) gets no customization field at all.
-    const monogramCustomization =
-      monogramTextToUse || monogramImageToUse
-        ? {
-            type: "monogram" as const,
-            monogramText: monogramTextToUse ?? "",
-            monogramImage: monogramImageToUse,
-          }
-        : undefined;
+const monogramCustomization =
+  monogramTextToUse || monogramImageToUse
+    ? {
+        type: "monogram" as const,
+        monogramText: monogramTextToUse ?? "",
+        monogramImage: monogramImageToUse,
+      }
+    : undefined;
 
-    // Single source of truth for cart writes — addToCart() already
-    // finds a line with this exact id and increments its quantity by
-    // 1 instead of creating a duplicate, or adds a fresh line at
-    // quantity 1 if this variant isn't in the cart yet.
- addToCart({
+// Personalized lines get a unique id so two different
+// personalizations never merge into one cart line.
+const lineId = monogramCustomization
+  ? `${baseLineId}-p${Date.now().toString(36)}`
+  : baseLineId;
+
+addToCart({
   id: lineId,
   productId: product.id,
   productName,
@@ -1972,10 +1972,9 @@ updatedCart.push({
   scent: productScent,
   color: productColor,
   image: lineImage,
-  category: product.category,   // add this line
+  category: product.category,
   customization: monogramCustomization,
 });
-
     setOrderLines((prev) => {
       const existingLineIndex = prev.findIndex(
         (line) => line.id === lineId
@@ -3389,7 +3388,11 @@ updatedCart.push({
                     />
                   )}
                 </div>
-
+{uploadingMonogram && (
+  <p className="mt-2 text-xs" style={{ color: accent }}>
+    Uploading your image…
+  </p>
+)}
                 <input
                   ref={monogramFileInputRef}
                   type="file"

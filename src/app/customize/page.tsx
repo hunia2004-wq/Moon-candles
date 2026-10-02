@@ -8,6 +8,7 @@ import CandleLabelWrap, {
 import LabelPlaceholder from "../components/LabelPlaceholder";
 import { addToCart } from "@/lib/cart";
 import { useRouter } from "next/navigation";
+import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
 
 // Static "how it looks in real life" photo shown under the preview
 const SIZES = [
@@ -43,7 +44,7 @@ export default function CustomizeCandlePage() {
   const [message, setMessage] = useState("");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [fontId, setFontId] = useState<string>(LABEL_FONTS[0].id);
-
+const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -76,21 +77,32 @@ export default function CustomizeCandlePage() {
     loadScents();
   }, []);
 
-  function handlePhotoChange(
-    e: React.ChangeEvent<HTMLInputElement>
-  ) {
-    const file = e.target.files?.[0];
+ async function handlePhotoChange(
+  e: React.ChangeEvent<HTMLInputElement>
+) {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
 
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Please choose a photo under 5MB.");
-      return;
-    }
-
-       setPhotoUrl(URL.createObjectURL(file));
+  if (file.size > 5 * 1024 * 1024) {
+    alert("Please choose a photo under 5MB.");
+    return;
   }
 
+  setUploading(true);
+  try {
+    const url = await uploadCustomerImage(file, "custom-candle");
+    setPhotoUrl(url);
+  } catch {
+    alert("Couldn't upload your photo. Please check your connection and try again.");
+  } finally {
+    setUploading(false);
+  }
+}
+if (uploading) {
+  alert("Your photo is still uploading, please wait a moment.");
+  return;
+}
   // ↓↓↓ add this whole function here ↓↓↓
     function addCandleToCart() {
     addToCart(
@@ -361,7 +373,11 @@ export default function CustomizeCandlePage() {
         </div>
 
         {/* Hidden photo input */}
-
+{uploading && (
+  <p className="mt-2 text-xs" style={{ color: "#DE4B33" }}>
+    Uploading your photo…
+  </p>
+)}
         <input
           ref={fileInputRef}
           type="file"
