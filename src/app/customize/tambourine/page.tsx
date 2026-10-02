@@ -2270,429 +2270,353 @@ export default function CustomizeTambourinePage() {
         </div>
       </div>
 
-      {showPreview && (
+     {showPreview && (
+  <div
+    className="fixed inset-0 z-[9999] overflow-y-auto"
+    style={{
+      backgroundColor: "#FFF4E6",
+      isolation: "isolate",
+    }}
+  >
+    {/* CLOSE BUTTON */}
+    <button
+      type="button"
+      onClick={() => setShowPreview(false)}
+      aria-label="Close preview"
+      className="fixed right-4 top-4 z-[100000] flex h-12 w-12 items-center justify-center rounded-full"
+      style={{
+        backgroundColor: "#FFFFFF",
+        color: "#000000",
+        border: "2px solid #000000",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.2)",
+        fontSize: "24px",
+        lineHeight: 1,
+        fontWeight: 800,
+        WebkitTextFillColor: "#000000",
+        pointerEvents: "auto",
+      }}
+    >
+      <span aria-hidden="true">✕</span>
+    </button>
+
+    {/* PREVIEW CONTENT */}
+    <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-6 py-16">
+      <div className="relative flex w-full max-w-[220px] md:max-w-[320px] items-center justify-center">
         <div
-          className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-8 px-6 py-10 overflow-y-auto"
+          className="relative"
           style={{
-            backgroundColor: "#FFF4E6",
+            width: `${
+              (selectedSize.cm / MAX_CM) * 100
+            }%`,
           }}
         >
-          {/* FIXED / ALWAYS-VISIBLE CLOSE BUTTON */}
-          <button
-            type="button"
-            onClick={() =>
-              setShowPreview(false)
-            }
-            className="fixed right-4 top-4 z-[9999] flex h-11 w-11 items-center justify-center rounded-full text-2xl font-semibold leading-none shadow-md transition-all duration-150 hover:scale-110 active:scale-90"
+          <img
+            src={selectedSize.img}
+            alt="Your customized tambourine"
+            className="w-full h-auto"
+            draggable={false}
+          />
+
+          {layers
+            .slice()
+            .sort((a, b) => a.z - b.z)
+            .map((layer) =>
+              renderLayer(layer, false)
+            )}
+        </div>
+      </div>
+
+      <div className="flex w-full max-w-sm flex-col items-center gap-4">
+        <div className="flex w-full items-center gap-3">
+          <span
+            className="text-xs font-semibold uppercase tracking-[0.15em]"
+            style={{
+              color: ACCENT,
+            }}
+          >
+            Ribbon
+          </span>
+
+          <span
+            className="h-7 w-7 flex-shrink-0 rounded-full"
             style={{
               backgroundColor:
-                "#FFFFFF",
-              color: "#000000",
-              border: `2px solid ${ACCENT}`,
+                RIBBON_COLORS.find(
+                  (c) => c.id === ribbonColor
+                )!.hex,
+              border:
+                "1.5px solid rgba(0,0,0,0.15)",
               boxShadow:
-                "0 4px 14px rgba(0,0,0,0.18)",
+                ribbonColor === "gold"
+                  ? "inset 0 0 6px rgba(255,255,255,0.6)"
+                  : undefined,
             }}
-            aria-label="Close preview"
+          />
+
+          <select
+            value={ribbonColor}
+            onChange={(e) =>
+              setRibbonColor(
+                e.target.value as RibbonColorId
+              )
+            }
+            className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none"
+            style={{
+              border:
+                "1.5px solid rgba(0,0,0,0.15)",
+              backgroundColor: "#FFFFFF",
+              color: "#000000",
+            }}
           >
-            <span
-              aria-hidden="true"
-              style={{
-                display: "block",
-                lineHeight: 1,
-                transform:
-                  "translateY(-1px)",
-              }}
-            >
-              ×
-            </span>
-          </button>
+            {RIBBON_COLORS.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-          <div className="relative flex w-full max-w-[220px] md:max-w-[320px] items-center justify-center">
-            <div
-              className="relative"
-              style={{
-                width: `${
-                  (selectedSize.cm /
-                    MAX_CM) *
-                  100
-                }%`,
-              }}
-            >
-              <img
-                src={selectedSize.img}
-                alt="Your customized tambourine"
-                className="w-full h-auto"
-                draggable={false}
-              />
+        <div className="flex items-center gap-4">
+          <span
+            className="text-xs font-semibold uppercase tracking-[0.15em]"
+            style={{
+              color: ACCENT,
+            }}
+          >
+            Quantity
+          </span>
 
-              {layers
-                .slice()
-                .sort(
-                  (a, b) =>
-                    a.z - b.z
+          <div
+            className="flex items-center rounded-full px-1 py-1"
+            style={{
+              backgroundColor: "#FFFFFF",
+              border: `1px solid ${ACCENT}`,
+              color: "#000000",
+              colorScheme: "light",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() =>
+                setOrderQuantity((q) =>
+                  Math.max(1, q - 1)
                 )
-                .map((layer) =>
-                  renderLayer(
-                    layer,
-                    false
-                  )
-                )}
-            </div>
+              }
+              className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
+              style={{
+                backgroundColor: "#EFE3C4",
+                color: "#000000",
+              }}
+            >
+              −
+            </button>
+
+            <span
+              className="w-10 text-center text-sm font-semibold"
+              style={{
+                color: "#000000",
+              }}
+            >
+              {orderQuantity}
+            </span>
+
+            <button
+              type="button"
+              onClick={() =>
+                setOrderQuantity((q) => q + 1)
+              }
+              className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
+              style={{
+                backgroundColor: "#EFE3C4",
+                color: "#000000",
+              }}
+            >
+              +
+            </button>
           </div>
+        </div>
 
-          <div className="flex w-full max-w-sm flex-col items-center gap-4">
-            <div className="flex w-full items-center gap-3">
-              <span
-                className="text-xs font-semibold uppercase tracking-[0.15em]"
-                style={{
-                  color: ACCENT,
-                }}
-              >
-                Ribbon
-              </span>
+        <button
+          type="button"
+          onClick={addTambourineLineToOrder}
+          className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5"
+          style={{
+            backgroundColor: "transparent",
+            borderColor: ACCENT,
+            color: ACCENT,
+          }}
+        >
+          + Add to Order
+        </button>
 
-              <span
-                className="h-7 w-7 flex-shrink-0 rounded-full"
-                style={{
-                  backgroundColor:
-                    RIBBON_COLORS.find(
-                      (c) =>
-                        c.id ===
-                        ribbonColor
-                    )!.hex,
-                  border:
-                    "1.5px solid rgba(0,0,0,0.15)",
-                  boxShadow:
-                    ribbonColor ===
-                    "gold"
-                      ? "inset 0 0 6px rgba(255,255,255,0.6)"
-                      : undefined,
-                }}
-              />
+        {orderLines.length > 0 && (
+          <div className="flex w-full flex-col gap-2">
+            {orderLines.map((line) => {
+              const lineSize =
+                SIZES.find(
+                  (s) => s.id === line.size
+                )!;
 
-              <select
-                value={ribbonColor}
-                onChange={(e) =>
-                  setRibbonColor(
-                    e.target
-                      .value as RibbonColorId
-                  )
-                }
-                className="flex-1 rounded-xl px-3 py-2.5 text-sm outline-none"
-                style={{
-                  border:
-                    "1.5px solid rgba(0,0,0,0.15)",
-                  backgroundColor:
-                    "#FFFFFF",
-                  color:
-                    "#000000",
-                }}
-              >
-                {RIBBON_COLORS.map(
-                  (c) => (
-                    <option
-                      key={c.id}
-                      value={c.id}
-                    >
-                      {c.label}
-                    </option>
-                  )
-                )}
-              </select>
-            </div>
+              const ribbon =
+                RIBBON_COLORS.find(
+                  (c) =>
+                    c.id === line.ribbonColor
+                )!;
 
-            <div className="flex items-center gap-4">
-              <span
-                className="text-xs font-semibold uppercase tracking-[0.15em]"
-                style={{
-                  color: ACCENT,
-                }}
-              >
-                Quantity
-              </span>
+              return (
+                <div
+                  key={line.id}
+                  className="rounded-2xl p-3"
+                  style={{
+                    backgroundColor: "#EFE3C4",
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-4 w-4 rounded-full"
+                        style={{
+                          backgroundColor:
+                            ribbon.hex,
+                          border:
+                            "1px solid rgba(0,0,0,0.15)",
+                        }}
+                      />
 
-              <div
-                className="flex items-center rounded-full px-1 py-1"
-                style={{
-                  backgroundColor:
-                    "#FFFFFF",
-                  border: `1px solid ${ACCENT}`,
-                  color: "#000000",
-                  colorScheme: "light",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOrderQuantity(
-                      (q) =>
-                        Math.max(
-                          1,
-                          q - 1
+                      <span
+                        className="text-sm font-semibold"
+                        style={{
+                          color: "#000000",
+                        }}
+                      >
+                        {lineSize.label} ·{" "}
+                        {ribbon.label} Ribbon
+                      </span>
+                    </div>
+
+                    <div className="flex flex-shrink-0 items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateTambourineLineQuantity(
+                            line.id,
+                            line.quantity - 1
+                          )
+                        }
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-base font-bold"
+                        style={{
+                          backgroundColor: "#000000",
+                          color: "#FFFFFF",
+                        }}
+                      >
+                        −
+                      </button>
+
+                      <span
+                        className="w-5 text-center text-sm font-semibold !text-black"
+                        style={{
+                          color: "#000000",
+                          WebkitTextFillColor:
+                            "#000000",
+                        }}
+                      >
+                        {line.quantity}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateTambourineLineQuantity(
+                            line.id,
+                            line.quantity + 1
+                          )
+                        }
+                        className="flex h-7 w-7 items-center justify-center rounded-full text-base font-bold"
+                        style={{
+                          backgroundColor: "#000000",
+                          color: "#FFFFFF",
+                        }}
+                      >
+                        +
+                      </button>
+
+                      <span
+                        className="ml-2 min-w-[60px] text-right text-sm font-bold"
+                        style={{
+                          color: ACCENT,
+                        }}
+                      >
+                        {lineSize.price *
+                          line.quantity}{" "}
+                        LE
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-1 text-right">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        removeTambourineLine(
+                          line.id
                         )
-                    )
-                  }
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
-                  style={{
-                    backgroundColor:
-                      "#EFE3C4",
-                    color:
-                      "#000000",
-                  }}
-                >
-                  −
-                </button>
+                      }
+                      className="text-xs underline opacity-50 hover:opacity-100"
+                      style={{
+                        color: "#000000",
+                      }}
+                    >
+                      remove
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
 
-                <span
-                  className="w-10 text-center text-sm font-semibold"
-                  style={{
-                    color:
-                      "#000000",
-                  }}
-                >
-                  {orderQuantity}
-                </span>
+            <div
+              className="mt-1 flex items-center justify-between rounded-2xl px-5 py-3"
+              style={{
+                border: `1px solid ${ACCENT}`,
+              }}
+            >
+              <span
+                className="text-sm font-semibold"
+                style={{
+                  color: "#000000",
+                }}
+              >
+                {totalQuantity} tambourine
+                {totalQuantity !== 1 ? "s" : ""}{" "}
+                total
+              </span>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOrderQuantity(
-                      (q) => q + 1
-                    )
-                  }
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
-                  style={{
-                    backgroundColor:
-                      "#EFE3C4",
-                    color:
-                      "#000000",
-                  }}
-                >
-                  +
-                </button>
-              </div>
+              <span
+                className="text-lg font-bold"
+                style={{
+                  color: ACCENT,
+                }}
+              >
+                {totalOrderPrice} LE
+              </span>
             </div>
 
             <button
               type="button"
-              onClick={
-                addTambourineLineToOrder
-              }
-              className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5"
+              onClick={addTambourineOrderToCart}
+              className="mt-1 inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90"
               style={{
-                backgroundColor:
-                  "transparent",
-                borderColor: ACCENT,
-                color: ACCENT,
+                backgroundColor: ACCENT,
+                color: "#FFF4E6",
               }}
             >
-              + Add to Order
+              Add Order to Cart
             </button>
-
-            {orderLines.length >
-              0 && (
-              <div className="flex w-full flex-col gap-2">
-                {orderLines.map(
-                  (line) => {
-                    const lineSize =
-                      SIZES.find(
-                        (s) =>
-                          s.id ===
-                          line.size
-                      )!;
-
-                    const ribbon =
-                      RIBBON_COLORS.find(
-                        (c) =>
-                          c.id ===
-                          line.ribbonColor
-                      )!;
-
-                    return (
-                      <div
-                        key={
-                          line.id
-                        }
-                        className="rounded-2xl p-3"
-                        style={{
-                          backgroundColor:
-                            "#EFE3C4",
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className="h-4 w-4 rounded-full"
-                              style={{
-                                backgroundColor:
-                                  ribbon.hex,
-                                border:
-                                  "1px solid rgba(0,0,0,0.15)",
-                              }}
-                            />
-
-                            <span
-                              className="text-sm font-semibold"
-                              style={{
-                                color:
-                                  "#000000",
-                              }}
-                            >
-                              {
-                                lineSize.label
-                              }{" "}
-                              ·{" "}
-                              {
-                                ribbon.label
-                              }{" "}
-                              Ribbon
-                            </span>
-                          </div>
-
-                          <div className="flex flex-shrink-0 items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateTambourineLineQuantity(
-                                  line.id,
-                                  line.quantity -
-                                    1
-                                )
-                              }
-                              className="flex h-7 w-7 items-center justify-center rounded-full text-base font-bold"
-                              style={{
-                                backgroundColor:
-                                  "#000000",
-                                color:
-                                  "#FFFFFF",
-                              }}
-                            >
-                              −
-                            </button>
-
-                            <span
-                              className="w-5 text-center text-sm font-semibold !text-black"
-                              style={{
-                                color:
-                                  "#000000",
-                                WebkitTextFillColor:
-                                  "#000000",
-                              }}
-                            >
-                              {
-                                line.quantity
-                              }
-                            </span>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateTambourineLineQuantity(
-                                  line.id,
-                                  line.quantity +
-                                    1
-                                )
-                              }
-                              className="flex h-7 w-7 items-center justify-center rounded-full text-base font-bold"
-                              style={{
-                                backgroundColor:
-                                  "#000000",
-                                color:
-                                  "#FFFFFF",
-                              }}
-                            >
-                              +
-                            </button>
-
-                            <span
-                              className="ml-2 min-w-[60px] text-right text-sm font-bold"
-                              style={{
-                                color:
-                                  ACCENT,
-                              }}
-                            >
-                              {lineSize.price *
-                                line.quantity}{" "}
-                              LE
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="mt-1 text-right">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeTambourineLine(
-                                line.id
-                              )
-                            }
-                            className="text-xs underline opacity-50 hover:opacity-100"
-                            style={{
-                              color:
-                                "#000000",
-                            }}
-                          >
-                            remove
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  }
-                )}
-
-                <div
-                  className="mt-1 flex items-center justify-between rounded-2xl px-5 py-3"
-                  style={{
-                    border: `1px solid ${ACCENT}`,
-                  }}
-                >
-                  <span
-                    className="text-sm font-semibold"
-                    style={{
-                      color:
-                        "#000000",
-                    }}
-                  >
-                    {totalQuantity}{" "}
-                    tambourine
-                    {totalQuantity !==
-                    1
-                      ? "s"
-                      : ""}{" "}
-                    total
-                  </span>
-
-                  <span
-                    className="text-lg font-bold"
-                    style={{
-                      color: ACCENT,
-                    }}
-                  >
-                    {totalOrderPrice}{" "}
-                    LE
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={
-                    addTambourineOrderToCart
-                  }
-                  className="mt-1 inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90"
-                  style={{
-                    backgroundColor:
-                      ACCENT,
-                    color:
-                      "#FFF4E6",
-                  }}
-                >
-                  Add Order to Cart
-                </button>
-              </div>
-            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
