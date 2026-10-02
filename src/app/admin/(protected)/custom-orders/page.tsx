@@ -2,19 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import StatusPill from "../components/StatusPill";
 
-// Giveaways with no plain version — every purchase of these is
-// inherently a custom build, so they always qualify by product name
-// alone (matches ProductDetailView's CUSTOMIZE_ONLY_NAMES, plus
-// Quack and Kiss and Bloom Wand, which also have no plain variant).
-const ALWAYS_CUSTOM_GIVEAWAY_NAMES = ["Mini Candles", "Fan", "Quack and Kiss", "Bloom Wand"];
-
-// Giveaways that CAN be sold plain (matches ProductDetailView's
-// PLAIN_SELLABLE_GIVEAWAY_NAMES) — these only count here when the
-// specific order actually carries a `customization` object, so a
-// plain Tambourine/Forever Clasp/Rustic Warmth order doesn't show up
-// just because the product itself is capable of being customized.
-const PLAIN_SELLABLE_GIVEAWAY_NAMES = ["Tambourine", "Forever Clasp", "Pocket Hearts", "Rustic Warmth"];
-
 type CustomizedEntry = {
   key: string;
   kind: "candle" | "item";
@@ -29,16 +16,14 @@ type CustomizedEntry = {
   createdAt: string;
 };
 
-function matchesName(item: any, names: string[]): boolean {
-  const name = (item.productName ?? "").toLowerCase();
-  return names.some((n) => n.toLowerCase() === name);
-}
-
+// Any item whose category was stamped "giveaway" at add-to-cart time
+// counts automatically — no hardcoded name list to maintain, so a
+// new giveaway added in the admin Products panel shows up here the
+// moment a customer orders it, with zero code changes. Anything else
+// (a regular candle, say) only counts if it actually carries a
+// customization object (message, photo, monogram).
 function isCustomizedOrderItem(item: any): boolean {
-  if (matchesName(item, ALWAYS_CUSTOM_GIVEAWAY_NAMES)) return true;
-  if (matchesName(item, PLAIN_SELLABLE_GIVEAWAY_NAMES)) return !!item.customization;
-  // Anything else (e.g. a candle customized through the regular cart
-  // flow) only counts if it actually carries a customization object.
+  if (item.category === "giveaway") return true;
   return !!item.customization;
 }
 
@@ -92,7 +77,8 @@ export default async function CustomOrdersPage() {
         note = "Includes uploaded photo";
       }
 
-      const subtitle = [item.color, item.option, item.scent].filter(Boolean).join(" · ") || "—";
+      const scentLabel = item.scent ? item.scent : "Unscented";
+const subtitle = [item.color, item.option, scentLabel].filter(Boolean).join(" · ");
 
       giveawayEntries.push({
         key: `order-${order.id}-${item.id}`,
@@ -120,8 +106,8 @@ export default async function CustomOrdersPage() {
         Custom Orders
       </h1>
       <p className="text-sm mb-8" style={{ color: "rgba(0,0,0,0.55)" }}>
-        Candle customizations and every actually-customized giveaway item — plain giveaway purchases stay in Orders
-        only.
+        Candle customizations and every giveaway order — any new giveaway you add in Products shows up here
+        automatically.
       </p>
 
       <div className="rounded-2xl overflow-hidden" style={{ border: "1.5px solid rgba(0,0,0,0.1)" }}>

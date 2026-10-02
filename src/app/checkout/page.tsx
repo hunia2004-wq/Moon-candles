@@ -66,6 +66,7 @@ const DELIVERY_ZONES = [
 type FormState = {
   fullName: string;
   phone: string;
+  email: string;        // add this
   city: string;
   country: string;
   address: string;
@@ -75,6 +76,7 @@ type FormState = {
 const EMPTY_FORM: FormState = {
   fullName: "",
   phone: "",
+  email: "",             // add this
   city: "",
   country: "Egypt",
   address: "",
@@ -88,6 +90,7 @@ type FormErrors = Partial<Record<keyof FormState, string>>;
 const FIELD_ORDER: (keyof FormState)[] = [
   "fullName",
   "phone",
+  "email",               // add this
   "city",
   "country",
   "address",
@@ -227,6 +230,12 @@ export default function CheckoutPage() {
 
   function validate(): FormErrors {
     const nextErrors: FormErrors = {};
+    const emailTrimmed = form.email.trim();
+if (!emailTrimmed) {
+  nextErrors.email = "Please enter your email address.";
+} else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
+  nextErrors.email = "Enter a valid email address.";
+}
 
     if (!form.fullName.trim()) {
       nextErrors.fullName = "Please enter your full name.";
@@ -295,23 +304,46 @@ export default function CheckoutPage() {
 
    const supabase = createClient();
   const { error } = await supabase.from("orders").insert({
-    customer_name: form.fullName,
-    customer_phone: form.phone,
-    governorate: form.city,
-    address: `${form.address}${form.notes ? ` — Note: ${form.notes}` : ""}`,
-    items,
-    promo_discount: promoDiscount,
-    total: grandTotal,
-  });
+  customer_name: form.fullName,
+  customer_phone: form.phone,
+  customer_email: form.email,   // add this
+  governorate: form.city,
+  address: `${form.address}${form.notes ? ` — Note: ${form.notes}` : ""}`,
+  items,
+  promo_discount: promoDiscount,
+  total: grandTotal,
+});
 
   if (error) {
     alert(`Couldn't place your order: ${error.message}`);
     return;
   }
 
-  clearCart();
-  setPlacedOrder(order);
-}
+clearCart();
+setPlacedOrder(order);
+
+// Send confirmation email — fire and forget, failure here shouldn't
+// block the order from being placed successfully.
+fetch("/api/send-order-confirmation", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    email: form.email,
+    customerName: form.fullName,
+    orderNumber: order.orderNumber,
+    items: items.map((i) => ({
+      productName: i.productName,
+      color: i.color,
+      scent: i.scent,
+      price: i.price,
+      quantity: i.quantity,
+    })),
+    subtotal,
+    shippingFee,
+    total: grandTotal,
+  }),
+}).catch((err) => console.error("Failed to send confirmation email:", err));
+  }
 
   if (!hydrated) return null;
 
@@ -435,26 +467,33 @@ export default function CheckoutPage() {
                 }}
               />
 
-              {/* CUSTOMER */}
-              <div className="text-[9px]">
-                <p className="mb-2 font-bold uppercase tracking-[0.12em]">
-                  Customer
-                </p>
+             {/* CUSTOMER */}
+<div className="text-[9px]">
+  <p className="mb-2 font-bold uppercase tracking-[0.12em]">
+    Customer
+  </p>
 
-                <div className="space-y-0.5">
-                  <p>{placedOrder.customer.fullName}</p>
-                  <p>{placedOrder.customer.phone}</p>
-                  <p>
-                    {placedOrder.customer.city},{" "}
-                    {placedOrder.customer.country}
-                  </p>
-                  <p className="leading-4">
-                    {placedOrder.customer.address}
-                  </p>
-                </div>
-              </div>
+  <div className="space-y-0.5">
+    <p>{placedOrder.customer.fullName}</p>
+    <p>{placedOrder.customer.phone}</p>
+    <p className="break-all">{placedOrder.customer.email}</p>
+    <p>
+      {placedOrder.customer.city},{" "}
+      {placedOrder.customer.country}
+    </p>
+    <p className="leading-4">
+      {placedOrder.customer.address}
+    </p>
+  </div>
+</div>  {/* ← THIS WAS MISSING */}
 
-              {/* DIVIDER */}
+{/* DIVIDER */}
+<div
+  className="my-5 border-t border-dashed"
+  style={{
+    borderColor: "rgba(0,0,0,0.45)",
+  }}
+/>
               <div
                 className="my-5 border-t border-dashed"
                 style={{
@@ -800,6 +839,16 @@ export default function CheckoutPage() {
                 type="tel"
                 placeholder="01012345678"
               />
+              <Field
+  id="field-email"
+  label="Email Address"
+  required
+  value={form.email}
+  onChange={(v) => updateField("email", v)}
+  error={errors.email}
+  type="email"
+  placeholder="you@example.com"
+/>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>

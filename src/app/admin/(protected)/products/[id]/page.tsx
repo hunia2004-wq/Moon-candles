@@ -26,7 +26,17 @@ type ColorDraft = {
 function makeKey() {
   return Math.random().toString(36).slice(2);
 }
+// Rustic Warmth has no real colors — its two "color" entries exist
+// purely to hold the Scented vs Unscented photo pair. Force the name
+// to exactly one of those two values instead of free text.
+const SCENT_ONLY_PRODUCTS = ["Rustic Warmth"];
 
+// Pocket Hearts and Forever Clasp have real, named colors — but each
+// color can independently be Scented or Unscented, stored as that
+// color's OPTIONS (reusing the same mechanism Plain Candle uses for
+// its size options). Force each option's name to one of those two
+// values for these two products specifically.
+const COLOR_SCENT_OPTION_PRODUCTS = ["Pocket Hearts", "Forever Clasp"];
 function imagesFromColorOrOption(entry: { image_url?: string; image_urls?: string[] }): ImageItem[] {
   const urls = entry.image_urls?.length ? entry.image_urls : entry.image_url ? [entry.image_url] : [];
   return urls.map((url) => ({ kind: "existing", url }));
@@ -100,6 +110,13 @@ export default function EditProductPage() {
   const [sizeMl, setSizeMl] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
   const [category, setCategory] = useState<"candle" | "giveaway">("candle");
+   const isScentOnlyProduct = SCENT_ONLY_PRODUCTS.some(
+    (n) => n.toLowerCase() === name.trim().toLowerCase()
+  );
+
+  const isColorScentOptionProduct = COLOR_SCENT_OPTION_PRODUCTS.some(
+    (n) => n.toLowerCase() === name.trim().toLowerCase()
+  );
 
   const [scents, setScents] = useState<string[]>([]);
   const [scentInput, setScentInput] = useState("");
@@ -690,21 +707,47 @@ export default function EditProductPage() {
                   key={color.key}
                   className="rounded-2xl p-4"
                   style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFDF8" }}
-                >
-                  <div className="mb-3 flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={color.hex}
-                      onChange={(e) => updateColor(color.key, { hex: e.target.value })}
-                      className="h-9 w-9 flex-shrink-0 rounded-lg border-0"
-                    />
-                    <input
-                      value={color.name}
-                      onChange={(e) => updateColor(color.key, { name: e.target.value })}
-                      placeholder="Color name (e.g. White)"
-                      className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
-                      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-                    />
+                >                  <div className="mb-3 flex items-center gap-3">
+                    {!isScentOnlyProduct && (
+                      <input
+                        type="color"
+                        value={color.hex}
+                        onChange={(e) => updateColor(color.key, { hex: e.target.value })}
+                        className="h-9 w-9 flex-shrink-0 rounded-lg border-0"
+                      />
+                    )}
+
+                    {isScentOnlyProduct ? (
+                      <div className="flex flex-1 gap-2">
+                        {(["Unscented", "Scented"] as const).map((label) => {
+                          const selected = color.name.trim().toLowerCase() === label.toLowerCase();
+                          return (
+                            <button
+                              key={label}
+                              type="button"
+                              onClick={() => updateColor(color.key, { name: label })}
+                              className="flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
+                              style={{
+                                backgroundColor: selected ? "#DE4B33" : "#FFFFFF",
+                                color: selected ? "#FFF4E6" : "#000000",
+                                borderColor: selected ? "#DE4B33" : "rgba(0,0,0,0.15)",
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <input
+                        value={color.name}
+                        onChange={(e) => updateColor(color.key, { name: e.target.value })}
+                        placeholder="Color name (e.g. White)"
+                        className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+                        style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                      />
+                    )}
+
                     <input
                       value={color.price}
                       onChange={(e) => updateColor(color.key, { price: e.target.value })}
@@ -722,6 +765,26 @@ export default function EditProductPage() {
                       remove
                     </button>
                   </div>
+
+                  {isScentOnlyProduct && color.name.trim().toLowerCase() === "scented" && (
+                    <div
+                      className="mb-3 rounded-xl px-3 py-2.5"
+                      style={{ backgroundColor: "#EFE3C4" }}
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.55)" }}>
+                        Scent{scents.length !== 1 ? "s" : ""} for this variant
+                      </p>
+                      {scents.length > 0 ? (
+                        <p className="mt-1 text-sm font-semibold" style={{ color: "#000000" }}>
+                          {scents.join(", ")}
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-sm" style={{ color: "#DE4B33" }}>
+                          No scents selected yet — choose them in the Scents section below.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="mb-3">
                     <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.5)" }}>
@@ -749,16 +812,39 @@ export default function EditProductPage() {
                     </div>
 
                     <div className="flex flex-col gap-3">
-                      {color.options.map((option) => (
+                                           {color.options.map((option) => (
                         <div key={option.key} className="rounded-xl p-3" style={{ backgroundColor: "#EFE3C4" }}>
                           <div className="mb-2 flex items-center gap-2">
-                            <input
-                              value={option.name}
-                              onChange={(e) => updateOption(color.key, option.key, { name: e.target.value })}
-                              placeholder="Option name (e.g. Small)"
-                              className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
-                              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-                            />
+                            {isColorScentOptionProduct ? (
+                              <div className="flex flex-1 gap-2">
+                                {(["Unscented", "Scented"] as const).map((label) => {
+                                  const selected = option.name.trim().toLowerCase() === label.toLowerCase();
+                                  return (
+                                    <button
+                                      key={label}
+                                      type="button"
+                                      onClick={() => updateOption(color.key, option.key, { name: label })}
+                                      className="flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors"
+                                      style={{
+                                        backgroundColor: selected ? "#DE4B33" : "#FFFFFF",
+                                        color: selected ? "#FFF4E6" : "#000000",
+                                        borderColor: selected ? "#DE4B33" : "rgba(0,0,0,0.15)",
+                                      }}
+                                    >
+                                      {label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <input
+                                value={option.name}
+                                onChange={(e) => updateOption(color.key, option.key, { name: e.target.value })}
+                                placeholder="Option name (e.g. Small)"
+                                className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
+                                style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                              />
+                            )}
                             <input
                               value={option.price}
                               onChange={(e) => updateOption(color.key, option.key, { price: e.target.value })}
@@ -776,6 +862,26 @@ export default function EditProductPage() {
                               remove
                             </button>
                           </div>
+
+                          {isColorScentOptionProduct && option.name.trim().toLowerCase() === "scented" && (
+                            <div
+                              className="mb-2 rounded-lg px-3 py-2"
+                              style={{ backgroundColor: "#FFFFFF" }}
+                            >
+                              <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.55)" }}>
+                                Scent{scents.length !== 1 ? "s" : ""}
+                              </p>
+                              {scents.length > 0 ? (
+                                <p className="mt-0.5 text-sm font-semibold" style={{ color: "#000000" }}>
+                                  {scents.join(", ")}
+                                </p>
+                              ) : (
+                                <p className="mt-0.5 text-sm" style={{ color: "#DE4B33" }}>
+                                  No scents selected yet — choose them in the Scents section below.
+                                </p>
+                              )}
+                            </div>
+                          )}
 
                           <ImageSlotPicker
                             images={option.images}

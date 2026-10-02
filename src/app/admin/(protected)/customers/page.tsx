@@ -54,7 +54,11 @@ export default function AdminCustomersPage() {
     const byCustomer = new Map<string, Customer>();
 
     for (const r of rows) {
-      const key = r.customer_phone || r.customer_email || r.customer_name || "unknown";
+      const key =
+  normalizePhone(r.customer_phone) ||
+  r.customer_email?.trim().toLowerCase() ||
+  r.customer_name?.trim().toLowerCase() ||
+  "unknown";
       const existing = byCustomer.get(key);
 
       if (existing) {
@@ -83,6 +87,15 @@ export default function AdminCustomersPage() {
     setCustomers(list);
     setLoading(false);
   }
+  // Strips spaces/dashes and the country code, so "01012345678",
+// "+201012345678", and "201012345678" are all treated as the same
+// customer instead of three different grouping keys.
+function normalizePhone(phone: string | null): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/[\s-]/g, "");
+  const match = digits.match(/^(?:\+?20|0)?(1[0125]\d{8})$/);
+  return match ? match[1] : digits || null;
+}
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();

@@ -15,6 +15,15 @@ const MUTED = "rgba(0,0,0,0.55)";
 // same set here so both order types share one consistent workflow.
 // If plain `orders` should use a different set, tell me and I'll split them.
 const STATUS_OPTIONS = ["pending", "confirmed", "shipped", "completed", "cancelled"] as const;
+// Which statuses make sense to filter by, per tab — keeps the dropdown
+// from offering "completed" while on Active, etc., since that tab's
+// own filter already excludes it and picking it would show nothing.
+function statusOptionsForView(view: string): readonly string[] {
+  if (view === "active") return STATUS_OPTIONS.filter((s) => s !== "completed" && s !== "cancelled");
+  if (view === "cancelled") return ["cancelled"];
+  if (view === "completed") return ["completed"];
+  return STATUS_OPTIONS; // history: any status is possible (paid orders of any status)
+}
 const PAYMENT_OPTIONS = ["unpaid", "paid"] as const;
 
 type Order = {
@@ -29,6 +38,7 @@ type Order = {
   total: number | null;
   status: string | null;
   payment_status: string | null;
+  completed_at: string | null;
 };
 
 export default function AdminOrdersPage() {
@@ -39,11 +49,13 @@ export default function AdminOrdersPage() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
-const [view, setView] = useState<"active" | "cancelled" | "history">("active");
+const [view, setView] = useState<"active" | "cancelled" | "completed" | "history">("active");
   useEffect(() => {
     loadOrders();
   }, []);
-
+useEffect(() => {
+  setStatusFilter("all");
+}, [view]);
   async function loadOrders() {
     setLoading(true);
     setError(null);
@@ -64,32 +76,67 @@ const [view, setView] = useState<"active" | "cancelled" | "history">("active");
     setLoading(false);
   }
 
-  async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "payment_status">>) {
-    setSavingId(id);
+ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "payment_status">>) {
+  setSavingId(id);
 
-    const supabase = createClient();
-    const { error } = await supabase.from("orders").update(patch).eq("id", id);
+  const fullPatch: Partial<Pick<Order, "status" | "payment_status" | "completed_at">> = { ...patch };
 
-    if (error) {
-      alert(`Couldn't save: ${error.message}`);
-      setSavingId(null);
-      return;
-    }
-
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
-    setSavingId(null);
+  // Completed and Paid are treated as the same state — setting either
+  // one also sets the other, and stamps completed_at so the Completed
+  // tab knows when it happened (for the 1-week cutoff).
+  if (patch.status === "completed") {
+    fullPatch.payment_status = "paid";
+    fullPatch.completed_at = new Date().toISOString();
+  } else if (patch.payment_status === "paid") {
+    fullPatch.status = "completed";
+    fullPatch.completed_at = new Date().toISOString();
   }
+
+  const supabase = createClient();
+  const { error } = await supabase.from("orders").update(fullPatch).eq("id", id);
+
+  if (error) {
+    alert(`Couldn't save: ${error.message}`);
+    setSavingId(null);
+    return;
+  }
+
+  setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...fullPatch } : o)));
+  setSavingId(null);
+}
+  async function deleteOrder(id: string) {
+  if (!confirm("Delete this order? This can't be undone.")) return;
+
+  setSavingId(id);
+
+  const supabase = createClient();
+  const { error } = await supabase.from("orders").delete().eq("id", id);
+
+  if (error) {
+    alert(`Couldn't delete: ${error.message}`);
+    setSavingId(null);
+    return;
+  }
+
+  setOrders((prev) => prev.filter((o) => o.id !== id));
+  setSavingId(null);
+}
 
   const filtered = useMemo(() => {
   const q = search.trim().toLowerCase();
+  const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
   return orders.filter((o) => {
     const isCancelled = o.status === "cancelled";
+    const isCompleted = o.status === "completed";
     const isPaid = o.payment_status === "paid";
+    const completedRecently =
+      isCompleted && o.completed_at && new Date(o.completed_at).getTime() >= oneWeekAgo;
 
     if (view === "cancelled" && !isCancelled) return false;
+    if (view === "completed" && !completedRecently) return false;
     if (view === "history" && (isCancelled || !isPaid)) return false;
-    if (view === "active" && (isCancelled || isPaid)) return false;
+    if (view === "active" && (isCancelled || isCompleted || isPaid)) return false;
 
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
 
@@ -148,6 +195,18 @@ const [view, setView] = useState<"active" | "cancelled" | "history">("active");
 </button>
 <button
   type="button"
+  onClick={() => setView("completed")}
+  className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
+  style={{
+    backgroundColor: view === "completed" ? "#3A6DB0" : "transparent",
+    color: view === "completed" ? "#FFFFFF" : "#3A6DB0",
+    border: "1.5px solid #3A6DB0",
+  }}
+>
+  Completed
+</button>
+<button
+  type="button"
   onClick={() => setView("history")}
   className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
   style={{
@@ -159,6 +218,12 @@ const [view, setView] = useState<"active" | "cancelled" | "history">("active");
   History
 </button>
 </div>
+{view === "completed" && (
+  <p className="text-xs mb-4" style={{ color: MUTED }}>
+    Completed orders will remain in the Completed column for one week after completion. After that, they can be found in History.
+  </p>
+)}
+
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center mb-6">
           <input
             type="text"
@@ -169,19 +234,19 @@ const [view, setView] = useState<"active" | "cancelled" | "history">("active");
             style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
           />
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl px-4 py-2.5 text-sm outline-none capitalize"
-            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-          >
-            <option value="all">All statuses</option>
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s} className="capitalize">
-                {s.replace("_", " ")}
-              </option>
-            ))}
-          </select>
+       <select
+  value={statusFilter}
+  onChange={(e) => setStatusFilter(e.target.value)}
+  className="rounded-xl px-4 py-2.5 text-sm outline-none capitalize"
+  style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+>
+  <option value="all">All statuses</option>
+  {statusOptionsForView(view).map((s) => (
+    <option key={s} value={s} className="capitalize">
+      {s.replace("_", " ")}
+    </option>
+  ))}
+</select>
         </div>
 
         {loading && (
@@ -302,9 +367,22 @@ const [view, setView] = useState<"active" | "cancelled" | "history">("active");
                               <p className="text-sm font-medium truncate" style={{ color: "#000000" }}>
                                 {item.productName}
                               </p>
-                              <p className="text-xs" style={{ color: MUTED }}>
-                                {[item.color, item.scent, item.option].filter(Boolean).join(" · ") || "—"}
-                              </p>
+                                <p className="text-xs" style={{ color: MUTED }}>
+  {(() => {
+    const colorLower = item.color?.trim().toLowerCase();
+
+    if (colorLower === "unscented") {
+      return "Unscented";
+    }
+
+    if (colorLower === "scented") {
+      return item.scent ? `Scented — ${item.scent}` : "Scented";
+    }
+
+    const scentLabel = item.scent ? item.scent : "Unscented";
+    return [item.color, item.option, scentLabel].filter(Boolean).join(" · ");
+  })()}
+</p>
                               {item.customization && (
                                 <p className="text-xs italic" style={{ color: MUTED }}>
                                   Customized ({item.customization.type})
@@ -359,19 +437,29 @@ const [view, setView] = useState<"active" | "cancelled" | "history">("active");
                         </select>
                       </label>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm("Cancel this order?")) {
-                            updateOrder(order.id, { status: "cancelled" });
-                          }
-                        }}
-                        disabled={savingId === order.id || order.status === "cancelled"}
-                        className="text-xs font-semibold underline ml-auto disabled:opacity-40"
-                        style={{ color: "#A34848" }}
-                      >
-                        Cancel order
-                      </button>
+                    <button
+  type="button"
+  onClick={() => {
+    if (confirm("Cancel this order?")) {
+      updateOrder(order.id, { status: "cancelled" });
+    }
+  }}
+  disabled={savingId === order.id || order.status === "cancelled"}
+  className="text-xs font-semibold underline disabled:opacity-40"
+  style={{ color: "#A34848" }}
+>
+  Cancel order
+</button>
+
+<button
+  type="button"
+  onClick={() => deleteOrder(order.id)}
+  disabled={savingId === order.id}
+  className="text-xs font-semibold underline ml-auto disabled:opacity-40"
+  style={{ color: "#A34848" }}
+>
+  Delete order
+</button>
                     </div>
                   </div>
                 )}

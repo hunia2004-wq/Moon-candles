@@ -42,6 +42,15 @@ export type CartItem = {
   color: string | null;
   image: string;
 
+  // The product's own category ("giveaway", "candle", "customizable",
+  // etc.) copied straight from products.category at the moment this
+  // item was added to the cart. Lets anything reading the cart later
+  // (e.g. the admin Custom Orders list) classify an item without a
+  // hardcoded name list — a newly added giveaway in the admin panel
+  // works automatically, with zero code changes, as long as its
+  // category is set correctly when it's created.
+  category?: string | null;
+
   // Bloom Wand specific — its style ("With Photo", etc.) and, when
   // that style is chosen, the front/back photos the customer
   // uploaded. Optional so every other product's cart items

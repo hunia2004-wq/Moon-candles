@@ -25,15 +25,21 @@ const lora = Lora({ subsets: ["latin"], style: "italic" });
 
 const ACCENT = "#DE4B33";
 
+// One picture per size. The picture is also used as the mask that clips
+// the customer's design to the fan shape, so each size must be a fan PNG
+// with a transparent background.
+const FAN_IMG_LARGE =
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customized%20fan/custom%20fan.png";
+
+const FAN_IMG_SMALL =
+  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customized%20fan/custom%20fan%20small.png";
+
 const SIZES = [
-  { id: "small", label: "17x25 CM", price: 25 },
-  { id: "large", label: "20x29 CM", price: 35 },
+  { id: "small", label: "17x25 CM", price: 25, img: FAN_IMG_SMALL },
+  { id: "large", label: "20x29 CM", price: 35, img: FAN_IMG_LARGE },
 ] as const;
 
 type SizeId = (typeof SIZES)[number]["id"];
-
-const FAN_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customized%20fan/custom%20fan.png";
 
 const PATTERN_SCALE_OPTS = { minScale: 1, maxScale: 6 };
 
@@ -238,6 +244,9 @@ export default function CustomizeFanPage() {
   const cartSnapshotRef = useRef<string>("");
 
   const selectedSize = SIZES.find((s) => s.id === size)!;
+  // The picture for the currently selected size — used for the stage,
+  // the preview, and the mask that clips designs to the fan shape.
+  const fanImg = selectedSize.img;
   const layers = layersBySide[activeSide];
 
   function setLayers(updater: (prev: Layer[]) => Layer[]) {
@@ -349,6 +358,29 @@ export default function CustomizeFanPage() {
     setSize(firstFan.size);
     setSelectedTassel(firstFan.tasselColor);
   }, []);
+  // Opening the preview adds a history entry, so the phone/browser back
+// button closes the preview instead of leaving the page.
+useEffect(() => {
+  if (!showPreview) return;
+
+  window.history.pushState({ ...window.history.state, fanPreview: true }, "");
+
+  function handlePopState() {
+    setShowPreview(false);
+  }
+
+  window.addEventListener("popstate", handlePopState);
+  return () => window.removeEventListener("popstate", handlePopState);
+}, [showPreview]);
+
+function closePreview() {
+  // If we added a history entry, go back through it so history stays clean.
+  if (window.history.state?.fanPreview) {
+    window.history.back();
+  } else {
+    setShowPreview(false);
+  }
+}
 
   /* -------------------------------------------------------------- */
   /* LAYER ACTIONS                                                  */
@@ -519,7 +551,7 @@ export default function CustomizeFanPage() {
         quantity: line.quantity,
         scent: null,
         color: `${lineSize.label} · ${tasselLabel} Tassel`,
-        image: FAN_IMG,
+        image: lineSize.img,
         productRefId: 30,
         customization: {
           type: "customized-fan",
@@ -593,8 +625,8 @@ export default function CustomizeFanPage() {
     const maskWrapperStyle: React.CSSProperties = {
       width: "100%",
       height: "100%",
-      WebkitMaskImage: `url(${FAN_IMG})`,
-      maskImage: `url(${FAN_IMG})`,
+      WebkitMaskImage: `url("${fanImg}")`,
+      maskImage: `url("${fanImg}")`,
       WebkitMaskSize: "100% 100%",
       maskSize: "100% 100%",
       WebkitMaskRepeat: "no-repeat",
@@ -716,7 +748,7 @@ export default function CustomizeFanPage() {
             if (e.target === stageRef.current) setSelectedId(null);
           }}
         >
-          <img src={FAN_IMG} alt={`Fan — ${activeSide}`} className="w-full h-auto pointer-events-none" draggable={false} />
+          <img src={fanImg} alt={`Fan — ${activeSide}`} className="w-full h-auto pointer-events-none" draggable={false} />
           {layers.slice().sort((a, b) => a.z - b.z).map((layer) => renderLayer(layer, true))}
         </div>
 
@@ -905,7 +937,7 @@ export default function CustomizeFanPage() {
                 backgroundColor: size === s.id ? "#EFE3C4" : "transparent",
               }}
             >
-              <img src={FAN_IMG} alt="" className="object-contain" style={{ width: 28, height: 28 }} />
+              <img src={s.img} alt="" className="object-contain" style={{ width: 28, height: 28 }} />
               <span className="text-xs font-semibold tracking-wide" style={{ color: "#000000" }}>
                 {s.label}
               </span>
@@ -1104,14 +1136,14 @@ export default function CustomizeFanPage() {
           style={{ backgroundColor: "#FFF4E6" }}
         >
           <button
-            type="button"
-            onClick={() => setShowPreview(false)}
-            className="absolute top-6 right-6 text-2xl transition-all duration-150 hover:scale-110 active:scale-90 hover:opacity-70"
-            style={{ color: "#000000" }}
-            aria-label="Close"
-          >
-            ✕
-          </button>
+  type="button"
+  onClick={closePreview}
+  className="absolute top-6 right-6 text-2xl transition-all duration-150 hover:scale-110 active:scale-90 hover:opacity-70"
+  style={{ color: "#000000" }}
+  aria-label="Close"
+>
+  ✕
+</button>
 
           <div className="flex flex-col md:flex-row items-center gap-10">
             {(["front", "back"] as SideId[]).map((id) => (
@@ -1120,7 +1152,7 @@ export default function CustomizeFanPage() {
                   {id === "front" ? "Front" : "Back"}
                 </p>
                 <div className="relative w-full max-w-[240px] md:max-w-[280px]">
-                  <img src={FAN_IMG} alt="" className="w-full h-auto" draggable={false} />
+                  <img src={fanImg} alt="" className="w-full h-auto" draggable={false} />
                   {layersBySide[id].slice().sort((a, b) => a.z - b.z).map((layer) => renderLayer(layer, false))}
                 </div>
               </div>

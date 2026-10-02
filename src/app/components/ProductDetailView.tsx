@@ -48,6 +48,7 @@ const CUSTOMIZE_ONLY_NAMES = [
   "Mini Candles",
 ];
 
+
 const QUACK_AND_KISS_NAMES = [
   "Quack and Kiss",
 ];
@@ -61,7 +62,12 @@ const TWO_COLOR_PRODUCTS = [
 // also should NOT combine both sizes' photos into one shared gallery —
 // each size's gallery should show only that size's own photos.
 const PLAIN_SELLABLE_GIVEAWAY_NAMES = ["Tambourine", "Forever Clasp", "Pocket Hearts", "Rustic Warmth"];
-
+// These three don't have real colors — their two "color" entries are
+// actually a Scented/Unscented photo pair, same pattern as Molten
+// Muse's single-variant styling. Label the picker "Scent" instead of
+// "Color" so it reads correctly, as long as the admin panel names
+// the two variants "Scented" and "Unscented".
+const SCENT_VARIANT_PRODUCTS = ["Rustic Warmth"];
 /*
  * ============================================================
  * PRODUCTS WHOSE COLORS SHOULD BE SWIPED IN THE GALLERY
@@ -290,6 +296,13 @@ export default function ProductDetailView({
         name.toLowerCase() ===
         normalizedProductName
     );
+      const isScentVariantProduct =
+    SCENT_VARIANT_PRODUCTS.some(
+      (name) =>
+        name.toLowerCase() ===
+        normalizedProductName
+    );
+    
 
   /*
    * ============================================================
@@ -1515,35 +1528,37 @@ if (closestIndex !== selectedImageIndexRef.current) {
     // pressed. Removing any existing line first, then adding fresh,
     // gives set semantics while still using the shared helper (so
     // the drawer still pops open to confirm).
-    if (selectedNoorWhite) {
-      const id = `${product.id}-white`;
-      removeCartItem(id);
-      addToCart({
-        id,
-        productId: product.id,
-        productName,
-        price: Number(displayPrice),
-        quantity: noorWhiteQuantity,
-        scent: null,
-        color: "White",
-        image: gallery[0] ?? "",
-      });
-    }
+ if (selectedNoorWhite) {
+  const id = `${product.id}-white`;
+  removeCartItem(id);
+  addToCart({
+    id,
+    productId: product.id,
+    productName,
+    price: Number(displayPrice),
+    quantity: noorWhiteQuantity,
+    scent: null,
+    color: "White",
+    image: gallery[0] ?? "",
+    category: product.category,   // add this line
+  });
+}
 
-    if (selectedNoorGray) {
-      const id = `${product.id}-gray`;
-      removeCartItem(id);
-      addToCart({
-        id,
-        productId: product.id,
-        productName,
-        price: Number(displayPrice),
-        quantity: noorGrayQuantity,
-        scent: null,
-        color: "Gray",
-        image: gallery[0] ?? "",
-      });
-    }
+  if (selectedNoorGray) {
+  const id = `${product.id}-gray`;
+  removeCartItem(id);
+  addToCart({
+    id,
+    productId: product.id,
+    productName,
+    price: Number(displayPrice),
+    quantity: noorGrayQuantity,
+    scent: null,
+    color: "Gray",
+    image: gallery[0] ?? "",
+    category: product.category,   // add this line
+  });
+}
 
     setOrderLines((prev) =>
       prev.map((line) =>
@@ -1644,7 +1659,7 @@ if (closestIndex !== selectedImageIndexRef.current) {
       (item: any) => item.id !== id
     );
 
-  updatedCart.push({
+updatedCart.push({
   id,
   productId: product.id,
   productName,
@@ -1653,6 +1668,7 @@ if (closestIndex !== selectedImageIndexRef.current) {
   scent: null,
   color: "Bride Duck",
   image: QUACK_IMAGES.bride,
+  category: product.category,   // add this line
 });
 
     localStorage.setItem("cart", JSON.stringify(updatedCart));
@@ -1689,16 +1705,17 @@ if (closestIndex !== selectedImageIndexRef.current) {
       (item: any) => item.id !== id
     );
 
-    updatedCart.push({
-      id,
-      productId: product.id,
-      productName,
-      price: Number(displayPrice),
-      quantity: groomQuantity,
-      scent: null,
-      color: "Groom Duck",
-      image: QUACK_IMAGES.groom,
-    });
+  updatedCart.push({
+  id,
+  productId: product.id,
+  productName,
+  price: Number(displayPrice),
+  quantity: groomQuantity,
+  scent: null,
+  color: "Groom Duck",
+  image: QUACK_IMAGES.groom,
+  category: product.category,   // add this line
+});
 
     localStorage.setItem("cart", JSON.stringify(updatedCart));
 
@@ -1946,17 +1963,18 @@ if (closestIndex !== selectedImageIndexRef.current) {
     // finds a line with this exact id and increments its quantity by
     // 1 instead of creating a duplicate, or adds a fresh line at
     // quantity 1 if this variant isn't in the cart yet.
-    addToCart({
-      id: lineId,
-      productId: product.id,
-      productName,
-      price: Number(displayPrice),
-      quantity: 1,
-      scent: productScent,
-      color: productColor,
-      image: lineImage,
-      customization: monogramCustomization,
-    });
+ addToCart({
+  id: lineId,
+  productId: product.id,
+  productName,
+  price: Number(displayPrice),
+  quantity: 1,
+  scent: productScent,
+  color: productColor,
+  image: lineImage,
+  category: product.category,   // add this line
+  customization: monogramCustomization,
+});
 
     setOrderLines((prev) => {
       const existingLineIndex = prev.findIndex(
@@ -2079,16 +2097,17 @@ if (closestIndex !== selectedImageIndexRef.current) {
         // Set to the quantity shown on this page instead of adding on top
         updateCartItemQuantity(line.id, line.quantity);
       } else {
-        addToCart({
-          id: line.id,
-          productId: product.id,
-          productName,
-          price: line.price,
-          quantity: line.quantity,
-          scent: null,
-          color: line.colorName,
-          image: line.image,
-        });
+     addToCart({
+  id: line.id,
+  productId: product.id,
+  productName,
+  price: line.price,
+  quantity: line.quantity,
+  scent: null,
+  color: line.colorName,
+  image: line.image,
+  category: product.category,   // add this line
+});
       }
     });
 
@@ -2469,8 +2488,9 @@ if (closestIndex !== selectedImageIndexRef.current) {
                 COLOR SWATCHES
                 ================================================== */}
 
-            {hasColors &&
-              !isTwoColorProduct && (
+                   {hasColors &&
+              !isTwoColorProduct &&
+              !isScentVariantProduct && (
                 <div className="mt-2">
 
                   <div className="mb-1">
@@ -2722,8 +2742,10 @@ if (closestIndex !== selectedImageIndexRef.current) {
                 SCENT
                 ================================================== */}
 
-                          {!customizeOnly &&
-  (!isGiveaway || selectedOption?.name === "Scented") &&
+                                                  {!customizeOnly &&
+  (!isGiveaway ||
+    selectedOption?.name === "Scented" ||
+    (isScentVariantProduct && selectedColor?.name === "Scented")) &&
   !isQuackAndKiss &&
   !isTwoColorProduct && (
                 <div className="mt-5">
