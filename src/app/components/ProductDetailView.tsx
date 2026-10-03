@@ -21,11 +21,13 @@ type OrderLine = {
   monogramImage?: string;
 };
 import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
+import HandmadeNote from "./HandmadeNote";
 type GalleryItem = {
   url: string;
   colorName: string | null;
   colorIndex: number;
 };
+
 const GIVEAWAY_NAMES = [
   "Mini Candles",
   "Quack and Kiss",
@@ -280,7 +282,7 @@ export default function ProductDetailView({
   const accentDark = isGiveaway
     ? "#5A70B0"
     : "#B5798A";
-
+<HandmadeNote accent={isGiveaway ? "#6E86C7" : "#D8A1AF"} />
   const customizeRoute =
     CUSTOMIZE_ROUTES[productName];
 

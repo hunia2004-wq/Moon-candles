@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import ShopGrid from "../components/ShopGrid";
+import HandmadeNote from "../components/HandmadeNote";
+
 export const dynamic = "force-dynamic";
 const STRIPE_COUNT = 21;
 
@@ -90,6 +92,12 @@ export default async function Shop({
             {title}
           </h1>
         </div>
+
+             {category === "candles" && (
+          <div className="mb-8">
+            <HandmadeNote accent={accent} />
+          </div>
+        )}
 
         <ShopGrid
           products={products ?? []}

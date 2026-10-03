@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Truck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   type CartItem,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/cart";
 import { createClient } from "@/lib/supabase/client";
 import { computeCartPromotions, type AppliedPromotion } from "@/lib/promotions";
+
 const ACCENT = "#8FAA82";
 const ERROR = "#C0392B";
 const CREAM = "#FFF4E6";
@@ -976,41 +977,28 @@ fetch("/api/send-order-confirmation", {
                 />
               </div>
 
-              {/* Payment */}
-              <div
-                className="mt-2 flex items-center gap-3 rounded-2xl p-4"
-                style={{
-                  backgroundColor: CREAM,
-                }}
-              >
-                <div
-                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
-                  style={{
-                    backgroundColor: WHITE,
-                    color: ACCENT,
-                  }}
-                >
-                  ✓
-                </div>
+          {/* Delivery time */}
+<div
+  className="flex items-center gap-3 rounded-2xl p-4"
+  style={{ backgroundColor: CREAM }}
+>
+  <div
+    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full"
+    style={{ backgroundColor: WHITE, color: ACCENT }}
+  >
+    <Truck size={16} strokeWidth={2} />
+  </div>
 
-                <div>
-                  <p
-                    className="text-xs font-semibold"
-                    style={{ color: BLACK }}
-                  >
-                    Cash on Delivery
-                  </p>
+  <div>
+    <p className="text-xs font-semibold" style={{ color: BLACK }}>
+      Delivery in 7 to 10 days
+    </p>
 
-                  <p
-                    className="mt-0.5 text-[10px]"
-                    style={{
-                      color: "rgba(0,0,0,0.5)",
-                    }}
-                  >
-                    Pay when your order arrives.
-                  </p>
-                </div>
-              </div>
+    <p className="mt-0.5 text-[10px]" style={{ color: "rgba(0,0,0,0.5)" }}>
+      From the day your order is placed.
+    </p>
+  </div>
+</div>
 
               {hasErrors && (
                 <div
@@ -1314,6 +1302,7 @@ function Field({
           {error}
         </p>
       )}
+      
     </div>
   );
 }
