@@ -73,7 +73,7 @@ if (collectionError) {
     >
                      <div className="relative w-full overflow-hidden md:min-h-[680px]" style={{ paddingBottom: "40px" }}>
   {/* STRIPES — fixed height, independent of the outer container's size */}
-  <div className="absolute left-0 right-0 top-0 flex h-[450px] md:h-[680px]">
+<div className="absolute left-0 right-0 top-0 flex h-[330px] md:h-[680px]">
     {Array.from({ length: STRIPE_COUNT }).map((_, i) => (
       <div
         key={i}
