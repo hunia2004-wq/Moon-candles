@@ -98,13 +98,11 @@ function normalizePhone(phone: string | null): string | null {
 }
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return customers;
+  const q = search.trim().toLowerCase();
+  if (!q) return customers;
 
-    return customers.filter((c) =>
-      [c.name, c.phone, c.email].join(" ").toLowerCase().includes(q)
-    );
-  }, [customers, search]);
+  return customers.filter((c) => c.name.toLowerCase().startsWith(q));
+}, [customers, search]);
 
   return (
     <div style={{ backgroundColor: BG }} className="min-h-screen">

@@ -77,7 +77,7 @@ export default function NewProductPage() {
   const [sizeMl, setSizeMl] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
   const [category, setCategory] = useState<"candle" | "giveaway">("candle");
-
+const [success, setSuccess] = useState(false);
   const [scents, setScents] = useState<string[]>([]);
   const [scentInput, setScentInput] = useState("");
   const [existingScents, setExistingScents] = useState<string[]>([]);
@@ -255,11 +255,16 @@ export default function NewProductPage() {
         .select()
         .single();
 
-      if (insertError) {
-        throw new Error(insertError.message);
-      }
+     if (insertError) {
+  throw new Error(insertError.message);
+}
 
-      router.push(`/admin/products/${data.id}`);
+setSuccess(true);
+setTimeout(() => {
+  router.push("/admin/products");
+}, 900);
+
+return; // skip the finally block's setSaving(false) — we're navigating away
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -278,6 +283,11 @@ export default function NewProductPage() {
           {error}
         </p>
       )}
+      {error && (
+  <p className="mb-4 text-sm font-semibold" style={{ color: "#DE4B33" }}>
+    {error}
+  </p>
+)}
 
       <div className="flex flex-col gap-5">
         <div>

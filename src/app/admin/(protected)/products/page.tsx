@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { Product } from "@/lib/supabase/types";
+import ActiveToggle from "@/app/components/ActiveToggle";
 
 const GIVEAWAY_NAMES = [
   "Mini Candles",
@@ -14,7 +15,7 @@ const GIVEAWAY_NAMES = [
 ];
 
 function ProductCard({ product }: { product: Product }) {
-   const thumb =
+  const thumb =
     product.image_urls?.[0] ??
     product.colors?.[0]?.image_urls?.[0] ??
     product.colors?.[0]?.image_url ??
@@ -24,7 +25,7 @@ function ProductCard({ product }: { product: Product }) {
     <Link
       href={`/admin/products/${product.id}`}
       className="flex items-center gap-4 rounded-2xl p-3 transition-colors hover:bg-black/5"
-      style={{ border: "1px solid rgba(0,0,0,0.08)" }}
+      style={{ border: "1px solid rgba(0,0,0,0.08)", opacity: product.is_active === false ? 0.55 : 1 }}
     >
       <div
         className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl"
@@ -44,14 +45,9 @@ function ProductCard({ product }: { product: Product }) {
         </p>
       </div>
 
-      {product.is_featured && (
-        <span
-          className="flex-shrink-0 rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-wide"
-          style={{ backgroundColor: "#D8A1AF", color: "#FFF4E6" }}
-        >
-          Featured
-        </span>
-      )}
+      
+
+      <ActiveToggle productId={product.id} initialActive={product.is_active ?? true} />
     </Link>
   );
 }

@@ -9,6 +9,7 @@ import {
   getCart,
   cartTotal,
   clearCart,
+  getCartItemThumbnails,
 } from "@/lib/cart";
 import { createClient } from "@/lib/supabase/client";
 import { computeCartPromotions, type AppliedPromotion } from "@/lib/promotions";
@@ -304,7 +305,6 @@ if (!emailTrimmed) {
 
    const supabase = createClient();
  const { error } = await supabase.from("orders").insert({
-  order_number: order.orderNumber,   // add this
   customer_name: form.fullName,
   customer_phone: form.phone,
   customer_email: form.email,
@@ -312,13 +312,15 @@ if (!emailTrimmed) {
   address: `${form.address}${form.notes ? ` — Note: ${form.notes}` : ""}`,
   items,
   promo_discount: promoDiscount,
+  shipping_fee: shippingFee,   // add this line
   total: grandTotal,
 });
   if (error) {
     alert(`Couldn't place your order: ${error.message}`);
     return;
   }
-
+// Tells the customize pages that everything made before now is a finished order.
+localStorage.setItem("orderPlacedAt", String(Date.now()));
 clearCart();
 setPlacedOrder(order);
 
@@ -1076,13 +1078,13 @@ fetch("/api/send-order-confirmation", {
                       backgroundColor: SAND,
                     }}
                   >
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt={item.productName}
-                        className="h-full w-full object-contain"
-                      />
-                    )}
+                   {getCartItemThumbnails(item)[0] && (
+  <img
+    src={getCartItemThumbnails(item)[0]}
+    alt={item.productName}
+    className="h-full w-full object-contain"
+  />
+)}
                   </div>
 
                   <div className="min-w-0 flex-1">

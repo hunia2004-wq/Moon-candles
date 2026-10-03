@@ -15,19 +15,22 @@ export default function HamburgerMenu() {
   const [shopOpen, setShopOpen] = useState(false);
   const [products, setProducts] = useState<MenuProduct[]>([]);
 
-  useEffect(() => {
-    async function loadProducts() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from("products")
-        .select("name, category")
-        .order("name");
+useEffect(() => {
+  if (!open) return;
 
-      setProducts(data ?? []);
-    }
+  async function loadProducts() {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("products")
+      .select("name, category")
+      .eq("is_active", true)
+      .order("name");
 
-    loadProducts();
-  }, []);
+    setProducts(data ?? []);
+  }
+
+  loadProducts();
+}, [open]);
 
   const candleItems = products.filter((p) => p.category === "candle");
   const giveawayItems = products.filter((p) => p.category === "giveaway");
@@ -164,6 +167,14 @@ export default function HamburgerMenu() {
               >
                 Customize Your giveaways
               </Link>
+              <Link
+  href="/return-policy"
+  onClick={closeAll}
+  className="border-t py-3"
+  style={{ borderColor: "#FFD6B8", color: "#000000" }}
+>
+  Return Policy
+</Link>
             </nav>
           </div>
 

@@ -163,6 +163,7 @@ type FanOrderLine = {
   inCart: boolean;
   layersBySide: LayersBySide;
   renderedDesignUrls?: { front?: string; back?: string };
+    createdAt: number;   // add this
 };
 
 function makeId() {
@@ -338,35 +339,25 @@ export default function CustomizeFanPage() {
         cartSnapshotRef.current = "";
       }
 
-      setFanOrderLines((prev) =>
-        prev
-          .map((line) => {
-            if (!line.inCart) return line;
+      const placedAt = Number(localStorage.getItem("orderPlacedAt") || 0);
 
-            const cartItem = cartById.get(line.id);
-
-            if (!cartItem) return null;
-
-            const customization = cartItem.customization;
-
-            if (
-              !customization ||
-              customization.type !== "customized-fan"
-            ) {
-              return null;
-            }
-
-            return {
-              ...line,
-              quantity: cartItem.quantity,
-              layersBySide:
-                customization.layersBySide ?? line.layersBySide,
-            };
-          })
-          .filter(
-            (line): line is FanOrderLine => line !== null
-          )
-      );
+setFanOrderLines((prev) =>
+  prev
+    .filter((line) => line.createdAt > placedAt)
+    .map((line) => {
+      if (!line.inCart) return line;
+      const cartItem = cartById.get(line.id);
+      if (!cartItem) return null;
+      const customization = cartItem.customization;
+      if (!customization || customization.type !== "customized-fan") return null;
+      return {
+        ...line,
+        quantity: cartItem.quantity,
+        layersBySide: customization.layersBySide ?? line.layersBySide,
+      };
+    })
+    .filter((line): line is FanOrderLine => line !== null)
+);
     }
 
     function handleCartUpdated() {
@@ -405,66 +396,7 @@ export default function CustomizeFanPage() {
     };
   }, []);
 
-  useEffect(() => {
-    const cart = getCart();
 
-    const existingFanLines: FanOrderLine[] = cart
-      .filter(
-        (item) =>
-          item.productId === "fan" &&
-          item.customization?.type === "customized-fan"
-      )
-      .map((item) => {
-        const customization = item.customization;
-
-        if (
-          !customization ||
-          customization.type !== "customized-fan"
-        ) {
-          return null;
-        }
-
-        return {
-          id: item.id,
-          size: customization.size as SizeId,
-          tasselColor:
-            customization.tasselColor as TasselColorId,
-          quantity: item.quantity,
-          inCart: true,
-          layersBySide: customization.layersBySide ?? {
-            front: defaultLayersForSide(),
-            back: defaultLayersForSide(),
-          },
-        };
-      })
-      .filter(
-        (line): line is FanOrderLine => line !== null
-      );
-
-    if (existingFanLines.length === 0) return;
-
-    setFanOrderLines((prev) => {
-      const existingIds = new Set(
-        prev.map((line) => line.id)
-      );
-
-      return [
-        ...prev,
-        ...existingFanLines.filter(
-          (line) => !existingIds.has(line.id)
-        ),
-      ];
-    });
-
-    const firstFan = existingFanLines[0];
-
-    if (firstFan.layersBySide) {
-      setLayersBySide(firstFan.layersBySide);
-    }
-
-    setSize(firstFan.size);
-    setSelectedTassel(firstFan.tasselColor);
-  }, []);
 
   // Opening the preview adds a history entry, so the phone/browser
   // back button closes the preview instead of leaving the page.
@@ -798,6 +730,7 @@ export default function CustomizeFanPage() {
         inCart: false,
         layersBySide: designSnapshot,
         renderedDesignUrls,
+          createdAt: Date.now(), 
       },
     ]);
 
@@ -2343,19 +2276,15 @@ export default function CustomizeFanPage() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={addFanLineToOrder}
-                className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5"
-                style={{
-                  backgroundColor:
-                    "transparent",
-                  borderColor: ACCENT,
-                  color: ACCENT,
-                }}
-              >
-                + Add to Order
-              </button>
+            <button
+  type="button"
+  onClick={addFanLineToOrder}
+  disabled={uploading}
+  className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5 disabled:opacity-40"
+  style={{ backgroundColor: "transparent", borderColor: ACCENT, color: ACCENT }}
+>
+  {uploading ? "Preparing your design…" : "+ Add to Order"}
+</button>
 
               {fanOrderLines.length > 0 && (
                 <div className="flex w-full flex-col gap-2">

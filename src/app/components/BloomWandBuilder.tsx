@@ -986,8 +986,7 @@ async function handleBackPhotoChange(
     ]);
 
     setQuantity(1);
-    setFrontPhotoUrl(null);
-    setBackPhotoUrl(null);
+    
   }
 
   /*

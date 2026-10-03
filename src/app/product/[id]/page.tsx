@@ -14,10 +14,11 @@ export default async function ProductDetail({
   const supabase = await createClient();
 
   const { data: product, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", id)
-    .single();
+  .from("products")
+  .select("*")
+  .eq("id", id)
+  .eq("is_active", true)
+  .single();
 
   if (error || !product) {
     notFound();

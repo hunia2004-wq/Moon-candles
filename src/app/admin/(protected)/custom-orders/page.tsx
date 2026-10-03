@@ -62,6 +62,11 @@ type CustomizedEntry = {
   code: string | null;
   orderNo: number | null;
 
+  // custom_orders.price already includes shipping; orders.items'
+  // prices do not, so shipping is added on top for those. See the
+  // itemsTotal/grandTotal calculation below for how each is handled.
+  shippingFee: number;
+
   customerName: string;
   phone: string | null;
   email: string | null;
@@ -195,8 +200,10 @@ export default function CustomOrdersPage() {
       governorate: o.governorate ?? null,
       address: o.address ?? null,
 
-      status: o.status || "pending",
+          status: o.status || "pending",
       paymentStatus: o.payment_status ?? null,
+
+      shippingFee: Number(o.shipping_fee ?? 0),
 
       createdAt: o.created_at,
       completedAt: o.completed_at ?? null,
@@ -294,9 +301,8 @@ export default function CustomOrdersPage() {
               ? `Scented — ${item.scent}`
               : "Scented";
           } else {
-            const scentLabel = item.scent
-              ? item.scent
-              : "Unscented";
+           const noScent = item.productName === "Fan" || item.productName === "Tambourine";
+const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
 
             subtitle = [
               item.color,
@@ -368,6 +374,8 @@ export default function CustomOrdersPage() {
 
         paymentStatus:
           order.payment_status ?? null,
+
+        shippingFee: Number(order.shipping_fee ?? 0),
 
         createdAt: order.created_at,
 
@@ -808,11 +816,25 @@ export default function CustomOrdersPage() {
             const isSaving =
               savingId === o.key;
 
-            const total = o.items.reduce(
+                     const itemsSum = o.items.reduce(
               (sum, item) =>
                 sum + item.price,
               0
             );
+
+            // custom_orders' stored price already includes shipping,
+            // so itemsTotal is derived by subtracting it back out.
+            // orders' item prices don't include shipping, so it's
+            // added on top instead.
+            const itemsTotal =
+              o.source === "custom_orders"
+                ? itemsSum - o.shippingFee
+                : itemsSum;
+
+            const grandTotal =
+              o.source === "custom_orders"
+                ? itemsSum
+                : itemsSum + o.shippingFee;
 
             const itemCount =
               o.items.reduce(
@@ -905,13 +927,13 @@ export default function CustomOrdersPage() {
                       />
                     )}
 
-                    <span
+                                      <span
                       className="text-sm font-bold ml-2"
                       style={{
                         color: ACCENT,
                       }}
                     >
-                      {total.toLocaleString()} LE
+                      {grandTotal.toLocaleString()} LE
                     </span>
 
                     <span
@@ -1097,6 +1119,39 @@ export default function CustomOrdersPage() {
                             </div>
                           </div>
                         ))}
+                      </div>
+                                 </div>
+
+                    {/* TOTAL BREAKDOWN */}
+                    <div
+                      className="flex flex-col gap-1 rounded-xl px-3 py-2"
+                      style={{
+                        backgroundColor: "#FFFFFF",
+                        border: "1px solid rgba(0,0,0,0.06)",
+                      }}
+                    >
+                      <div className="flex items-center justify-between text-sm">
+                        <span style={{ color: MUTED }}>Items total</span>
+                        <span style={{ color: "#000000" }}>
+                          {itemsTotal.toLocaleString()} LE
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span style={{ color: MUTED }}>Shipping</span>
+                        <span style={{ color: "#000000" }}>
+                          {o.shippingFee.toLocaleString()} LE
+                        </span>
+                      </div>
+
+                      <div
+                        className="flex items-center justify-between text-sm font-bold pt-1"
+                        style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}
+                      >
+                        <span style={{ color: "#000000" }}>Total with shipping</span>
+                        <span style={{ color: ACCENT }}>
+                          {grandTotal.toLocaleString()} LE
+                        </span>
                       </div>
                     </div>
 

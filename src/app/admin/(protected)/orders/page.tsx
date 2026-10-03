@@ -22,6 +22,8 @@ const STATUS_OPTIONS = [
   "shipped",
   "completed",
 ] as const;
+
+const ASSIGNEE_OPTIONS = ["Jana", "Nour"] as const;
 // Which statuses make sense to filter by, per tab — keeps the dropdown
 // from offering "completed" while on Active, etc., since that tab's
 // own filter already excludes it and picking it would show nothing.
@@ -57,6 +59,8 @@ type Order = {
   status: string | null;
   payment_status: string | null;
   completed_at: string | null;
+  assignee: string | null;
+  shipping_fee: number | null;
 };
 
 export default function AdminOrdersPage() {
@@ -94,7 +98,7 @@ useEffect(() => {
     setLoading(false);
   }
 
- async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "payment_status">>) {
+async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "payment_status" | "assignee">>) {
   setSavingId(id);
 
   const fullPatch: Partial<Pick<Order, "status" | "payment_status" | "completed_at">> = { ...patch };
@@ -327,19 +331,28 @@ useEffect(() => {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <StatusPill status={order.status} />
-                    <StatusPill status={order.payment_status ?? "unpaid"} />
-                    <span className="text-sm font-bold ml-2" style={{ color: ACCENT }}>
-                      {order.total ?? 0} LE
-                    </span>
-                    <span
-                      className="text-xs ml-1 transition-transform"
-                      style={{ color: MUTED, transform: isOpen ? "rotate(180deg)" : "none" }}
-                    >
-                      ▾
-                    </span>
-                  </div>
+                 <div className="flex items-center gap-2 flex-wrap">
+  <StatusPill status={order.status} />
+  <StatusPill status={order.payment_status ?? "unpaid"} />
+  <span
+    className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+    style={{
+      backgroundColor: order.assignee ? "#6E86C71A" : "rgba(0,0,0,0.06)",
+      color: order.assignee ? "#6E86C7" : MUTED,
+    }}
+  >
+    {order.assignee ?? "Unassigned"}
+  </span>
+  <span className="text-sm font-bold ml-2" style={{ color: ACCENT }}>
+    {order.total ?? 0} LE
+  </span>
+  <span
+    className="text-xs ml-1 transition-transform"
+    style={{ color: MUTED, transform: isOpen ? "rotate(180deg)" : "none" }}
+  >
+    ▾
+  </span>
+</div>
                 </button>
 
                 {isOpen && (
@@ -409,8 +422,9 @@ useEffect(() => {
       return item.scent ? `Scented — ${item.scent}` : "Scented";
     }
 
-    const scentLabel = item.scent ? item.scent : "Unscented";
-    return [item.color, item.option, scentLabel].filter(Boolean).join(" · ");
+    const noScent = item.productName === "Fan" || item.productName === "Tambourine";
+const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
+return [item.color, item.option, scentLabel].filter(Boolean).join(" · ");
   })()}
 </p>
                               {item.customization && (
@@ -439,6 +453,37 @@ useEffect(() => {
                           </div>
                         ))}
                       </div>
+                    </div>
+                                        <div
+                      className="flex flex-col gap-1 rounded-xl px-3 py-2"
+                      style={{
+                        backgroundColor: "#FFFFFF",
+                        border: "1px solid rgba(0,0,0,0.06)",
+                      }}
+                    >
+                      <div className="flex items-center justify-between text-sm">
+                        <span style={{ color: MUTED }}>Items total</span>
+                        <span style={{ color: "#000000" }}>
+                          {((order.total ?? 0) - (order.shipping_fee ?? 0)).toLocaleString()} LE
+                        </span>
+                      </div>
+
+             <div className="flex items-center justify-between text-sm">
+  <span style={{ color: MUTED }}>Shipping</span>   {/* was "Delivery" */}
+  <span style={{ color: "#000000" }}>
+    {(order.shipping_fee ?? 0).toLocaleString()} LE
+  </span>
+</div>
+
+<div
+  className="flex items-center justify-between text-sm font-bold pt-1"
+  style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}
+>
+  <span style={{ color: "#000000" }}>Total with shipping</span>   {/* was "Total with delivery" */}
+  <span style={{ color: ACCENT }}>
+    {(order.total ?? 0).toLocaleString()} LE
+  </span>
+</div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4 pt-1">
@@ -475,6 +520,23 @@ useEffect(() => {
                           ))}
                         </select>
                       </label>
+                      <label className="flex items-center gap-2 text-xs" style={{ color: MUTED }}>
+    Assigned to
+    <select
+      value={order.assignee ?? ""}
+      disabled={savingId === order.id}
+      onChange={(e) => updateOrder(order.id, { assignee: e.target.value || null })}
+      className="rounded-lg px-2.5 py-1.5 text-sm outline-none"
+      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+    >
+      <option value="">Unassigned</option>
+      {ASSIGNEE_OPTIONS.map((name) => (
+        <option key={name} value={name}>
+          {name}
+        </option>
+      ))}
+    </select>
+  </label>
 
                     <button
   type="button"

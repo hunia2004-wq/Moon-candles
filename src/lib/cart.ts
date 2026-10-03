@@ -108,6 +108,25 @@ export function getMiniCandlesPhoto(item: CartItem): string | null {
   const c = item.customization;
   return c && c.type === "mini-candles" ? c.photoUrl : null;
 }
+// The pictures to show for a cart item. A customized tambourine or fan
+// shows the design the customer built; anything else (or an item with no
+// design picture) shows the plain product photo.
+export function getCartItemThumbnails(item: CartItem): string[] {
+  const c = item.customization;
+
+  if (c?.type === "customized-tambourine" && c.renderedDesignUrl) {
+    return [c.renderedDesignUrl];
+  }
+
+  if (c?.type === "customized-fan") {
+    const pictures = [c.renderedDesignUrls?.front, c.renderedDesignUrls?.back].filter(
+      (url): url is string => !!url
+    );
+    if (pictures.length > 0) return pictures;
+  }
+
+  return [item.image || ""];
+}
 
 function setCart(
   items: CartItem[],

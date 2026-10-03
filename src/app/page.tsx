@@ -17,6 +17,7 @@ const cormorant = Cormorant_Garamond({
   style: ["italic"],
 
 });
+export const dynamic = "force-dynamic";
 const STRIPE_COUNT = 21;
 
 const FULL_HERO_IMG =
@@ -26,18 +27,20 @@ export default async function Home() {
   const supabase = await createClient();
 
   const { data: marble, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("name", "Iced Latte")
-    .single();
+  .from("products")
+  .select("*")
+  .eq("name", "Iced Latte")
+  .eq("is_active", true)
+  .maybeSingle();
 
   if (error) {
     console.error("Failed to fetch Iced Latte:", error.message);
   }
-  const { data: collectionProducts, error: collectionError } =
+ const { data: collectionProducts, error: collectionError } =
   await supabase
     .from("products")
     .select("*")
+    .eq("is_active", true)
     .limit(3);
 
 if (collectionError) {

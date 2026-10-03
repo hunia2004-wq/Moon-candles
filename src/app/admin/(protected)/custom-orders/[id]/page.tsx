@@ -50,7 +50,7 @@ export default async function CustomOrderDetailPage({ params }: { params: { id: 
         <p className="text-sm italic mb-4" style={{ color: "#000000" }}>
           "{order.message || "No message"}"
         </p>
-        {order.photo_url ? (
+               {order.photo_url ? (
           <a href={order.photo_url} target="_blank" rel="noreferrer">
             <img
               src={order.photo_url}
@@ -64,6 +64,33 @@ export default async function CustomOrderDetailPage({ params }: { params: { id: 
             No photo uploaded.
           </p>
         )}
+      </div>
+
+      <div
+        className="flex flex-col gap-1 rounded-xl px-3 py-2 mb-8"
+        style={{ backgroundColor: "#FFFFFF", border: "1px solid rgba(0,0,0,0.06)" }}
+      >
+        <div className="flex items-center justify-between text-sm">
+          <span style={{ color: "rgba(0,0,0,0.55)" }}>Items total</span>
+          <span style={{ color: "#000000" }}>
+            {(Number(order.price) - Number(order.shipping_fee ?? 0)).toLocaleString()} LE
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between text-sm">
+          <span style={{ color: "rgba(0,0,0,0.55)" }}>Shipping</span>
+          <span style={{ color: "#000000" }}>
+            {Number(order.shipping_fee ?? 0).toLocaleString()} LE
+          </span>
+        </div>
+
+        <div
+          className="flex items-center justify-between text-sm font-bold pt-1"
+          style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}
+        >
+          <span style={{ color: "#000000" }}>Total with shipping</span>
+          <span style={{ color: "#DE4B33" }}>{Number(order.price).toLocaleString()} LE</span>
+        </div>
       </div>
 
       <StatusUpdater orderId={order.id} currentStatus={order.status} />

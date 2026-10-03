@@ -186,6 +186,7 @@ type TambourineOrderLine = {
   inCart: boolean;
   renderedDesignUrl?: string;
   layers: Layer[];
+    createdAt: number;
 };
 
 function makeId() {
@@ -355,6 +356,31 @@ export default function CustomizeTambourinePage() {
   const [showPreview, setShowPreview] =
     useState(false);
 
+  // Pressing the preview button pushes a history entry, so the
+  // browser/device back button closes the preview first instead of
+  // immediately leaving the customize page entirely.
+  useEffect(() => {
+    function handlePopState() {
+      setShowPreview(false);
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  function openPreview() {
+    window.history.pushState({ tambourinePreview: true }, "");
+    setShowPreview(true);
+  }
+
+  function closePreview() {
+    if (window.history.state?.tambourinePreview) {
+      window.history.back();
+    } else {
+      setShowPreview(false);
+    }
+  }
+
   const [orderQuantity, setOrderQuantity] =
     useState(1);
 
@@ -416,15 +442,19 @@ export default function CustomizeTambourinePage() {
         cartSnapshotRef.current = "";
       }
 
+      // Anything created before the last placed order belongs to a
+      // finished order, so it never shows again.
+      const placedAt = Number(localStorage.getItem("orderPlacedAt") || 0);
+
       setOrderLines((prev) =>
         prev
+          .filter((line) => line.createdAt > placedAt)
           .map((line) => {
             if (!line.inCart) {
               return line;
             }
 
-            const cartItem =
-              cartById.get(line.id);
+            const cartItem = cartById.get(line.id);
 
             if (!cartItem) {
               return null;
@@ -432,15 +462,11 @@ export default function CustomizeTambourinePage() {
 
             return {
               ...line,
-              quantity:
-                cartItem.quantity,
+              quantity: cartItem.quantity,
             };
           })
           .filter(
-            (
-              line
-            ): line is TambourineOrderLine =>
-              line !== null
+            (line): line is TambourineOrderLine => line !== null
           )
       );
     }
@@ -505,67 +531,7 @@ export default function CustomizeTambourinePage() {
     };
   }, []);
 
-  useEffect(() => {
-    const cart = getCart();
-
-    const existingLines: TambourineOrderLine[] =
-      cart
-        .filter(
-          (item) =>
-            item.productId ===
-              "custom-tambourine" &&
-            item.customization?.type ===
-              "customized-tambourine"
-        )
-        .map((item) => {
-          const customization =
-            item.customization;
-
-          if (
-            !customization ||
-            customization.type !==
-              "customized-tambourine"
-          ) {
-            return null;
-          }
-
-          return {
-            id: item.id,
-            size: customization.size,
-            ribbonColor:
-              customization.ribbonColor as RibbonColorId,
-            quantity: item.quantity,
-            inCart: true,
-            layers:
-              ((customization as any)
-                .layers ?? []) as Layer[],
-          };
-        })
-        .filter(
-          (
-            line
-          ): line is TambourineOrderLine =>
-            line !== null
-        );
-
-    if (existingLines.length === 0) {
-      return;
-    }
-
-    setOrderLines((prev) => {
-      const existingIds = new Set(
-        prev.map((line) => line.id)
-      );
-
-      return [
-        ...prev,
-        ...existingLines.filter(
-          (line) =>
-            !existingIds.has(line.id)
-        ),
-      ];
-    });
-  }, []);
+  
 
   function addMessage() {
     const id = makeId();
@@ -863,18 +829,19 @@ export default function CustomizeTambourinePage() {
         return updated;
       }
 
-      return [
-        ...prev,
-        {
-          id: lineId,
-          size,
-          ribbonColor,
-          quantity: orderQuantity,
-          inCart: false,
-          layers: designSnapshot,
-          renderedDesignUrl,
-        },
-      ];
+  return [
+  ...prev,
+  {
+    id: lineId,
+    size,
+    ribbonColor,
+    quantity: orderQuantity,
+    inCart: false,
+    layers: designSnapshot,
+    renderedDesignUrl,
+    createdAt: Date.now(),
+  },
+];
     });
 
     setOrderQuantity(1);
@@ -920,89 +887,61 @@ export default function CustomizeTambourinePage() {
       );
     }
   }
+function removeTambourineLine(lineId: string) {
+  const line = orderLines.find((l) => l.id === lineId);
 
-  function removeTambourineLine(
-    lineId: string
-  ) {
-    setOrderLines((prev) =>
-      prev.filter(
-        (line) => line.id !== lineId
-      )
-    );
+  setOrderLines((prev) => prev.filter((l) => l.id !== lineId));
 
+  if (line?.inCart) {
     removeCartItem(lineId);
   }
+}
 
-  function addTambourineOrderToCart() {
-    if (!orderLines.length) return;
+function addTambourineOrderToCart() {
+  if (!orderLines.length) return;
 
-    const currentCart = getCart();
+  const currentCart = getCart();
 
-    orderLines.forEach((line) => {
-      const lineSize =
-        SIZES.find(
-          (s) => s.id === line.size
-        )!;
+  orderLines.forEach((line) => {
+    const lineSize = SIZES.find((s) => s.id === line.size)!;
+    const existing = currentCart.find((item) => item.id === line.id);
 
-      const existing =
-        currentCart.find(
-          (item) =>
-            item.id === line.id
-        );
+    if (existing) {
+      // Set to the quantity shown in the preview, don't add on top.
+      updateCartItemQuantity(line.id, line.quantity);
+      return;
+    }
 
-      if (existing) {
-        updateCartItemQuantity(
-          line.id,
-          line.quantity
-        );
-        return;
-      }
-
-      addToCart({
-        id: line.id,
-        productId:
-          "custom-tambourine",
-        productName: "Tambourine",
-        price: lineSize.price,
-        quantity: line.quantity,
-        scent: null,
-        color: `${lineSize.label} · ${
-          RIBBON_COLORS.find(
-            (c) =>
-              c.id ===
-              line.ribbonColor
-          )!.label
-        } Ribbon`,
-        image: lineSize.img,
-        productRefId: 31,
-        customization: {
-          type:
-            "customized-tambourine",
-          size: line.size,
-          sizeCm: lineSize.cm,
-          ribbonColor:
-            line.ribbonColor,
-          layers: line.layers,
-          renderedDesignUrl:
-            line.renderedDesignUrl,
-        },
-      });
+    addToCart({
+      id: line.id,
+      productId: "custom-tambourine",
+      productName: "Tambourine",
+      price: lineSize.price,
+      quantity: line.quantity,
+      scent: null,
+      color: `${lineSize.label} · ${
+        RIBBON_COLORS.find((c) => c.id === line.ribbonColor)!.label
+      } Ribbon`,
+      image: lineSize.img,
+      productRefId: 31,
+      customization: {
+        type: "customized-tambourine",
+        size: line.size,
+        sizeCm: lineSize.cm,
+        ribbonColor: line.ribbonColor,
+        layers: line.layers,
+        renderedDesignUrl: line.renderedDesignUrl,
+      },
     });
+  });
 
-    setOrderLines((prev) =>
-      prev.map((line) => ({
-        ...line,
-        inCart: true,
-      }))
-    );
+  // Keep the lines visible for the rest of this order.
+  setOrderLines((prev) => prev.map((line) => ({ ...line, inCart: true })));
 
-    cartSnapshotRef.current =
-      JSON.stringify(getCart());
+  cartSnapshotRef.current = JSON.stringify(getCart());
 
-    window.dispatchEvent(
-      new Event("openCart")
-    );
-  }
+  window.dispatchEvent(new Event("openCart"));
+}
 
   const totalQuantity =
     orderLines.reduce(
@@ -2245,11 +2184,9 @@ export default function CustomizeTambourinePage() {
         )}
 
         <div className="flex items-center gap-4 mt-8">
-          <button
+                    <button
             type="button"
-            onClick={() =>
-              setShowPreview(true)
-            }
+            onClick={openPreview}
             className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
             style={{
               backgroundColor: ACCENT,
@@ -2279,9 +2216,9 @@ export default function CustomizeTambourinePage() {
     }}
   >
     {/* CLOSE BUTTON */}
-  <button
+   <button
   type="button"
-  onClick={() => setShowPreview(false)}
+  onClick={closePreview}
   aria-label="Close preview"
   className="fixed right-4 top-4 z-[10000] flex h-12 w-12 items-center justify-center rounded-full transition-all duration-150 hover:scale-110 active:scale-90"
   style={{
@@ -2450,18 +2387,19 @@ export default function CustomizeTambourinePage() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={addTambourineLineToOrder}
-          className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5"
-          style={{
-            backgroundColor: "transparent",
-            borderColor: ACCENT,
-            color: ACCENT,
-          }}
-        >
-          + Add to Order
-        </button>
+       <button
+  type="button"
+  onClick={addTambourineLineToOrder}
+  disabled={uploading}
+  className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5 disabled:opacity-40"
+  style={{
+    backgroundColor: "transparent",
+    borderColor: ACCENT,
+    color: ACCENT,
+  }}
+>
+  {uploading ? "Preparing your design…" : "+ Add to Order"}
+</button>
 
         {orderLines.length > 0 && (
           <div className="flex w-full flex-col gap-2">

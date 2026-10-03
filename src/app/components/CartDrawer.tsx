@@ -10,9 +10,10 @@ import {
   cartCount,
   updateCartItemQuantity,
   removeCartItem,
+  getCartItemThumbnails,
 } from "@/lib/cart";
 import { computeCartPromotions, type AppliedPromotion } from "@/lib/promotions";
-
+import { createPortal } from "react-dom";
 const ACCENT = "#8FAA82";
 const CREAM = "#FFF4E6";
 const SAND = "#EFE3C4";
@@ -25,6 +26,11 @@ export default function CartDrawer() {
   const [promoDiscount, setPromoDiscount] = useState(0);
     const [freeGiftEligible, setFreeGiftEligible] = useState(false);
   const [appliedPromos, setAppliedPromos] = useState<AppliedPromotion[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+useEffect(() => {
+  setMounted(true);
+}, []);
   /* -------------------------------------------------------------- */
   /* CART SYNC                                                      */
   /* -------------------------------------------------------------- */
@@ -152,8 +158,9 @@ export default function CartDrawer() {
   const subtotal = cartTotal(items);
   const total = subtotal - promoDiscount;
   const count = cartCount(items);
+  if (!mounted) return null;
 
-  return (
+  return createPortal(
     <>
       {/* ========================================================== */}
       {/* BACKDROP                                                    */}
@@ -161,7 +168,7 @@ export default function CartDrawer() {
 
       <div
         onClick={() => setOpen(false)}
-        className="fixed inset-0 z-[1998] bg-black/40 transition-opacity duration-300"
+className="fixed inset-0 z-[10001] bg-black/40 transition-opacity duration-300"
         style={{
           opacity: open ? 1 : 0,
           pointerEvents: open
@@ -175,7 +182,7 @@ export default function CartDrawer() {
       {/* ========================================================== */}
 
       <div
-        className="fixed right-0 top-0 z-[1999] flex h-full w-full max-w-sm flex-col shadow-xl transition-transform duration-300"
+className="fixed right-0 top-0 z-[10002] flex h-full w-full max-w-sm flex-col shadow-xl transition-transform duration-300"
         style={{
           backgroundColor: CREAM,
           transform: open
@@ -302,33 +309,48 @@ export default function CartDrawer() {
                     "rgba(0,0,0,0.08)",
                 }}
               >
-                               {/* PRODUCT IMAGE(S) */}
+                            
 
-                <div className="flex flex-shrink-0 gap-1">
-                  <div
-                    className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl"
-                    style={{
-                      backgroundColor: SAND,
-                    }}
-                  >
-                    {item.image && (
-                      <img
-                        src={item.image}
-                        alt={item.productName}
-                        className="h-full w-full object-contain"
-                      />
-                    )}
-                  </div>
+              {/* PRODUCT IMAGE(S) */}
 
-                  {item.customization?.type === "monogram" &&
-                    item.customization.monogramImage && (
-                      <img
-                        src={item.customization.monogramImage}
-                        alt="Custom lettering"
-                        className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
-                      />
-                    )}
-                </div>
+<div className="flex flex-shrink-0 gap-1">
+  {getCartItemThumbnails(item).map((src, n) => (
+    <div
+      key={n}
+      className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl"
+      style={{
+        backgroundColor: SAND,
+      }}
+    >
+      {src && (
+        <img
+          src={src}
+          alt={item.productName}
+          className="h-full w-full object-contain"
+        />
+      )}
+    </div>
+  ))}
+{[item.photoUrlFront, item.photoUrlBack].map(
+  (src, n) =>
+    src && (
+      <img
+        key={`photo-${n}`}
+        src={src}
+        alt={n === 0 ? "Front photo" : "Back photo"}
+        className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
+      />
+    )
+)}
+  {item.customization?.type === "monogram" &&
+    item.customization.monogramImage && (
+      <img
+        src={item.customization.monogramImage}
+        alt="Custom lettering"
+        className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
+      />
+    )}
+</div>
 
                 {/* PRODUCT INFO */}
 
@@ -346,6 +368,7 @@ export default function CartDrawer() {
                     </p>
 
                                    {item.color && (
+                                    
                       <p
                         className="mt-0.5 text-[11px]"
                         style={{
@@ -356,7 +379,11 @@ export default function CartDrawer() {
                         {item.color}
                       </p>
                     )}
-
+{item.option && (
+  <p className="mt-0.5 text-[11px]" style={{ color: "rgba(0,0,0,0.5)" }}>
+    {item.option}
+  </p>
+)}
                                         {item.scent && (
                       <p
                         className="mt-0.5 text-[11px]"
@@ -601,7 +628,8 @@ export default function CartDrawer() {
             </a>
           </div>
         )}
-      </div>
-    </>
+           </div>
+    </>,
+    document.body
   );
 }

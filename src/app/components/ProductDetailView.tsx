@@ -296,6 +296,7 @@ export default function ProductDetailView({
         name.toLowerCase() ===
         normalizedProductName
     );
+      const isPocketHearts = productName === "Pocket Hearts";
       const isScentVariantProduct =
     SCENT_VARIANT_PRODUCTS.some(
       (name) =>
@@ -372,6 +373,24 @@ const [plainQuantity, setPlainQuantity] = useState(1);
     null
   );
   const monogramFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Pocket Hearts — stackable order, same pattern as Tambourine/Bloom
+  // Wand: pick a color, set initials (text or image), set quantity,
+  // stage it as a line, repeat with a different color/initials, then
+  // commit the whole stacked order to cart at once.
+  const [pocketHeartsQuantity, setPocketHeartsQuantity] = useState(1);
+      const [pocketHeartsOrderLines, setPocketHeartsOrderLines] = useState<
+    {
+      id: string;
+      colorName: string;
+      scentName: string | null;
+      quantity: number;
+      monogramText?: string;
+      monogramImage?: string;
+      image: string;
+      inCart?: boolean;
+    }[]
+  >([]);
   const [
     selectedNoorWhite,
     setSelectedNoorWhite,
@@ -426,8 +445,9 @@ const [uploadingMonogram, setUploadingMonogram] = useState(false);
     );
       const scrollSyncing = useRef(false);
         const committedNoorIds = useRef<Set<string>>(new Set());
-        const selectedImageIndexRef = useRef(selectedImageIndex);
+          const selectedImageIndexRef = useRef(selectedImageIndex);
 const selectedColorIndexRef = useRef(selectedColorIndex);
+const selectedOptionNameRef = useRef<string | null>(null);
 
   const hasColors =
     (product.colors?.length ?? 0) > 0;
@@ -885,24 +905,23 @@ const selectedColorIndexRef = useRef(selectedColorIndex);
         ]?.colorIndex;
 
       if (
-        galleryColorIndex >= 0 &&
-        galleryColorIndex !==
-          selectedColorIndex
-      ) {
-        // Mark this as a scroll-originated color change (same as
-        // handleGalleryScroll already does) — otherwise the "reset
-        // gallery on color change" effect thinks this is a fresh
-        // manual pick and snaps scroll position back to 0 right
-        // after we just smooth-scrolled forward, causing the
-        // next-then-snap-back flicker on the arrow buttons/dots.
-        scrollSyncing.current = true;
+  galleryColorIndex >= 0 &&
+  galleryColorIndex !==
+    selectedColorIndex
+) {
+  scrollSyncing.current = true;
 
-        setSelectedColorIndex(
-          galleryColorIndex
-        );
+  setSelectedColorIndex(
+    galleryColorIndex
+  );
 
-        setSelectedOptionIndex(0);
-      }
+  const newColor = product.colors?.[galleryColorIndex];
+  const wantedName = selectedOptionNameRef.current;
+  const matchedIndex = wantedName
+    ? newColor?.options?.findIndex((o) => o.name === wantedName) ?? -1
+    : -1;
+  setSelectedOptionIndex(matchedIndex >= 0 ? matchedIndex : 0);
+}
     }
   }
 useEffect(() => {
@@ -912,6 +931,9 @@ useEffect(() => {
 useEffect(() => {
   selectedColorIndexRef.current = selectedColorIndex;
 }, [selectedColorIndex]);
+useEffect(() => {
+  selectedOptionNameRef.current = selectedColor?.options?.[selectedOptionIndex]?.name ?? null;
+}, [selectedOptionIndex, selectedColor]);
   /*
    * ============================================================
    * HANDLE GALLERY SCROLL
@@ -949,10 +971,16 @@ if (closestIndex !== selectedImageIndexRef.current) {
   if (isColorScrollProduct) {
     const item = galleryItems[closestIndex];
     if (item && item.colorIndex >= 0 && item.colorIndex !== selectedColorIndexRef.current) {
-      scrollSyncing.current = true;
-      setSelectedColorIndex(item.colorIndex);
-      setSelectedOptionIndex(0);
-    }
+  scrollSyncing.current = true;
+  setSelectedColorIndex(item.colorIndex);
+
+  const newColor = product.colors?.[item.colorIndex];
+  const wantedName = selectedOptionNameRef.current;
+  const matchedIndex = wantedName
+    ? newColor?.options?.findIndex((o) => o.name === wantedName) ?? -1
+    : -1;
+  setSelectedOptionIndex(matchedIndex >= 0 ? matchedIndex : 0);
+}
   }
 }
   }, 100); // waits until scrolling has paused for 100ms
@@ -1224,6 +1252,63 @@ if (closestIndex !== selectedImageIndexRef.current) {
       window.removeEventListener("cartUpdated", syncTambourineOrderWithCart);
     };
   }, [productName]);
+    useEffect(() => {
+    if (!isPocketHearts) return;
+
+    function syncPocketHeartsWithCart() {
+      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+      setPocketHeartsOrderLines((prev) =>
+        prev
+          .map((line) => {
+            if (!line.inCart) return line;
+
+            const cartMatch = cart.find((item: any) => item.id === line.id);
+            if (!cartMatch) return null;
+
+            return { ...line, quantity: cartMatch.quantity };
+          })
+          .filter((l): l is typeof prev[number] => l !== null)
+      );
+    }
+
+    window.addEventListener("cartUpdated", syncPocketHeartsWithCart);
+    syncPocketHeartsWithCart();
+
+    return () => {
+      window.removeEventListener("cartUpdated", syncPocketHeartsWithCart);
+    };
+  }, [isPocketHearts]);
+
+  useEffect(() => {
+    if (!isPocketHearts) return;
+
+    const cart = JSON.parse(localStorage.getItem("cart") || "[]");
+
+    const existingLines = cart
+      .filter(
+        (item: any) =>
+          item.productId === product.id &&
+          item.productName === productName &&
+          item.customization?.type === "monogram"
+      )
+      .map((item: any) => ({
+        id: item.id,
+        colorName: item.color ?? productName,
+        quantity: item.quantity,
+        monogramText: item.customization?.monogramText || undefined,
+        monogramImage: item.customization?.monogramImage || undefined,
+        image: item.image ?? "",
+        inCart: true,
+      }));
+
+    if (existingLines.length === 0) return;
+
+    setPocketHeartsOrderLines((prev) => {
+      const existingIds = new Set(prev.map((l) => l.id));
+      return [...prev, ...existingLines.filter((l: any) => !existingIds.has(l.id))];
+    });
+  }, [isPocketHearts, product.id, productName]);
 
   useEffect(() => {
     if (!isTwoColorProduct) return;
@@ -1414,7 +1499,7 @@ if (closestIndex !== selectedImageIndexRef.current) {
    *
    * Their gallery is the color selector.
    */
-    useEffect(() => {
+       useEffect(() => {
     if (scrollSyncing.current) {
       // This color change came FROM scrolling — don't fight it by
       // resetting the scroll position back to the start.
@@ -1422,7 +1507,16 @@ if (closestIndex !== selectedImageIndexRef.current) {
       return;
     }
 
-    setSelectedOptionIndex(0);
+    // Keep the same option (e.g. "Scented") selected across a color
+    // change when the new color offers an option with that same
+    // name — only fall back to index 0 when it genuinely doesn't.
+    const newColor = product.colors?.[selectedColorIndex];
+    const wantedName = selectedOptionNameRef.current;
+    const matchedIndex = wantedName
+      ? newColor?.options?.findIndex((o) => o.name === wantedName) ?? -1
+      : -1;
+
+    setSelectedOptionIndex(matchedIndex >= 0 ? matchedIndex : 0);
     setSelectedImageIndex(0);
 
     imageRefs.current = [];
@@ -2081,6 +2175,36 @@ addToCart({
 
     removeCartItem(lineId);
   }
+    function updatePocketHeartsQuantity(lineId: string, newQuantity: number) {
+    if (newQuantity <= 0) {
+      removePocketHeartsLine(lineId);
+      return;
+    }
+
+    const safeQuantity = Math.max(1, newQuantity);
+    const existingLine = pocketHeartsOrderLines.find((l) => l.id === lineId);
+
+    setPocketHeartsOrderLines((prev) =>
+      prev.map((l) => (l.id === lineId ? { ...l, quantity: safeQuantity } : l))
+    );
+
+    // Only write to the real cart once this line has actually been
+    // committed via "Add Order to Cart" — a draft line was never
+    // added, so there's nothing in the cart to update yet.
+    if (existingLine?.inCart) {
+      updateCartItemQuantity(lineId, safeQuantity);
+    }
+  }
+
+  function removePocketHeartsLine(lineId: string) {
+    const existingLine = pocketHeartsOrderLines.find((l) => l.id === lineId);
+
+    setPocketHeartsOrderLines((prev) => prev.filter((l) => l.id !== lineId));
+
+    if (existingLine?.inCart) {
+      removeCartItem(lineId);
+    }
+  }
 
  function addTambourineOrderToCart() {
     if (!orderLines.length) return;
@@ -2543,13 +2667,18 @@ addToCart({
                                 scrollSyncing.current = true;
                               }
 
-                              setSelectedColorIndex(
+                                                           setSelectedColorIndex(
                                 index
                               );
 
-                              setSelectedOptionIndex(
-                                0
-                              );
+                              {
+                                const newColor = product.colors[index];
+                                const wantedName = selectedOptionNameRef.current;
+                                const matchedIndex = wantedName
+                                  ? newColor?.options?.findIndex((o) => o.name === wantedName) ?? -1
+                                  : -1;
+                                setSelectedOptionIndex(matchedIndex >= 0 ? matchedIndex : 0);
+                              }
 
                               if (
                                 isColorScrollProduct
@@ -3324,7 +3453,7 @@ addToCart({
                 POCKET HEARTS — PERSONALIZATION (optional)
                 ================================================== */}
 
-               {(productName === "Pocket Hearts" || productName === "Rustic Warmth") && (
+                             {productName === "Rustic Warmth" && (
               <div className="mt-5">
                 <p
                   className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
@@ -3388,11 +3517,7 @@ addToCart({
                     />
                   )}
                 </div>
-{uploadingMonogram && (
-  <p className="mt-2 text-xs" style={{ color: accent }}>
-    Uploading your image…
-  </p>
-)}
+
                 <input
                   ref={monogramFileInputRef}
                   type="file"
@@ -3403,15 +3528,368 @@ addToCart({
               </div>
             )}
 
+            {isPocketHearts && (
+              <div className="mt-5">
+                <p
+                  className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+                  style={{ color: accent }}
+                >
+                  Personalize this color (Optional)
+                </p>
+
+                <p
+                  className="mb-3 text-xs"
+                  style={{ color: "rgba(0,0,0,0.55)" }}
+                >
+                  Pick a color above, add initials for it, set a quantity, then stage it — repeat with
+                  another color or different initials, and add everything to your cart together.
+                </p>
+
+                <input
+                  value={monogramText}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                      .toUpperCase()
+                      .replace(/[^A-Z&\s]/g, "");
+                    setMonogramText(raw.slice(0, 6));
+                  }}
+                  placeholder="e.g. S & H"
+                  maxLength={6}
+                  className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                  style={{
+                    border: "1.5px solid rgba(0,0,0,0.15)",
+                    backgroundColor: "#FFFFFF",
+                    color: "#000000",
+                  }}
+                />
+
+                               <div className="mt-3 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => monogramFileInputRef.current?.click()}
+                    className="flex-1 rounded-xl border px-4 py-3 text-left text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5"
+                    style={{
+                      backgroundColor: "transparent",
+                      borderColor: accent,
+                      color: "#000000",
+                    }}
+                  >
+                    {monogramImageUrl
+                      ? "Image added — tap to change"
+                      : "Or upload an image instead"}
+                  </button>
+
+                  {monogramImageUrl && (
+                    <div className="relative flex-shrink-0">
+                      <img
+                        src={monogramImageUrl}
+                        alt="Your uploaded lettering"
+                        className="h-12 w-12 rounded-lg object-cover"
+                        style={{ border: `1px solid ${accent}` }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMonogramImageUrl(null)}
+                        aria-label="Remove image"
+                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold"
+                        style={{ backgroundColor: "#000000", color: "#FFFFFF" }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {uploadingMonogram && (
+                  <p className="mt-2 text-xs" style={{ color: accent }}>
+                    Uploading your image…
+                  </p>
+                )}
+
+                <input
+                  ref={monogramFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={handleMonogramImageChange}
+                />
+
+                <div className="mt-4 flex items-center gap-3">
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-[0.2em]"
+                    style={{ color: accent }}
+                  >
+                    Quantity
+                  </span>
+
+                  <div
+                    className="flex items-center rounded-full px-1 py-1"
+                    style={{ backgroundColor: "#FFFFFF", border: `1px solid ${accent}` }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPocketHeartsQuantity((q) => Math.max(1, q - 1))
+                      }
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
+                      style={{ backgroundColor: "#EFE3C4", color: "#000000" }}
+                    >
+                      −
+                    </button>
+                    <span
+                      className="w-10 text-center text-sm font-semibold"
+                      style={{ color: "#000000" }}
+                    >
+                      {pocketHeartsQuantity}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setPocketHeartsQuantity((q) => q + 1)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold transition-all hover:scale-110 active:scale-95"
+                      style={{ backgroundColor: "#EFE3C4", color: "#000000" }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                                    onClick={() => {
+                    const colorName = selectedColor?.name ?? productName;
+                    const lineImage =
+                      selectedColor?.image_url ??
+                      selectedColor?.image_urls?.[0] ??
+                      gallery[0] ??
+                      "";
+
+                    // Same scent-capture logic as the regular Add to
+                    // Cart flow — force null when "Unscented" is the
+                    // selected option, otherwise use whatever's picked
+                    // in the Scent section.
+                    const isUnscentedSelected =
+                      hasOptions && selectedOption?.name === "Unscented";
+                    const scentName = isUnscentedSelected
+                      ? null
+                      : selectedScent ?? null;
+
+                    const lineId = [
+                      product.id,
+                      colorName,
+                      scentName || "no-scent",
+                      monogramText.trim() || "no-initials",
+                      monogramImageUrl ? "img" : "no-img",
+                      Date.now(),
+                    ]
+                      .join("-")
+                      .toLowerCase()
+                      .replace(/\s+/g, "-");
+
+                                         setPocketHeartsOrderLines((prev) => [
+                      ...prev,
+                      {
+                        id: lineId,
+                        colorName,
+                        scentName,
+                        quantity: pocketHeartsQuantity,
+                        monogramText: monogramText.trim() || undefined,
+                        monogramImage: monogramImageUrl || undefined,
+                        image: lineImage,
+                        inCart: false,
+                      },
+                    ]);
+
+                                       setPocketHeartsQuantity(1);
+                    // Intentionally NOT clearing monogramText/monogramImageUrl —
+                    // they stay until the person edits them or taps the × on
+                    // the preview, so the same initials/photo can be reused
+                    // for the next color without re-entering them.
+                  }}
+                  className="mt-4 w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-200 hover:-translate-y-0.5"
+                  style={{ backgroundColor: "transparent", borderColor: accent, color: accent }}
+                >
+                  + Add to Order
+                </button>
+
+                {pocketHeartsOrderLines.length > 0 && (
+                  <div className="mt-5">
+                    <p
+                      className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+                      style={{ color: accent }}
+                    >
+                      Your Order
+                    </p>
+
+                    <div className="flex flex-col gap-2">
+                      {pocketHeartsOrderLines.map((line) => (
+                        <div
+                          key={line.id}
+                          className="rounded-2xl p-3"
+                          style={{ backgroundColor: "#EFE3C4" }}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 min-w-0">
+                              {line.image && (
+                                <img
+                                  src={line.image}
+                                  alt=""
+                                  className="h-10 w-10 flex-shrink-0 rounded-lg object-cover"
+                                />
+                              )}
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold" style={{ color: "#000000" }}>
+                                  {line.colorName}
+                                </p>
+                                                                {line.scentName && (
+                                  <p className="text-xs" style={{ color: "rgba(0,0,0,0.55)" }}>
+                                    {line.scentName}
+                                  </p>
+                                )}
+                                {line.monogramText && (
+                                  <p className="text-xs" style={{ color: "rgba(0,0,0,0.55)" }}>
+                                    Initials: "{line.monogramText}"
+                                  </p>
+                                )}
+                                {line.monogramImage && !line.monogramText && (
+                                  <p className="text-xs" style={{ color: "rgba(0,0,0,0.55)" }}>
+                                    Custom lettering image
+                                  </p>
+                                )}
+                                {!line.monogramText && !line.monogramImage && (
+                                  <p className="text-xs" style={{ color: "rgba(0,0,0,0.4)" }}>
+                                    No personalization
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                                                       <div className="flex flex-shrink-0 items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => updatePocketHeartsQuantity(line.id, line.quantity - 1)}
+                                className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
+                              >
+                                −
+                              </button>
+                              <span className="w-5 text-center text-sm font-semibold">
+                                {line.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updatePocketHeartsQuantity(line.id, line.quantity + 1)}
+                                className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold"
+                              >
+                                +
+                              </button>
+                              <span
+                                className="ml-2 min-w-[60px] text-right text-sm font-bold"
+                                style={{ color: accent }}
+                              >
+                                {Number(displayPrice) * line.quantity} EGP
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mt-1 text-right">
+                            <button
+                              type="button"
+                              onClick={() => removePocketHeartsLine(line.id)}
+                              className="text-xs underline opacity-50 hover:opacity-100"
+                            >
+                              remove
+                            </button>
+                          </div>
+                          </div>
+                      ))}
+                    </div>
+
+                    <div
+                      className="mt-4 flex items-center justify-between rounded-2xl px-5 py-4"
+                      style={{ border: `1px solid ${accent}` }}
+                    >
+                      <span className="text-sm font-semibold">
+                        {pocketHeartsOrderLines.reduce((s, l) => s + l.quantity, 0)} item
+                        {pocketHeartsOrderLines.reduce((s, l) => s + l.quantity, 0) !== 1 ? "s" : ""} total
+                      </span>
+                      <span className="text-lg font-bold" style={{ color: accent }}>
+                        {pocketHeartsOrderLines.reduce(
+                          (s, l) => s + Number(displayPrice) * l.quantity,
+                          0
+                        )}{" "}
+                        EGP
+                      </span>
+                    </div>
+
+                                                          <button
+                      type="button"
+                      onClick={() => {
+                        const currentCart = getCart();
+
+                        pocketHeartsOrderLines.forEach((line) => {
+                          const customization =
+                            line.monogramText || line.monogramImage
+                              ? {
+                                  type: "monogram" as const,
+                                  monogramText: line.monogramText ?? "",
+                                  monogramImage: line.monogramImage,
+                                }
+                              : undefined;
+
+                          const alreadyInCart = currentCart.some((c) => c.id === line.id);
+
+                                                    if (alreadyInCart) {
+                            // SET to the quantity shown here, never add
+                            // on top — prevents doubling when this
+                            // button is pressed again for a line that
+                            // was already committed.
+                            updateCartItemQuantity(line.id, line.quantity);
+                          } else {
+                                                      addToCart({
+                            id: line.id,
+                            productId: product.id,
+                            productName,
+                            price: Number(displayPrice),
+                            quantity: line.quantity,
+                            scent: line.scentName,
+                            color: line.colorName,
+                            image: line.image,
+                            customization,
+                          });
+                          }
+                        });
+
+                        window.dispatchEvent(new Event("openCart"));
+
+                        setPocketHeartsOrderLines((prev) =>
+                          prev.map((line) => ({ ...line, inCart: true }))
+                        );
+                      }}
+                      className="mt-4 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0"
+                      style={{ backgroundColor: accent, color: "#FFF4E6" }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = accentDark;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = accent;
+                      }}
+                    >
+                      Add Order to Cart
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* ==================================================
                 REGULAR ADD TO CART
                 ================================================== */}
 
-                       {!customizeOnly &&
+                                            {!customizeOnly &&
   (!isGiveaway || isPlainSellableGiveaway) &&
   !isQuackAndKiss &&
   !isTwoColorProduct &&
-  productName !== "Tambourine" && (
+  productName !== "Tambourine" &&
+  !isPocketHearts && (
     <>
       <button
         type="button"

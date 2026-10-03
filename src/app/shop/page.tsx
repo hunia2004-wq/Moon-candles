@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import ShopGrid from "../components/ShopGrid";
-
+export const dynamic = "force-dynamic";
 const STRIPE_COUNT = 21;
 
 const TITLES: Record<
@@ -35,10 +35,11 @@ export default async function Shop({
 
   const supabase = await createClient();
 
-  const { data: products, error } = await supabase
-    .from("products")
-    .select("*")
-    .order("created_at", { ascending: true });
+     const { data: products, error } = await supabase
+     .from("products")
+     .select("*")
+     .eq("is_active", true)
+     .order("created_at", { ascending: true });
 
   if (error) {
     console.error("Failed to fetch products:", error.message);

@@ -710,7 +710,7 @@ function addComboOrderToCart() {
           }}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#DE4B33")}
         >
-          Add to Order
+          Add to cart
         </button>
       </div>
     </div>
