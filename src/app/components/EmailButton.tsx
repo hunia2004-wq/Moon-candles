@@ -24,7 +24,7 @@ export default function EmailButton({ email }: { email: string }) {
       type="button"
       onClick={handleClick}
       className="inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-xs font-medium uppercase tracking-[0.08em] transition-transform duration-300 hover:-translate-y-1 sm:w-auto md:text-[13px]"
-      style={{ backgroundColor: "#FFF4E6", color: "#47684b" }}
+      style={{ backgroundColor: "#47684b", color: "#FFF4E6" }}
     >
       <svg
         width="16"

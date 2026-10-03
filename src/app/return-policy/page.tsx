@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Caveat } from "next/font/google";
 import EmailButton from "../components/EmailButton";
+import { PackageCheck, PackageX } from "lucide-react";
 const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 
 export const metadata = {
@@ -33,12 +34,7 @@ export default function ReturnPolicyPage() {
 
       {/* HEADER */}
       <header className="mx-auto w-full max-w-3xl px-6 pt-12 text-center md:pt-20">
-        <p
-          className={`${caveat.className} mb-1 text-2xl md:text-4xl`}
-          style={{ color: "#657A55" }}
-        >
-          good to know
-        </p>
+       
 
         <h1
           className="text-5xl font-medium leading-none md:text-7xl"
@@ -51,25 +47,20 @@ export default function ReturnPolicyPage() {
           Return Policy
         </h1>
 
-        <span
-          className="mt-6 block text-3xl leading-none"
-          style={{ color: "#7A9567" }}
-          aria-hidden="true"
-        >
-          ☾
-        </span>
+       
       </header>
 
       {/* POLICY CARDS */}
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-5 py-10 md:gap-7 md:px-6 md:py-14">
-        <PolicyCard accent="#D8A1AF" icon="☾" title="Orders & refunds">
+<PolicyCard accent="#47684b" icon={<PackageCheck size={18} strokeWidth={2} />} title="Orders & refunds">
           <p>
             We do not offer refunds or exchanges once an order has been placed
             and delivered.
           </p>
         </PolicyCard>
+        
 
-        <PolicyCard accent="#DE4B33" icon="✦" title="Arrived damaged?">
+<PolicyCard accent="#47684b" icon={<PackageX size={18} strokeWidth={2} />} title="Arrived damaged?">
           <p>
             If your order arrives damaged or broken due to handling by the
             shipping company, please contact us as soon as possible with clear
@@ -78,12 +69,12 @@ export default function ReturnPolicyPage() {
             the damaged product.
           </p>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-9 flex flex-wrap gap-3">
             {["Photos of the item", "Photos of the packaging"].map((label) => (
               <span
                 key={label}
-                className="rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide md:text-xs"
-                style={{ backgroundColor: "#efe3c4", color: "#657A55" }}
+                className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide md:text-xs"
+                style={{ backgroundColor: "#efe3c4", color: "#47684b" }}
               >
                 {label}
               </span>
@@ -156,7 +147,7 @@ export default function ReturnPolicyPage() {
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-xs font-medium uppercase tracking-[0.08em] transition-transform duration-300 hover:-translate-y-1 sm:w-auto md:text-[13px]"
-              style={{ backgroundColor: "#D8A1AF", color: "#FFF4E6" }}
+              style={{ backgroundColor: "#47684b", color: "#FFF4E6" }}
             >
               <InstagramIcon />
               Message on Instagram
@@ -167,16 +158,8 @@ export default function ReturnPolicyPage() {
         </div>
       </section>
 
-      {/* BACK TO SHOP */}
-      <div className="w-full py-10 text-center">
-        <Link
-          href="/shop"
-          className="inline-flex items-center justify-center rounded-[5px] px-5 py-2.5 text-sm transition-colors bg-[#47684b] hover:bg-[#7C966F]"
-          style={{ color: "#FFFFFF", textDecoration: "none" }}
-        >
-          Back to Shop
-        </Link>
-      </div>
+   
+      
     </div>
   );
 }
@@ -190,7 +173,7 @@ function PolicyCard({
   children,
 }: {
   accent: string;
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   children: React.ReactNode;
 }) {
@@ -209,7 +192,7 @@ function PolicyCard({
       >
         <div className="mb-4 flex items-center gap-3">
           <span
-            className="flex h-9 w-9 items-center justify-center rounded-full text-lg leading-none"
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full"
             style={{ backgroundColor: accent, color: "#FFF4E6" }}
             aria-hidden="true"
           >
