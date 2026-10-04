@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import HamburgerMenu from "./HamburgerMenu";
 import CartDrawer from "./CartDrawer";
+import ConditionalPromoBanner from "./ConditionalPromoBanner";
 import { getCart, cartCount } from "@/lib/cart";
 
 export default function Header() {
@@ -33,38 +34,42 @@ export default function Header() {
   }, []);
 
   return (
-    <header
-      className="sticky top-0 z-50 flex h-20 items-center justify-between px-4 md:h-24"
-      style={{ backgroundColor: "#efe3c4" }}
-    >
-      <HamburgerMenu />
+    <div className="sticky top-0 z-50">
+      <ConditionalPromoBanner />
 
-      <Link
-        href="/"
-        aria-label="Moon Candles home"
-        className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center"
+      <header
+        className="relative flex h-20 items-center justify-between px-4 md:h-24"
+        style={{ backgroundColor: "#efe3c4" }}
       >
-        <img
-          src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/moon%20logo/logo.png"
-          alt="Moon Candles"
-          className="h-28 w-auto md:h-36"
-        />
-      </Link>
+        <HamburgerMenu />
 
-      <Link href="/cart" aria-label="Cart" className="relative">
-        <ShoppingCart size={20} style={{ color: "#000000" }} />
+        <Link
+          href="/"
+          aria-label="Moon Candles home"
+          className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center"
+        >
+          <img
+            src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/moon%20logo/logo.png"
+            alt="Moon Candles"
+            className="h-28 w-auto md:h-36"
+          />
+        </Link>
 
-        {count > 0 && (
-          <span
-            className="absolute -right-2 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold"
-            style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
-          >
-            {count}
-          </span>
-        )}
-      </Link>
+        <Link href="/cart" aria-label="Cart" className="relative">
+          <ShoppingCart size={20} style={{ color: "#000000" }} />
 
-      <CartDrawer />
-    </header>
+          {count > 0 && (
+            <span
+              className="absolute -right-2 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold"
+              style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
+            >
+              {count}
+            </span>
+          )}
+        </Link>
+
+        <CartDrawer />
+      </header>
+    </div>
   );
 }

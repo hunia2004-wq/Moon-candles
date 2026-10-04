@@ -17,6 +17,7 @@ import {
   removeCartItem,
 } from "@/lib/cart";
 import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
+import { createClient } from "@/lib/supabase/client";
 import {
   captureAndUploadDesign,
   nextPaint,
@@ -73,7 +74,7 @@ const TASSEL_COLORS = [
   { id: "white", label: "White", hex: "#FFFFFF" },
 ] as const;
 
-type TasselColorId = (typeof TASSEL_COLORS)[number]["id"];
+type TasselColorId = string;
 
 const FONTS = [
   {
@@ -283,6 +284,58 @@ export default function CustomizeFanPage() {
   const [selectedTassel, setSelectedTassel] = useState<TasselColorId>(
     TASSEL_COLORS[0].id
   );
+    const [tasselChoices, setTasselChoices] = useState<
+    readonly { id: string; label: string; hex: string }[]
+  >(TASSEL_COLORS);
+
+  // Safe lookup: current list, then the built-in list (for older cart
+  // items), then a gray fallback, so it never crashes.
+  function findTassel(id: string) {
+    return (
+      tasselChoices.find((c) => c.id === id) ??
+      TASSEL_COLORS.find((c) => c.id === id) ?? {
+        id,
+        label: id,
+        hex: "#CCCCCC",
+      }
+    );
+  }
+
+  useEffect(() => {
+    async function loadTasselColors() {
+      const supabase = createClient();
+
+      const { data } = await supabase
+        .from("products")
+        .select("option_groups")
+        .eq("name", "Fan")
+        .maybeSingle();
+
+      const groups = data?.option_groups as
+        | { label: string; choices: { name: string; hex?: string }[] }[]
+        | null
+        | undefined;
+
+      const group = groups?.find(
+        (g) => g.label.trim().toLowerCase() === "tassel color"
+      );
+
+      if (!group?.choices?.length) return;
+
+      const loaded = group.choices.map((c) => ({
+        id: c.name.trim().toLowerCase().replace(/\s+/g, "-"),
+        label: c.name,
+        hex: c.hex ?? "#CCCCCC",
+      }));
+
+      setTasselChoices(loaded);
+      setSelectedTassel((prev) =>
+        loaded.some((c) => c.id === prev) ? prev : loaded[0].id
+      );
+    }
+
+    loadTasselColors();
+  }, []);
   const [fanOrderLines, setFanOrderLines] = useState<FanOrderLine[]>([]);
 
   const stageRef = useRef<HTMLDivElement>(null);
@@ -788,10 +841,7 @@ setFanOrderLines((prev) =>
     const currentCart = getCart();
 
     fanOrderLines.forEach((line) => {
-      const tasselLabel =
-        TASSEL_COLORS.find(
-          (c) => c.id === line.tasselColor
-        )!.label;
+        const tasselLabel = findTassel(line.tasselColor).label;
 
       const lineSize = SIZES.find(
         (s) => s.id === line.size
@@ -2164,12 +2214,7 @@ setFanOrderLines((prev) =>
                 <span
                   className="h-7 w-7 flex-shrink-0 rounded-full"
                   style={{
-                    backgroundColor:
-                      TASSEL_COLORS.find(
-                        (c) =>
-                          c.id ===
-                          selectedTassel
-                      )!.hex,
+                                        backgroundColor: findTassel(selectedTassel).hex,
                     border:
                       "1.5px solid rgba(0,0,0,0.15)",
                   }}
@@ -2290,12 +2335,7 @@ setFanOrderLines((prev) =>
                 <div className="flex w-full flex-col gap-2">
                   {fanOrderLines.map(
                     (line) => {
-                      const tassel =
-                        TASSEL_COLORS.find(
-                          (c) =>
-                            c.id ===
-                            line.tasselColor
-                        )!;
+                                            const tassel = findTassel(line.tasselColor);
 
                       const lineSize =
                         SIZES.find(

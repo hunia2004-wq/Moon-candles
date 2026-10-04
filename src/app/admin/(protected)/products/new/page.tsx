@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-
+import OptionGroupsEditor, {
+  groupsFromDrafts,
+  type OptionGroupDraft,
+} from "../../components/OptionGroupsEditor";
 type OptionDraft = {
   key: string;
   name: string;
@@ -77,6 +80,8 @@ export default function NewProductPage() {
   const [sizeMl, setSizeMl] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
   const [category, setCategory] = useState<"candle" | "giveaway">("candle");
+     const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
+       const [showOrderCounter, setShowOrderCounter] = useState(false);
 const [success, setSuccess] = useState(false);
   const [scents, setScents] = useState<string[]>([]);
   const [scentInput, setScentInput] = useState("");
@@ -250,6 +255,8 @@ const [success, setSuccess] = useState(false);
           scents,
           colors: colorsPayload,
           image_urls: imageUrls,
+          option_groups: groupsFromDrafts(optionGroups),
+                    show_order_counter: showOrderCounter,
           stock: 0, // unused — candles are made to order
         })
         .select()
@@ -467,6 +474,24 @@ return; // skip the finally block's setSaving(false) — we're navigating away
             Featured product
           </span>
         </label>
+                <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={showOrderCounter}
+            onChange={(e) => setShowOrderCounter(e.target.checked)}
+            className="mt-0.5 h-5 w-5"
+          />
+          <span className="text-sm font-medium" style={{ color: "#000000" }}>
+            Show "Your Order" counter on the product page
+            <span
+              className="block text-xs font-normal"
+              style={{ color: "rgba(0,0,0,0.55)" }}
+            >
+              For products ordered in bulk. Customers see a list of what
+              they added with + / − buttons under Add to Cart.
+            </span>
+          </span>
+        </label>
 
         {/* ================================================== */}
         {/* IMAGES / COLORS TOGGLE */}
@@ -652,7 +677,7 @@ return; // skip the finally block's setSaving(false) — we're navigating away
             </div>
           </div>
         )}
-
+        <OptionGroupsEditor groups={optionGroups} onChange={setOptionGroups} />
         <button
           type="button"
           onClick={handleSave}

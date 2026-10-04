@@ -45,6 +45,9 @@ export default function AdminCustomersPage() {
       setLoading(false);
       return;
     }
+    if (customOrdersRes.error) {
+  console.error("Couldn't load custom orders:", customOrdersRes.error.message);
+}
 
     const rows = [
       ...(ordersRes.data ?? []).map((o) => ({ ...o, amount: Number(o.total ?? 0) })),
@@ -61,13 +64,16 @@ export default function AdminCustomersPage() {
   "unknown";
       const existing = byCustomer.get(key);
 
-      if (existing) {
-        existing.orderCount += 1;
-        existing.totalSpent += r.amount;
-        if (new Date(r.created_at) > new Date(existing.lastOrderAt)) {
-          existing.lastOrderAt = r.created_at;
-        }
-      } else {
+     if (existing) {
+  existing.orderCount += 1;
+  existing.totalSpent += r.amount;
+  if (existing.phone === "—" && r.customer_phone) existing.phone = r.customer_phone;
+  if (existing.email === "—" && r.customer_email) existing.email = r.customer_email;
+  if (existing.name === "Unnamed customer" && r.customer_name) existing.name = r.customer_name;
+  if (new Date(r.created_at) > new Date(existing.lastOrderAt)) {
+    existing.lastOrderAt = r.created_at;
+  }
+}else {
         byCustomer.set(key, {
           key,
           name: r.customer_name || "Unnamed customer",
@@ -97,11 +103,27 @@ function normalizePhone(phone: string | null): string | null {
   return match ? match[1] : digits || null;
 }
 
-  const filtered = useMemo(() => {
+const filtered = useMemo(() => {
   const q = search.trim().toLowerCase();
   if (!q) return customers;
 
-  return customers.filter((c) => c.name.toLowerCase().startsWith(q));
+  const qDigits = q.replace(/\D/g, "");
+  const looksLikePhone = qDigits.length > 0 && /^[+\d\s-]+$/.test(q);
+  const stripPrefix = (v: string) => v.replace(/\D/g, "").replace(/^(20|0)/, "");
+  const qStripped = stripPrefix(q);
+
+  return customers.filter((c) => {
+    // Phone: a part of the number works, however it was typed or saved
+    // (011..., +2011..., spaces or dashes).
+    if (looksLikePhone && c.phone !== "—") {
+      const phoneDigits = c.phone.replace(/\D/g, "");
+      if (phoneDigits.includes(qDigits)) return true;
+      if (qStripped && stripPrefix(c.phone).includes(qStripped)) return true;
+    }
+
+    // Name or email: any part of it, not just the start.
+    return [c.name, c.email].some((v) => v.toLowerCase().includes(q));
+  });
 }, [customers, search]);
 
   return (
@@ -163,9 +185,12 @@ function normalizePhone(phone: string | null): string | null {
                 <span className="text-sm font-semibold" style={{ color: "#000000" }}>
                   {c.name}
                 </span>
-                <span className="text-xs" style={{ color: MUTED }}>
-                  {c.phone !== "—" ? c.phone : c.email}
-                </span>
+               <span className="text-xs" style={{ color: MUTED }}>
+  {c.phone}
+</span>
+<span className="text-xs" style={{ color: MUTED }}>
+  {c.email}
+</span>
               </div>
 
               <div className="flex items-center gap-6">

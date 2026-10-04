@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-
+import { createClient } from "@/lib/supabase/client";
 import {
   Great_Vibes,
   Dancing_Script,
@@ -90,7 +90,7 @@ const RIBBON_COLORS = [
   { id: "dark-purple", label: "Dark Purple", hex: "#4B2E6F" },
 ] as const;
 
-type RibbonColorId = (typeof RIBBON_COLORS)[number]["id"];
+type RibbonColorId = string;
 
 const BG_SHAPES = [
   { id: "rectangle", label: "Rectangle" },
@@ -345,6 +345,58 @@ export default function CustomizeTambourinePage() {
     useState<RibbonColorId>(
       RIBBON_COLORS[0].id
     );
+      const [ribbonChoices, setRibbonChoices] = useState<
+    readonly { id: string; label: string; hex: string }[]
+  >(RIBBON_COLORS);
+
+  // Safe lookup: current list first, then the built-in list (for
+  // older cart items), then a plain gray fallback — never crashes.
+  function findRibbon(id: string) {
+    return (
+      ribbonChoices.find((c) => c.id === id) ??
+      RIBBON_COLORS.find((c) => c.id === id) ?? {
+        id,
+        label: id,
+        hex: "#CCCCCC",
+      }
+    );
+  }
+
+  useEffect(() => {
+    async function loadRibbonColors() {
+      const supabase = createClient();
+
+      const { data } = await supabase
+        .from("products")
+        .select("option_groups")
+        .eq("name", "Tambourine")
+        .maybeSingle();
+
+      const groups = data?.option_groups as
+        | { label: string; choices: { name: string; hex?: string }[] }[]
+        | null
+        | undefined;
+
+      const group = groups?.find(
+        (g) => g.label.trim().toLowerCase() === "ribbon color"
+      );
+
+      if (!group?.choices?.length) return;
+
+      const loaded = group.choices.map((c) => ({
+        id: c.name.trim().toLowerCase().replace(/\s+/g, "-"),
+        label: c.name,
+        hex: c.hex ?? "#CCCCCC",
+      }));
+
+      setRibbonChoices(loaded);
+      setRibbonColor((prev) =>
+        loaded.some((c) => c.id === prev) ? prev : loaded[0].id
+      );
+    }
+
+    loadRibbonColors();
+  }, []);
 
   const [designMode, setDesignMode] =
     useState<"upload" | "build" | null>(null);
@@ -919,9 +971,7 @@ function addTambourineOrderToCart() {
       price: lineSize.price,
       quantity: line.quantity,
       scent: null,
-      color: `${lineSize.label} · ${
-        RIBBON_COLORS.find((c) => c.id === line.ribbonColor)!.label
-      } Ribbon`,
+          color: `${lineSize.label} · ${findRibbon(line.ribbonColor).label} Ribbon`,
       image: lineSize.img,
       productRefId: 31,
       customization: {
@@ -2291,14 +2341,11 @@ function addTambourineOrderToCart() {
           <span
             className="h-7 w-7 flex-shrink-0 rounded-full"
             style={{
-              backgroundColor:
-                RIBBON_COLORS.find(
-                  (c) => c.id === ribbonColor
-                )!.hex,
+                            backgroundColor: findRibbon(ribbonColor).hex,
               border:
                 "1.5px solid rgba(0,0,0,0.15)",
               boxShadow:
-                ribbonColor === "gold"
+                               ribbonColor === "gold" || ribbonColor === "glittery-gold"
                   ? "inset 0 0 6px rgba(255,255,255,0.6)"
                   : undefined,
             }}
@@ -2319,7 +2366,7 @@ function addTambourineOrderToCart() {
               color: "#000000",
             }}
           >
-            {RIBBON_COLORS.map((c) => (
+                        {ribbonChoices.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.label}
               </option>
@@ -2409,11 +2456,7 @@ function addTambourineOrderToCart() {
                   (s) => s.id === line.size
                 )!;
 
-              const ribbon =
-                RIBBON_COLORS.find(
-                  (c) =>
-                    c.id === line.ribbonColor
-                )!;
+                           const ribbon = findRibbon(line.ribbonColor);
 
               return (
                 <div

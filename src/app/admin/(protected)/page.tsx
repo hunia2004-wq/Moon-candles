@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { Caveat } from "next/font/google";
 
+const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
 
@@ -44,9 +46,25 @@ export default async function AdminDashboardPage() {
 
   return (
     <div>
-      <h1 className="font-serif text-3xl font-bold mb-8" style={{ color: "#000000" }}>
-        Dashboard
-      </h1>
+               <div className="mb-8">
+        <p
+          className={`${caveat.className} text-2xl leading-none`}
+          style={{ color: "#DE4B33" }}
+        >
+          welcome back
+        </p>
+
+        <h1
+          className="mt-1 text-4xl font-medium leading-tight md:text-5xl"
+          style={{
+            color: "#000000",
+            fontFamily: "Georgia, 'Times New Roman', serif",
+            letterSpacing: "-0.03em",
+          }}
+        >
+          Hi Nour &amp; Jana
+        </h1>
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
         <StatCard label="Total orders" value={allOrders.length.toString()} />
@@ -68,7 +86,7 @@ export default async function AdminDashboardPage() {
         {allOrders.slice(0, 10).map((o) => (
           <Link
             key={`${o.kind}-${o.id}`}
-            href={o.kind === "Custom" ? `/admin/custom-orders/${o.id}` : `/admin/orders/${o.id}`}
+href={o.kind === "Custom" ? `/admin/custom-orders/${o.id}` : `/admin/orders`}
             className="flex items-center justify-between px-5 py-3.5 text-sm transition-colors hover:bg-[#FFF9F0]"
             style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
           >

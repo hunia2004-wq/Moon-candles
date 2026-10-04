@@ -106,6 +106,11 @@ const NO_ORDER_COUNTER_NAMES = [
   "Jar Candle",
   "plain candle",
 ];
+// Products that SHOULD show the on-page "Your Order" counter under
+// Add to Cart. Empty on purpose: new products don't get one. The
+// bulk-order products (Quack and Kiss, Tambourine, Pocket Hearts)
+// have their own order sections.
+
 const NO_GALLERY_ARROWS_NAMES = ["Plain Candle"];
 const RIBBON_COLORS = [
   { id: "light-pink", label: "Light Pink", hex: "#F5C6D6" },
@@ -266,7 +271,19 @@ export default function ProductDetailView({
       (name) =>
         name.toLowerCase() ===
         normalizedProductName
-    );
+    ) ||
+    // Any other product with 2+ plain colors (no sizes/options)
+    // behaves the same way, so new products work automatically.
+    ((product.colors?.length ?? 0) >= 2 &&
+      product.colors.every((c) => !c.options?.length) &&
+      !isTwoColorProduct &&
+      !isQuackAndKiss &&
+      !PLAIN_SELLABLE_GIVEAWAY_NAMES.some(
+        (name) => name.toLowerCase() === normalizedProductName
+      ) &&
+      !CUSTOMIZE_ONLY_NAMES.some(
+        (name) => name.toLowerCase() === normalizedProductName
+      ));
       const hasNoOrderCounter =
       
     NO_ORDER_COUNTER_NAMES.some(
@@ -357,15 +374,66 @@ export default function ProductDetailView({
   ] = useState<string | null>(
     product.scents?.[0] ?? null
   );
-  const [
+ const [
   selectedRibbon,
   setSelectedRibbon,
-] = useState<RibbonColorId>(
+] = useState<string>(
   RIBBON_COLORS[0].id
 );
 
 const [plainQuantity, setPlainQuantity] = useState(1);
 
+// Ribbon choices now come from the product's "Ribbon Color" option
+// group (edited in admin). Falls back to the built-in list if the
+// product has none saved.
+const ribbonGroup = product.option_groups?.find(
+  (g) => g.label.trim().toLowerCase() === "ribbon color"
+);
+
+const ribbonChoices: readonly { id: string; label: string; hex: string }[] =
+  ribbonGroup?.choices?.length
+    ? ribbonGroup.choices.map((c) => ({
+        id: c.name.trim().toLowerCase().replace(/\s+/g, "-"),
+        label: c.name,
+        hex: c.hex ?? "#CCCCCC",
+      }))
+    : RIBBON_COLORS;
+
+const activeRibbon =
+  ribbonChoices.find((c) => c.id === selectedRibbon) ?? ribbonChoices[0];
+ // Every option group set up in admin (Ribbon Color, Tassel Color,
+// anything the owners invent) becomes a dropdown on this page, for
+// any product. Skipped where the page's own add-to-cart flow
+// wouldn't carry the choice into the cart.
+const [groupSelections, setGroupSelections] = useState<Record<string, string>>({});
+
+const supportsOptionGroups =
+  productName !== "Tambourine" &&
+  !isPocketHearts &&
+  !isQuackAndKiss &&
+  !isTwoColorProduct &&
+  !customizeOnly;
+
+const activeGroups = supportsOptionGroups
+  ? (product.option_groups ?? []).filter(
+      (g) => g.label?.trim() && g.choices?.length
+    )
+  : [];
+
+function currentChoice(group: {
+  label: string;
+  choices: { name: string; hex?: string }[];
+}) {
+  return (
+    group.choices.find((c) => c.name === groupSelections[group.label]) ??
+    group.choices[0]
+  );
+}
+
+// "Ribbon Color" becomes "Ribbon" in the cart text: "Navy Ribbon"
+function groupSuffix(label: string) {
+  return label.trim().replace(/\s+color$/i, "");
+}
   // Pocket Hearts — optional personalization: initials typed as text
   // (e.g. "S & H") or an uploaded image of custom lettering, similar
   // to the reference wedding-favor tags. Only one is sent to the
@@ -479,7 +547,53 @@ const selectedOptionNameRef = useRef<string | null>(null);
   // products that don't have a size in their variant name (Iced Latte, etc.).
   const sizeFromColorName = selectedColor?.name?.match(/\(([^)]+)\)/)?.[1];
   const displaySize = sizeFromColorName ?? (product.size_ml ? `${product.size_ml} ml` : null);
+  // Keeps the on-page "Your Order" counter in step with the real cart
+  // (cart drawer +/- and remove included) for regular products.
+  useEffect(() => {
+    if (
+      !product.show_order_counter ||
+      productName === "Tambourine" ||
+      isPocketHearts ||
+      isQuackAndKiss ||
+      isTwoColorProduct ||
+      customizeOnly
+    ) {
+      return;
+    }
 
+    function syncRegularOrderWithCart() {
+      const lines: OrderLine[] = getCart()
+        .filter(
+          (item) =>
+            item.productId === product.id &&
+            item.productName === productName
+        )
+        .map((item) => ({
+          id: item.id,
+          colorName: item.color ?? productName,
+          scentName: item.scent ?? null,
+          price: Number(item.price) || Number(product.price),
+          quantity: Number(item.quantity) || 1,
+          image: item.image ?? "",
+          inCart: true,
+        }));
+
+      setOrderLines(lines);
+    }
+
+    window.addEventListener("cartUpdated", syncRegularOrderWithCart);
+    syncRegularOrderWithCart();
+
+    return () => {
+      window.removeEventListener("cartUpdated", syncRegularOrderWithCart);
+    };
+  }, [
+    product.id,
+    product.price,
+    product.show_order_counter,
+    productName,
+    searchParams,
+  ]);
   /*
    * ============================================================
    * RESET WHEN PRODUCT CHANGES
@@ -985,7 +1099,7 @@ if (closestIndex !== selectedImageIndexRef.current) {
 }
   }
 }
-  }, 100); // waits until scrolling has paused for 100ms
+   }, 50); // waits until scrolling has paused for 30ms
 }
 /*
    * ============================================================
@@ -2001,112 +2115,87 @@ updatedCart.push({
    */
 
   function addRegularProductToCart() {
-        const productColor =
-      normalizedProductName === "plain candle" &&
-      hasOptions &&
-      selectedOption?.name
-        ? `${selectedColor?.name ?? productName} · ${selectedOption.name}`
-        : selectedColor?.name ?? productName;
+  const baseColor =
+    normalizedProductName === "plain candle" &&
+    hasOptions &&
+    selectedOption?.name
+      ? `${selectedColor?.name ?? productName} · ${selectedOption.name}`
+      : selectedColor?.name ?? productName;
 
-    // Force scent to null whenever "Unscented" is the currently
-    // selected Style option — regardless of whatever's left sitting
-    // in selectedScent state from initialization or a prior pick.
-    const isUnscentedSelected =
-      hasOptions && selectedOption?.name === "Unscented";
+  const productColor = activeGroups.reduce(
+    (text, group) =>
+      `${text} · ${currentChoice(group).name} ${groupSuffix(group.label)}`,
+    baseColor
+  );
 
-    const productScent = isUnscentedSelected
-      ? null
-      : selectedScent ?? null;
+  // Force scent to null whenever "Unscented" is the currently
+  // selected Style option.
+  const isUnscentedSelected =
+    hasOptions && selectedOption?.name === "Unscented";
 
-const baseLineId = createLineId(productColor, productScent);
+  const productScent = isUnscentedSelected ? null : selectedScent ?? null;
 
-// For color-scroll products (Marble Moon, Forever Clasp, etc.)
-// `gallery` spans every color in one swipeable array, so
-// gallery[0] is always the FIRST color's photo...
-const lineImage =
-  selectedOption?.image_url ??
-  selectedOption?.image_urls?.[0] ??
-  selectedColor?.image_url ??
-  selectedColor?.image_urls?.[0] ??
-  gallery[0] ??
-  "";
+  const baseLineId = createLineId(productColor, productScent);
 
-const isMonogramProduct =
-  productName === "Pocket Hearts" || productName === "Rustic Warmth";
+  const lineImage =
+    selectedOption?.image_url ??
+    selectedOption?.image_urls?.[0] ??
+    selectedColor?.image_url ??
+    selectedColor?.image_urls?.[0] ??
+    gallery[0] ??
+    "";
 
-const monogramTextToUse =
-  isMonogramProduct && monogramText.trim()
-    ? monogramText.trim()
-    : undefined;
+  const isMonogramProduct =
+    productName === "Pocket Hearts" || productName === "Rustic Warmth";
 
-const monogramImageToUse =
-  isMonogramProduct && monogramImageUrl
-    ? monogramImageUrl
-    : undefined;
+  const monogramTextToUse =
+    isMonogramProduct && monogramText.trim() ? monogramText.trim() : undefined;
 
-const monogramCustomization =
-  monogramTextToUse || monogramImageToUse
-    ? {
-        type: "monogram" as const,
-        monogramText: monogramTextToUse ?? "",
-        monogramImage: monogramImageToUse,
-      }
-    : undefined;
+  const monogramImageToUse =
+    isMonogramProduct && monogramImageUrl ? monogramImageUrl : undefined;
 
-// Personalized lines get a unique id so two different
-// personalizations never merge into one cart line.
-const lineId = monogramCustomization
-  ? `${baseLineId}-p${Date.now().toString(36)}`
-  : baseLineId;
-
-addToCart({
-  id: lineId,
-  productId: product.id,
-  productName,
-  price: Number(displayPrice),
-  quantity: 1,
-  scent: productScent,
-  color: productColor,
-  image: lineImage,
-  category: product.category,
-  customization: monogramCustomization,
-});
-    setOrderLines((prev) => {
-      const existingLineIndex = prev.findIndex(
-        (line) => line.id === lineId
-      );
-
-      if (existingLineIndex !== -1) {
-        const updated = [...prev];
-        updated[existingLineIndex] = {
-          ...updated[existingLineIndex],
-          quantity: updated[existingLineIndex].quantity + 1,
-        };
-        return updated;
-      }
-
-      return [
-        ...prev,
-        {
-          id: lineId,
-          colorName: productColor,
-          scentName: productScent,
-          price: Number(displayPrice),
-          quantity: 1,
-          image: lineImage,
-          monogramText: monogramTextToUse,
+  const monogramCustomization =
+    monogramTextToUse || monogramImageToUse
+      ? {
+          type: "monogram" as const,
+          monogramText: monogramTextToUse ?? "",
           monogramImage: monogramImageToUse,
-        },
-      ];
-    });
+        }
+      : undefined;
 
-      // Personalization is entered fresh per line — clear it after
-    // adding so a follow-up click doesn't silently reuse it.
-    if (isMonogramProduct) {
-      setMonogramText("");
-      setMonogramImageUrl(null);
-    }
+  // Personalized lines get a unique id so two different
+  // personalizations never merge into one cart line.
+  const lineId = monogramCustomization
+    ? `${baseLineId}-p${Date.now().toString(36)}`
+    : baseLineId;
+
+  // Products with the order counter: the counter in "Your Order" already
+  // changes the cart directly. If this item is already in the cart,
+  // pressing Add to Cart again must not add one more. Just show the cart.
+  if (product.show_order_counter && getCart().some((i) => i.id === lineId)) {
+    window.dispatchEvent(new Event("openCart"));
+    return;
   }
+
+  addToCart({
+    id: lineId,
+    productId: product.id,
+    productName,
+    price: Number(displayPrice),
+    quantity: 1,
+    scent: productScent,
+    color: productColor,
+    image: lineImage,
+    category: product.category,
+    customization: monogramCustomization,
+  });
+
+  // Personalization is entered fresh per line, so clear it after adding.
+  if (isMonogramProduct) {
+    setMonogramText("");
+    setMonogramImageUrl(null);
+  }
+}
 
   /*
    * ============================================================
@@ -2116,7 +2205,7 @@ addToCart({
 
   function addTambourineLineToOrder() {
     const productColor = selectedColor?.name ?? productName;
-    const ribbon = RIBBON_COLORS.find((c) => c.id === selectedRibbon)!;
+const ribbon = activeRibbon;
 
     const lineId = [product.id, productColor, ribbon.id]
       .join("-")
@@ -2505,6 +2594,7 @@ addToCart({
                 }}
               >
                 {productName}
+                           
               </h1>
 
               <div
@@ -2759,7 +2849,6 @@ addToCart({
             {/* ==================================================
                 RIBBON COLOR
                 ================================================== */}
-
             {productName === "Tambourine" && (
   <div className="mt-5">
     <p
@@ -2768,14 +2857,13 @@ addToCart({
     >
       Ribbon Color
     </p>
+    
 
     <div className="flex items-center gap-3">
       <span
         className="h-8 w-8 flex-shrink-0 rounded-full"
         style={{
-          backgroundColor: RIBBON_COLORS.find(
-            (c) => c.id === selectedRibbon
-          )!.hex,
+          backgroundColor: activeRibbon.hex,
           border: "1.5px solid rgba(0,0,0,0.15)",
           boxShadow:
             selectedRibbon === "gold"
@@ -2785,10 +2873,8 @@ addToCart({
       />
 
       <select
-        value={selectedRibbon}
-        onChange={(e) =>
-          setSelectedRibbon(e.target.value as RibbonColorId)
-        }
+        value={activeRibbon.id}
+onChange={(e) => setSelectedRibbon(e.target.value)}
         className="flex-1 rounded-xl px-3 py-3 text-sm outline-none"
         style={{
           border: "1.5px solid rgba(0,0,0,0.15)",
@@ -2796,7 +2882,7 @@ addToCart({
           color: "#000000",
         }}
       >
-        {RIBBON_COLORS.map((c) => (
+        {ribbonChoices.map((c) => (
           <option key={c.id} value={c.id}>
             {c.label}
           </option>
@@ -2867,7 +2953,54 @@ addToCart({
 )}
 
             
+            {activeGroups.map((group) => {
+              const chosen = currentChoice(group);
 
+              return (
+                <div key={group.label} className="mt-5">
+                  <p
+                    className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"
+                    style={{ color: accent }}
+                  >
+                    {group.label}
+                  </p>
+
+                  <div className="flex items-center gap-3">
+                    {chosen.hex && (
+                      <span
+                        className="h-8 w-8 flex-shrink-0 rounded-full"
+                        style={{
+                          backgroundColor: chosen.hex,
+                          border: "1.5px solid rgba(0,0,0,0.15)",
+                        }}
+                      />
+                    )}
+
+                    <select
+                      value={chosen.name}
+                      onChange={(e) =>
+                        setGroupSelections((prev) => ({
+                          ...prev,
+                          [group.label]: e.target.value,
+                        }))
+                      }
+                      className="flex-1 rounded-xl px-3 py-3 text-sm outline-none"
+                      style={{
+                        border: "1.5px solid rgba(0,0,0,0.15)",
+                        backgroundColor: "#FFFFFF",
+                        color: "#000000",
+                      }}
+                    >
+                      {group.choices.map((c) => (
+                        <option key={c.name} value={c.name}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              );
+            })}
             {/* ==================================================
                 SCENT
                 ================================================== */}
@@ -3893,6 +4026,7 @@ addToCart({
   productName !== "Tambourine" &&
   !isPocketHearts && (
     <>
+         
       <button
         type="button"
         onClick={addRegularProductToCart}
@@ -3907,8 +4041,8 @@ addToCart({
            >
         Add to Cart
       </button>
-
-      {!hasNoOrderCounter && orderLines.length > 0 && (
+  
+                 {product.show_order_counter && orderLines.length > 0 && (
         <div className="mt-5">
           <p
             className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em]"

@@ -6,12 +6,14 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const LINKS = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/orders", label: "Orders" },
-  { href: "/admin/custom-orders", label: "Custom Orders" },
-  { href: "/admin/products", label: "Products" },
-  { href: "/admin/customers", label: "Customers" },
-  { href: "/admin/reviews", label: "Reviews" },
+  { label: "Dashboard", href: "/admin" },
+  { label: "Orders", href: "/admin/orders" },
+  { label: "Custom Orders", href: "/admin/custom-orders" },
+  { label: "Products", href: "/admin/products" },
+  { label: "Customers", href: "/admin/customers" },
+  { label: "Discounts", href: "/admin/discounts" },
+  { label: "Reviews", href: "/admin/reviews" },
+  { label: "Profile", href: "/admin/profile" },
 ];
 
 export default function AdminNav({ email }: { email: string }) {

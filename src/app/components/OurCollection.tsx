@@ -17,10 +17,10 @@ const MOON_IMG =
 
 export default function OurCollection() {
   return (
-    <section
-      className="relative w-full overflow-hidden py-16 md:py-24"
-      style={{ backgroundColor: "#8FAA82" }}
-    >
+   <section
+  className="relative isolate w-full overflow-hidden py-16 md:py-24"
+  style={{ backgroundColor: "#8FAA82" }}
+>
       {/* =====================================================
           SECTION EDGE WAVES
       ===================================================== */}
@@ -73,8 +73,7 @@ export default function OurCollection() {
       {/* =====================================================
           CURVED RIBBON — THICKER FLOWING FABRIC SASH
       ===================================================== */}
-
-      <div className="relative left-1/2 z-700 mt-1 w-screen -translate-x-1/2 md:mt-14">
+<div className="relative left-1/2 z-40 mt-1 w-screen -translate-x-1/2 md:mt-14">
         <svg
           viewBox="0 0 1600 230"
           className="h-auto w-full overflow-visible"

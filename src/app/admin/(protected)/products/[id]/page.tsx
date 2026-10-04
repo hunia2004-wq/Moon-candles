@@ -4,7 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Product } from "@/lib/supabase/types";
-
+import OptionGroupsEditor, {
+  draftsFromGroups,
+  groupsFromDrafts,
+  type OptionGroupDraft,
+} from "../../components/OptionGroupsEditor";
 type ImageItem = { kind: "existing"; url: string } | { kind: "new"; file: File };
 
 type OptionDraft = {
@@ -110,6 +114,8 @@ export default function EditProductPage() {
   const [sizeMl, setSizeMl] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
   const [category, setCategory] = useState<"candle" | "giveaway">("candle");
+    const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
+      const [showOrderCounter, setShowOrderCounter] = useState(false);
    const isScentOnlyProduct = SCENT_ONLY_PRODUCTS.some(
     (n) => n.toLowerCase() === name.trim().toLowerCase()
   );
@@ -160,7 +166,8 @@ export default function EditProductPage() {
       setIsFeatured(!!p.is_featured);
       setCategory((p.category as "candle" | "giveaway") ?? "candle");
       setScents(p.scents ?? []);
-
+      setOptionGroups(draftsFromGroups(p.option_groups));
+            setShowOrderCounter(!!p.show_order_counter);
       const productHasColors = (p.colors?.length ?? 0) > 0;
       setHasColors(productHasColors);
 
@@ -374,7 +381,9 @@ export default function EditProductPage() {
           is_featured: isFeatured,
           scents,
           colors: colorsPayload,
-          image_urls: imageUrls,
+                    image_urls: imageUrls,
+          option_groups: groupsFromDrafts(optionGroups),
+                    show_order_counter: showOrderCounter,
         })
         .eq("id", productId);
 
@@ -632,6 +641,24 @@ export default function EditProductPage() {
           />
           <span className="text-sm font-medium" style={{ color: "#000000" }}>
             Featured product
+          </span>
+        </label>
+                <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={showOrderCounter}
+            onChange={(e) => setShowOrderCounter(e.target.checked)}
+            className="mt-0.5 h-5 w-5"
+          />
+          <span className="text-sm font-medium" style={{ color: "#000000" }}>
+            Show "Your Order" counter on the product page
+            <span
+              className="block text-xs font-normal"
+              style={{ color: "rgba(0,0,0,0.55)" }}
+            >
+              For products ordered in bulk. Customers see a list of what
+              they added with + / − buttons under Add to Cart.
+            </span>
           </span>
         </label>
 
@@ -902,7 +929,7 @@ export default function EditProductPage() {
             </div>
           </div>
         )}
-
+        <OptionGroupsEditor groups={optionGroups} onChange={setOptionGroups} />
         <button
           type="button"
           onClick={handleSave}

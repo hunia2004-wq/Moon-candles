@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import SiteChrome from "./components/SiteChrome";
 import { ActiveCandleProvider } from "./components/ActiveCandleContext";
-import ConditionalPromoBanner from "./components/ConditionalPromoBanner";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,7 +34,7 @@ export default function RootLayout({
         className="min-h-full flex flex-col"
         style={{ backgroundColor: "#efe3c4" }}
       >
-        <ConditionalPromoBanner />
+       
         <ActiveCandleProvider>
           <SiteChrome>{children}</SiteChrome>
         </ActiveCandleProvider>

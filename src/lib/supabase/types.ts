@@ -23,7 +23,14 @@ export type Product = {
   image_urls: string[];
   is_featured: boolean;
   is_active: boolean;
-  size_ml: number | null;
+    size_ml: number | null;
+  option_groups?: {
+  
+    label: string;
+    choices: { name: string; hex?: string }[];
+  }[];
+    show_order_counter?: boolean;
+
 };
 
 export type CarouselCandle = {
