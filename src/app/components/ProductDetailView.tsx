@@ -3988,6 +3988,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                             scent: line.scentName,
                             color: line.colorName,
                             image: line.image,
+                            category: product.category,  
                             customization,
                           });
                           }

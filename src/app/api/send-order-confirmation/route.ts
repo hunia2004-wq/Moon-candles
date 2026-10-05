@@ -204,7 +204,7 @@ const resend = new Resend(apiKey);
                         </div>
 
                         <div style="color: ${SAND}; font-size: 24px; font-weight: 700;">
-                          #${orderNumber}
+                         ${orderNumber}
                         </div>
                       </td>
                     </tr>
@@ -320,7 +320,7 @@ const resend = new Resend(apiKey);
       from: "Moon Candles <onboarding@resend.dev>",
       to: email,
       replyTo: "themooncandleshopp@gmail.com",
-      subject: `Your Moon Candles order #${orderNumber} is confirmed 🌙`,
+      subject: `Your Moon Candles order ${orderNumber} is confirmed 🌙`,
       html,
     });
 

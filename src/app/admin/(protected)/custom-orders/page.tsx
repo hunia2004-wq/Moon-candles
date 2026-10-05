@@ -10,7 +10,7 @@ import {
   type CustomerImage,
 } from "@/lib/customerImages";
 import CustomerImageDownloads from "../components/CustomerImageDownloads";
-
+import { printPackingSlip } from "@/lib/packingSlip";
 const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
@@ -79,7 +79,10 @@ type CustomizedEntry = {
   createdAt: string;
   completedAt: string | null;
 
-  items: EntryItem[];
+   items: EntryItem[];
+
+  // The untouched database row, so printing uses the full order
+  rawOrder?: any;
 };
 
 function isCustomizedOrderItem(item: any): boolean {
@@ -382,7 +385,9 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
         completedAt:
           order.completed_at ?? null,
 
-        items,
+             items,
+        rawOrder: order,
+
       });
     }
 
@@ -1251,7 +1256,39 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
                           </select>
                         </label>
                       )}
+                                           <button
+                        type="button"
+                        onClick={() => {
+                          // Regular orders: print the whole order, not just
+                          // the giveaway items shown on this page
+                          if (o.rawOrder) {
+                            printPackingSlip(o.rawOrder);
+                            return;
+                          }
 
+                          printPackingSlip({
+                            order_code: o.code,
+                            created_at: o.createdAt,
+                            customer_name: o.customerName,
+                            customer_phone: o.phone,
+                            governorate: o.governorate,
+                            address: o.address,
+                            payment_status: o.paymentStatus,
+                            shipping_fee: o.shippingFee,
+                            total: grandTotal,
+                            items: o.items.map((it) => ({
+                              productName: it.productTitle,
+                              detail: [it.subtitle, it.note].filter(Boolean).join(" · "),
+                              quantity: it.quantity,
+                              amount: it.price - o.shippingFee,
+                            })),
+                          });
+                        }}
+                        className="text-xs font-semibold underline"
+                        style={{ color: ACCENT }}
+                      >
+                        Print packing slip
+                      </button>
                       {/* CANCEL */}
                       <button
                         type="button"

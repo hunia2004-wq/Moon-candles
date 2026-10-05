@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import StatusPill from "../../components/StatusPill";
 
@@ -11,185 +11,288 @@ const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
 const MUTED = "rgba(0,0,0,0.55)";
 
-type TimelineEntry = {
-  id: string;
-  kind: "Order" | "Custom";
-  amount: number;
-  status: string;
-  created_at: string;
-  detail: string | null;
-};
+// Same rules the Customers list uses, so a customer's page always
+// finds the same orders the list counted for them.
+function normalizePhone(phone: string | null): string | null {
+  if (!phone) return null;
+  const digits = phone.replace(/[\s-]/g, "");
+  const match = digits.match(/^(?:\+?20|0)?(1[0125]\d{8})$/);
+  return match ? match[1] : digits || null;
+}
 
-export default function CustomerDetailPage() {
+function customerKey(r: any): string {
+  return (
+    normalizePhone(r.customer_phone) ||
+    r.customer_email?.trim().toLowerCase() ||
+    r.customer_name?.trim().toLowerCase() ||
+    "unknown"
+  );
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString("en-GB", { timeZone: "Africa/Cairo" });
+}
+
+export default function AdminCustomerDetailPage() {
   const params = useParams<{ key: string }>();
-  const key = decodeURIComponent(params.key);
 
+  const key = (() => {
+    try {
+      return decodeURIComponent(String(params.key ?? ""));
+    } catch {
+      return String(params.key ?? "");
+    }
+  })();
+
+  const [orders, setOrders] = useState<any[]>([]);
+  const [customOrders, setCustomOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("");
-  const [governorate, setGovernorate] = useState("");
-  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
 
   useEffect(() => {
-    loadCustomer();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    async function load() {
+      setLoading(true);
+      setError(null);
+
+      const supabase = createClient();
+
+      const [ordersRes, customRes] = await Promise.all([
+        supabase.from("orders").select("*").order("created_at", { ascending: false }),
+        supabase.from("custom_orders").select("*").order("created_at", { ascending: false }),
+      ]);
+
+      if (ordersRes.error) {
+        setError(ordersRes.error.message);
+        setLoading(false);
+        return;
+      }
+
+      if (customRes.error) {
+        console.error("Couldn't load custom orders:", customRes.error.message);
+      }
+
+      setOrders((ordersRes.data ?? []).filter((o) => customerKey(o) === key));
+      setCustomOrders((customRes.data ?? []).filter((o) => customerKey(o) === key));
+      setLoading(false);
+    }
+
+    load();
   }, [key]);
 
-  async function loadCustomer() {
-    setLoading(true);
-    setError(null);
+  // Details come from the newest order that has them filled in.
+  const all = [...orders, ...customOrders].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
 
-    const supabase = createClient();
-    const filter = `customer_phone.eq.${key},customer_email.eq.${key},customer_name.eq.${key}`;
+  const pick = (field: string) => all.find((r) => r[field])?.[field] ?? null;
 
-    const [ordersRes, customOrdersRes] = await Promise.all([
-      supabase.from("orders").select("*").or(filter),
-      supabase.from("custom_orders").select("*").or(filter),
-    ]);
+  const name = pick("customer_name") ?? "Unnamed customer";
+  const phone = pick("customer_phone");
+  const email = pick("customer_email");
+  const governorate = orders.find((o) => o.governorate)?.governorate ?? null;
+  const address = orders.find((o) => o.address)?.address ?? null;
 
-    if (ordersRes.error) {
-      setError(ordersRes.error.message);
-      setLoading(false);
-      return;
-    }
+  const totalSpent =
+    orders.reduce((sum, o) => sum + Number(o.total ?? 0), 0) +
+    customOrders.reduce((sum, o) => sum + Number(o.price ?? 0), 0);
 
-    const orders = ordersRes.data ?? [];
-    const customOrders = customOrdersRes.data ?? [];
-
-    if (orders.length === 0 && customOrders.length === 0) {
-      setError("No customer found.");
-      setLoading(false);
-      return;
-    }
-
-    const first = orders[0] ?? customOrders[0];
-    setName(first.customer_name || "Unnamed customer");
-    setPhone(first.customer_phone || "—");
-    setEmail(first.customer_email || "—");
-    setAddress(first.address || "");
-    setGovernorate(first.governorate || "");
-
-    const combined: TimelineEntry[] = [
-      ...orders.map((o) => ({
-        id: o.id,
-        kind: "Order" as const,
-        amount: Number(o.total ?? 0),
-        status: o.status,
-        created_at: o.created_at,
-        detail: null,
-      })),
-      ...customOrders.map((o) => ({
-        id: o.id,
-        kind: "Custom" as const,
-        amount: Number(o.price ?? 0),
-        status: o.status,
-        created_at: o.created_at,
-        detail: o.size_label,
-      })),
-    ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-    setTimeline(combined);
-    setLoading(false);
-  }
-
-  const totalSpent = timeline.reduce((sum, t) => sum + t.amount, 0);
+  const orderCount = orders.length + customOrders.length;
+  const lastOrderAt = all[0]?.created_at ?? null;
 
   return (
     <div style={{ backgroundColor: BG }} className="min-h-screen">
-      <div className="px-6 py-8 md:px-10 md:py-10 max-w-2xl mx-auto">
+      <div className="px-6 py-8 md:px-10 md:py-10 max-w-5xl mx-auto">
+        <Link
+          href="/admin/customers"
+          className="mb-5 inline-block text-xs font-semibold underline"
+          style={{ color: ACCENT }}
+        >
+          ← All customers
+        </Link>
+
         {loading && (
           <p className="text-sm" style={{ color: MUTED }}>
-            Loading...
+            Loading customer...
           </p>
         )}
 
         {error && (
           <p className="text-sm rounded-xl px-4 py-3" style={{ backgroundColor: "#F5DADA", color: "#A34848" }}>
-            {error}
+            Couldn't load this customer: {error}
           </p>
         )}
 
-        {!loading && !error && (
+        {!loading && !error && orderCount === 0 && (
+          <div
+            className="rounded-2xl px-5 py-8 text-center text-sm"
+            style={{ backgroundColor: CARD_BG, color: MUTED, border: "1px solid rgba(0,0,0,0.08)" }}
+          >
+            No orders found for this customer.
+          </div>
+        )}
+
+        {!loading && !error && orderCount > 0 && (
           <>
-            <h1 className="text-3xl font-serif font-bold mb-1" style={{ color: "#000000" }}>
+            <h1 className="text-3xl font-serif font-bold mb-5" style={{ color: "#000000" }}>
               {name}
             </h1>
-            <p className="text-xs mb-8" style={{ color: MUTED }}>
-              {timeline.length} order{timeline.length === 1 ? "" : "s"}
-            </p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
-              <SummaryCard label="Total orders" value={timeline.length.toString()} />
-              <SummaryCard label="Total spent" value={`${totalSpent.toLocaleString()} LE`} />
-              <SummaryCard label="Contact" value={phone !== "—" ? phone : email} />
-            </div>
-
-            {address && (
-              <div
-                className="rounded-2xl p-5 mb-8"
-                style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)" }}
-              >
-                <p className="text-xs uppercase tracking-wide mb-2" style={{ color: MUTED }}>
-                  Last known address
-                </p>
-                <p className="text-sm" style={{ color: "#000000" }}>
-                  {address}
-                  {governorate ? `, ${governorate}` : ""}
-                </p>
-              </div>
-            )}
-
-            <h2 className="text-xl font-serif font-bold mb-4" style={{ color: "#000000" }}>
-              Order history
-            </h2>
 
             <div
-              className="rounded-2xl overflow-hidden"
-              style={{ border: "1px solid rgba(0,0,0,0.08)" }}
+              className="mb-6 grid grid-cols-1 gap-4 rounded-2xl p-5 sm:grid-cols-2"
+              style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)" }}
             >
-              {timeline.map((t) => (
-                <Link
-                  key={`${t.kind}-${t.id}`}
-                  href={t.kind === "Custom" ? `/admin/custom-orders/${t.id}` : "/admin/orders"}
-                  className="flex items-center justify-between px-5 py-3.5 text-sm"
-                  style={{ backgroundColor: CARD_BG, borderTop: "1px solid rgba(0,0,0,0.06)" }}
+              <div>
+                <p className="mb-1 text-[11px] uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
+                  Contact
+                </p>
+                <p className="text-sm" style={{ color: "#000000" }}>
+                  {phone || "No phone"}
+                </p>
+                <p className="text-sm" style={{ color: "#000000" }}>
+                  {email || "No email"}
+                </p>
+              </div>
+
+              <div>
+                <p className="mb-1 text-[11px] uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
+                  Last delivery details
+                </p>
+                <p className="text-sm" style={{ color: "#000000" }}>
+                  {governorate || "No governorate"}
+                </p>
+                <p className="text-sm" style={{ color: "#000000" }}>
+                  {address || "No address"}
+                </p>
+              </div>
+
+              <div className="flex gap-8 sm:col-span-2">
+                <div>
+                  <p className="text-xs" style={{ color: MUTED }}>
+                    Orders
+                  </p>
+                  <p className="text-sm font-semibold" style={{ color: "#000000" }}>
+                    {orderCount}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs" style={{ color: MUTED }}>
+                    Spent
+                  </p>
+                  <p className="text-sm font-bold" style={{ color: ACCENT }}>
+                    {totalSpent.toLocaleString()} LE
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs" style={{ color: MUTED }}>
+                    Last order
+                  </p>
+                  <p className="text-xs" style={{ color: "#000000" }}>
+                    {lastOrderAt ? formatDate(lastOrderAt) : "—"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <p className="mb-3 text-[11px] uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
+              Orders ({orders.length})
+            </p>
+
+            <div className="mb-8 flex flex-col gap-3">
+              {orders.length === 0 && (
+                <p className="text-sm" style={{ color: MUTED }}>
+                  No regular orders.
+                </p>
+              )}
+
+              {orders.map((o) => {
+                const items: any[] = Array.isArray(o.items) ? o.items : [];
+
+                return (
+                  <div
+                    key={o.id}
+                    className="rounded-2xl p-5"
+                    style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)" }}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold" style={{ color: "#000000" }}>
+                          {o.order_code ?? "Order"}
+                        </p>
+                        <p className="text-xs" style={{ color: MUTED }}>
+                          {formatDate(o.created_at)}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <StatusPill status={o.status} />
+                        <StatusPill status={o.payment_status ?? "unpaid"} />
+                        <span className="ml-2 text-sm font-bold" style={{ color: ACCENT }}>
+                          {Number(o.total ?? 0).toLocaleString()} LE
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-col gap-1">
+                      {items.map((item, i) => (
+                        <p key={i} className="text-xs" style={{ color: "#000000" }}>
+                          x{item.quantity ?? 1} · {item.productName}
+                          {item.color ? ` · ${item.color}` : ""}
+                          {item.scent ? ` · ${item.scent}` : ""}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="mb-3 text-[11px] uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
+              Custom candles ({customOrders.length})
+            </p>
+
+            <div className="flex flex-col gap-3">
+              {customOrders.length === 0 && (
+                <p className="text-sm" style={{ color: MUTED }}>
+                  No custom candles.
+                </p>
+              )}
+
+              {customOrders.map((o) => (
+                <div
+                  key={o.id}
+                  className="rounded-2xl p-5"
+                  style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)" }}
                 >
-                  <div>
-                    <span className="font-medium" style={{ color: "#000000" }}>
-                      {t.kind === "Custom" ? `Custom · ${t.detail}` : "Order"}
-                    </span>
-                    <span className="ml-2 text-xs" style={{ color: MUTED }}>
-                      {new Date(t.created_at).toLocaleDateString()}
-                    </span>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold" style={{ color: "#000000" }}>
+                        {o.order_code ?? "Custom Candle"}
+                      </p>
+                      <p className="text-xs" style={{ color: MUTED }}>
+                        {formatDate(o.created_at)}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <StatusPill status={o.status} />
+                      <span className="ml-2 text-sm font-bold" style={{ color: ACCENT }}>
+                        {Number(o.price ?? 0).toLocaleString()} LE
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <StatusPill status={t.status} />
-                    <span className="font-semibold" style={{ color: "#000000" }}>
-                      {t.amount.toLocaleString()} LE
-                    </span>
-                  </div>
-                </Link>
+
+                  <p className="mt-3 text-xs" style={{ color: "#000000" }}>
+                    {o.size_label} · {o.scent || "No scent chosen"}
+                  </p>
+                  <p className="text-xs italic" style={{ color: MUTED }}>
+                    {o.message ? `"${o.message}"` : "No message"}
+                  </p>
+                </div>
               ))}
             </div>
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl px-5 py-4" style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)" }}>
-      <p className="text-xs uppercase tracking-wide mb-1" style={{ color: MUTED }}>
-        {label}
-      </p>
-      <p className="font-serif text-lg font-bold truncate" style={{ color: "#000000" }}>
-        {value}
-      </p>
     </div>
   );
 }

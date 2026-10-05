@@ -304,26 +304,33 @@ if (!emailTrimmed) {
     createdAt: new Date().toISOString(),
   };
 
-   const supabase = createClient();
- const { error } = await supabase.from("orders").insert({
-  customer_name: form.fullName,
-  customer_phone: form.phone,
-  customer_email: form.email,
-  governorate: form.city,
-  address: `${form.address}${form.notes ? ` — Note: ${form.notes}` : ""}`,
-  items,
-  promo_discount: promoDiscount,
-  shipping_fee: shippingFee,   // add this line
-  total: grandTotal,
+const supabase = createClient();
+const { data: orderCode, error } = await supabase.rpc("place_order", {
+  p_customer_name: form.fullName,
+  p_customer_phone: form.phone,
+  p_customer_email: form.email,
+  p_governorate: form.city,
+  p_address: `${form.address}${form.notes ? ` — Note: ${form.notes}` : ""}`,
+  p_items: items,
+  p_promo_discount: promoDiscount,
+  p_shipping_fee: shippingFee,
+  p_total: grandTotal,
 });
-  if (error) {
-    alert(`Couldn't place your order: ${error.message}`);
-    return;
-  }
-// Tells the customize pages that everything made before now is a finished order.
+
+if (error) {
+  alert(`Couldn't place your order: ${error.message}`);
+  return;
+}
+
+// The same number the admin sees (for example Moon-12).
+const placed: PlacedOrder = {
+  ...order,
+  orderNumber: (orderCode as string) || order.orderNumber,
+};
+
 localStorage.setItem("orderPlacedAt", String(Date.now()));
 clearCart();
-setPlacedOrder(order);
+setPlacedOrder(placed);
 
 // Send confirmation email — fire and forget, failure here shouldn't
 // block the order from being placed successfully.
@@ -333,7 +340,7 @@ fetch("/api/send-order-confirmation", {
   body: JSON.stringify({
     email: form.email,
     customerName: form.fullName,
-    orderNumber: order.orderNumber,
+       orderNumber: placed.orderNumber,
     items: items.map((i) => ({
       productName: i.productName,
       color: i.color,
@@ -430,19 +437,14 @@ fetch("/api/send-order-confirmation", {
               </div>
 
               {/* TOP DIVIDER */}
-              <div
-                className="my-5 border-t border-dashed"
-                style={{
-                  borderColor: "rgba(0,0,0,0.45)",
-                }}
-              />
+             
 
               {/* RECEIPT META */}
               <div className="text-[9px] leading-4">
                 <div className="flex justify-between">
                   <span>ORDER</span>
                   <span className="font-bold">
-                    #{placedOrder.orderNumber}
+                   {placedOrder.orderNumber}
                   </span>
                 </div>
 
@@ -497,12 +499,8 @@ fetch("/api/send-order-confirmation", {
     borderColor: "rgba(0,0,0,0.45)",
   }}
 />
-              <div
-                className="my-5 border-t border-dashed"
-                style={{
-                  borderColor: "rgba(0,0,0,0.45)",
-                }}
-              />
+            
+        
 
               {/* ITEMS HEADER */}
               <div className="grid grid-cols-[1fr_35px_75px] gap-2 text-[8px] font-bold uppercase">

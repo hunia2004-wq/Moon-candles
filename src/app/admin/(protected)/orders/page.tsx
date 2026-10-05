@@ -6,7 +6,8 @@ import type { CartItem } from "@/lib/cart";
 import StatusPill from "../components/StatusPill";
 import { collectCustomerImages, candleTextNote } from "@/lib/customerImages";
 import CustomerImageDownloads from "../components/CustomerImageDownloads";
-
+import { printPackingSlip } from "@/lib/packingSlip";
+import { exportOrdersCsv } from "@/lib/exportOrders";
 const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
@@ -188,14 +189,26 @@ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "pa
             Orders
           </h1>
 
-          <button
-            type="button"
-            onClick={loadOrders}
-            className="text-xs font-semibold underline"
-            style={{ color: ACCENT }}
-          >
-            Refresh
-          </button>
+                            <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => exportOrdersCsv(filtered, view)}
+              disabled={filtered.length === 0}
+              className="text-xs font-semibold underline disabled:opacity-40"
+              style={{ color: ACCENT }}
+            >
+              Export CSV ({filtered.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={loadOrders}
+              className="text-xs font-semibold underline"
+              style={{ color: ACCENT }}
+            >
+              Refresh
+            </button>
+          </div>
         </div>
 <div className="flex gap-2 mb-4">
 <button
@@ -210,6 +223,7 @@ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "pa
 >
   Active
 </button>
+
 <button
   type="button"
   onClick={() => setView("cancelled")}
@@ -537,7 +551,14 @@ return [item.color, item.option, scentLabel].filter(Boolean).join(" · ");
       ))}
     </select>
   </label>
-
+ <button
+                      type="button"
+                      onClick={() => printPackingSlip(order)}
+                      className="text-xs font-semibold underline"
+                      style={{ color: ACCENT }}
+                    >
+                      Print packing slip
+                    </button>
                     <button
   type="button"
   onClick={() => {

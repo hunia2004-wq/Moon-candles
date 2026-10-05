@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 const LINKS = [
@@ -16,39 +16,155 @@ const LINKS = [
   { label: "Profile", href: "/admin/profile" },
 ];
 
+type Section = "orders" | "custom_orders";
+
+// Which badge section (if any) the current page belongs to
+function sectionForPath(path: string): Section | null {
+  if (path === "/admin/orders" || path.startsWith("/admin/orders/")) return "orders";
+  if (path === "/admin/custom-orders" || path.startsWith("/admin/custom-orders/"))
+    return "custom_orders";
+  return null;
+}
+
+const BADGE_SECTION: Record<string, Section> = {
+  "/admin/orders": "orders",
+  "/admin/custom-orders": "custom_orders",
+};
+// Same rule the Custom Orders page uses to decide an order belongs there
+function hasCustomizedItems(items: unknown): boolean {
+  return (
+    Array.isArray(items) &&
+    items.some((item: any) => item?.category === "giveaway" || !!item?.customization)
+  );
+}
+
 export default function AdminNav({ email }: { email: string }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [pendingCount, setPendingCount] = useState(0);
+  const [counts, setCounts] = useState<Record<Section, number>>({
+    orders: 0,
+    custom_orders: 0,
+  });
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Lets the live listener know which page is open without re-subscribing
+  const pathRef = useRef(pathname);
+  useEffect(() => {
+    pathRef.current = pathname;
+  }, [pathname]);
+
+  // Saves "I've seen everything up to now" for this owner and clears the badge
+  async function markSeen(section: Section) {
+    setCounts((c) => ({ ...c, [section]: 0 }));
+
+    const supabase = createClient();
+    await supabase.from("admin_seen").upsert({
+      email,
+      section,
+      seen_at: new Date().toISOString(),
+    });
+  }
+
+  // Initial load: count items created after each section's last-seen time
   useEffect(() => {
     const supabase = createClient();
 
-    async function loadPendingCount() {
-      const [orders, customOrders] = await Promise.all([
-        supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "pending"),
-        supabase.from("custom_orders").select("id", { count: "exact", head: true }).eq("status", "pending"),
-      ]);
-      setPendingCount((orders.count ?? 0) + (customOrders.count ?? 0));
-    }
-    loadPendingCount();
+    async function loadCounts() {
+      const { data: seenRows } = await supabase
+        .from("admin_seen")
+        .select("section, seen_at")
+        .eq("email", email);
 
-    // Live badge: bump the count the moment a new order/custom order lands.
+      const seenAt: Record<string, string> = {};
+      (seenRows ?? []).forEach((r: any) => {
+        seenAt[r.section] = r.seen_at;
+      });
+
+      const sections: { section: Section; table: string }[] = [
+        { section: "orders", table: "orders" },
+        { section: "custom_orders", table: "custom_orders" },
+      ];
+
+      const next: Record<Section, number> = { orders: 0, custom_orders: 0 };
+
+           for (const { section, table } of sections) {
+        // First time for this owner: start the clock now, nothing is "new"
+        if (!seenAt[section]) {
+          await supabase.from("admin_seen").upsert({
+            email,
+            section,
+            seen_at: new Date().toISOString(),
+          });
+          continue;
+        }
+
+        const { count } = await supabase
+          .from(table)
+          .select("id", { count: "exact", head: true })
+          .gt("created_at", seenAt[section]);
+
+        let total = count ?? 0;
+
+        // The Custom Orders page also lists regular orders that contain
+        // giveaways or customized items, so count those as new too.
+        if (section === "custom_orders") {
+          const { data: newOrders } = await supabase
+            .from("orders")
+            .select("items")
+            .gt("created_at", seenAt[section]);
+
+          total += (newOrders ?? []).filter((o: any) => hasCustomizedItems(o.items)).length;
+        }
+
+        next[section] = total;
+      }
+
+      // Don't show a badge for the page that is open right now
+      const current = sectionForPath(pathRef.current);
+      if (current) next[current] = 0;
+
+      setCounts(next);
+    }
+
+    loadCounts();
+
+    // Live: a new order or custom order bumps its badge immediately
+    function onInsert(section: Section) {
+      if (sectionForPath(pathRef.current) === section) {
+        // Already looking at that page, so it counts as seen
+        markSeen(section);
+      } else {
+        setCounts((c) => ({ ...c, [section]: c[section] + 1 }));
+      }
+    }
+
     const channel = supabase
       .channel("admin-nav-orders")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "orders" }, () =>
-        setPendingCount((c) => c + 1)
+           .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "orders" },
+        (payload: any) => {
+          onInsert("orders");
+          if (hasCustomizedItems(payload.new?.items)) onInsert("custom_orders");
+        }
       )
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "custom_orders" }, () =>
-        setPendingCount((c) => c + 1)
+        onInsert("custom_orders")
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email]);
+
+  // Opening Orders or Custom Orders clears that badge
+  useEffect(() => {
+    const section = sectionForPath(pathname);
+    if (section) markSeen(section);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   // Close the mobile menu whenever the route changes (after tapping a link).
   useEffect(() => {
@@ -60,6 +176,26 @@ export default function AdminNav({ email }: { email: string }) {
     await supabase.auth.signOut();
     router.push("/admin/login");
     router.refresh();
+  }
+
+  const totalNew = counts.orders + counts.custom_orders;
+
+  function isActive(href: string) {
+    return href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+  }
+
+  function Badge({ href }: { href: string }) {
+    const section = BADGE_SECTION[href];
+    const n = section ? counts[section] : 0;
+    if (n <= 0) return null;
+    return (
+      <span
+        className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+        style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
+      >
+        {n}
+      </span>
+    );
   }
 
   return (
@@ -108,12 +244,12 @@ export default function AdminNav({ email }: { email: string }) {
           moon admin
         </p>
 
-        {pendingCount > 0 ? (
+        {totalNew > 0 ? (
           <span
             className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
             style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
           >
-            {pendingCount}
+            {totalNew}
           </span>
         ) : (
           <span className="w-6" />
@@ -135,30 +271,20 @@ export default function AdminNav({ email }: { email: string }) {
             style={{ backgroundColor: "#FFF9F0", borderBottom: "1.5px solid rgba(0,0,0,0.08)" }}
             onClick={(e) => e.stopPropagation()}
           >
-            {LINKS.map((link) => {
-              const active = pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="flex items-center justify-between rounded-xl px-3 py-3 text-sm font-medium"
-                  style={{
-                    backgroundColor: active ? "#EFE3C4" : "transparent",
-                    color: "#000000",
-                  }}
-                >
-                  <span>{link.label}</span>
-                  {link.href === "/admin/orders" && pendingCount > 0 && (
-                    <span
-                      className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                      style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
-                    >
-                      {pendingCount}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
+            {LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="flex items-center justify-between rounded-xl px-3 py-3 text-sm font-medium"
+                style={{
+                  backgroundColor: isActive(link.href) ? "#EFE3C4" : "transparent",
+                  color: "#000000",
+                }}
+              >
+                <span>{link.label}</span>
+                <Badge href={link.href} />
+              </Link>
+            ))}
 
             <div className="mt-2 pt-3 px-3" style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}>
               <p className="text-xs mb-2 truncate" style={{ color: "rgba(0,0,0,0.55)" }}>
@@ -178,7 +304,7 @@ export default function AdminNav({ email }: { email: string }) {
       )}
 
       {/* ---------------------------------------------------------- */}
-      {/* DESKTOP SIDEBAR — unchanged, hidden below md                 */}
+      {/* DESKTOP SIDEBAR — hidden below md                            */}
       {/* ---------------------------------------------------------- */}
       <aside
         className="hidden md:flex w-60 shrink-0 flex-col justify-between px-5 py-8"
@@ -189,30 +315,20 @@ export default function AdminNav({ email }: { email: string }) {
             moon admin
           </p>
           <nav className="flex flex-col gap-1">
-            {LINKS.map((link) => {
-              const active = pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
-                  style={{
-                    backgroundColor: active ? "#EFE3C4" : "transparent",
-                    color: "#000000",
-                  }}
-                >
-                  <span>{link.label}</span>
-                  {link.href === "/admin/orders" && pendingCount > 0 && (
-                    <span
-                      className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                      style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
-                    >
-                      {pendingCount}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
+            {LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition-colors"
+                style={{
+                  backgroundColor: isActive(link.href) ? "#EFE3C4" : "transparent",
+                  color: "#000000",
+                }}
+              >
+                <span>{link.label}</span>
+                <Badge href={link.href} />
+              </Link>
+            ))}
           </nav>
         </div>
 

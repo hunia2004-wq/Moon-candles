@@ -86,7 +86,7 @@ export default async function AdminDashboardPage() {
         {allOrders.slice(0, 10).map((o) => (
           <Link
             key={`${o.kind}-${o.id}`}
-href={o.kind === "Custom" ? `/admin/custom-orders/${o.id}` : `/admin/orders`}
+href={o.kind === "Custom" ? `/admin/custom-orders/${o.id}` : "/admin/orders"}
             className="flex items-center justify-between px-5 py-3.5 text-sm transition-colors hover:bg-[#FFF9F0]"
             style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}
           >
