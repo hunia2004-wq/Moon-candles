@@ -8,6 +8,8 @@ import { collectCustomerImages, candleTextNote } from "@/lib/customerImages";
 import CustomerImageDownloads from "../components/CustomerImageDownloads";
 import { printPackingSlip } from "@/lib/packingSlip";
 import { exportOrdersCsv } from "@/lib/exportOrders";
+import { customizationNote } from "@/lib/customizationNote";
+
 const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
@@ -504,16 +506,11 @@ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "pa
                   return [item.color, item.option, scentLabel].filter(Boolean).join(" · ");
                 })()}
               </p>
-              {item.customization && (
-                <p className="text-xs italic" style={{ color: MUTED }}>
-                  Customized ({item.customization.type})
-                </p>
-              )}
-              {item.customization?.type === "customized-candle" && (
-                <p className="text-xs" style={{ color: MUTED }}>
-                  {candleTextNote(item.customization)}
-                </p>
-              )}
+              {customizationNote(item) && (
+  <p className="text-xs italic" style={{ color: MUTED }}>
+    {customizationNote(item)}
+  </p>
+)}
             </div>
 
             <div className="text-right flex-shrink-0">
