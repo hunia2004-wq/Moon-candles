@@ -12,12 +12,7 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+
 
 body {
   background: var(--background);
@@ -57,4 +52,27 @@ body {
     linear-gradient(180deg, #EEE0C6 0%, #E0CFA9 60%, #D2BD92 100%);
   background-size: 40px 40px, 30px 30px, 35px 35px, 45px 45px, 25px 25px, 100% 100%;
   box-shadow: 0 8px 16px -4px rgba(90, 60, 30, 0.25);
+}
+:root {
+  color-scheme: light;
+}
+
+input,
+select,
+textarea {
+  color: #000000;
+  -webkit-text-fill-color: #000000;
+  caret-color: #000000;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+  -webkit-text-fill-color: rgba(0, 0, 0, 0.4);
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #000000;
+  box-shadow: 0 0 0 1000px #ffffff inset;
 }
