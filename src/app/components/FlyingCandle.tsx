@@ -20,8 +20,7 @@ export default function FlyingCandle({ src, alt = "", zIndex = 30 }: Props) {
     const fly = flyRef.current;
     if (!isHome || !fly) return;
 
-    // No motion for people who turned it off: the static candles just stay put.
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+   
 
     let raf = 0;
     let fromEl: HTMLElement | null = null;
