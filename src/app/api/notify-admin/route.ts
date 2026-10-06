@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { escapeHtml as e, sendTelegram } from "@/lib/telegram";
 
+
 type Item = {
   productName?: string;
   color?: string | null;
@@ -25,37 +26,14 @@ function adminUrl(table: string): string | null {
 
 function buildTelegram(table: string, r: any): string | null {
   const url = adminUrl(table);
-  const link = url ? `\n\n<a href="${url}">Open admin panel</a>` : "";
+  const link = url ? `\n<a href="${url}">Open admin panel</a>` : "";
 
   if (table === "orders") {
-    const items = (Array.isArray(r.items) ? r.items : []) as Item[];
-    return (
-      [
-        `🕯️ <b>New order ${e(r.order_code ?? "")}</b>`,
-        `👤 ${e(r.customer_name)} · ${e(r.customer_phone)}`,
-        `📍 ${e(r.governorate)} — ${e(r.address)}`,
-        "",
-        items.map((i) => `• ${itemText(i)}`).join("\n"),
-        "",
-        `💰 <b>${e(r.total)} LE</b> (shipping ${e(r.shipping_fee ?? 0)} LE) · Cash on delivery`,
-      ].join("\n") + link
-    );
+    return `🕯️ <b>New order ${e(r.order_code ?? "")}</b>\n💰 ${e(r.total)} LE${link}`;
   }
 
   if (table === "custom_orders") {
-    return (
-      [
-        `✨ <b>New custom candle ${e(r.order_code ?? "")}</b>`,
-        `👤 ${e(r.customer_name)} · ${e(r.customer_phone)}`,
-        `📍 ${e(r.governorate)} — ${e(r.address)}`,
-        "",
-        `🕯️ ${e(r.size_label)} · ${e(r.scent || "No scent chosen")}`,
-        r.message ? `💬 "${e(r.message)}"` : "💬 No message",
-        r.photo_url ? "🖼️ Photo uploaded" : "🖼️ No photo",
-        "",
-        `💰 <b>${e(r.price)} LE</b> (shipping included)`,
-      ].join("\n") + link
-    );
+    return `✨ <b>New custom candle ${e(r.order_code ?? "")}</b>\n💰 ${e(r.price)} LE${link}`;
   }
 
   return null;
