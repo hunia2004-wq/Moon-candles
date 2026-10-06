@@ -5,6 +5,7 @@ import type { CarouselCandle } from "@/lib/supabase/types";
 import { Caveat, Cormorant_Garamond } from "next/font/google";
 import CustomizationTeaser from "./components/CustomizationTeaser";
 import Link from "next/link";
+import { ICED_LATTE_CANDLE } from "@/lib/flyingCandle";
 import OurCollection from "./components/OurCollection";
 import Testimonials from "./components/Testimonials";
 const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
@@ -160,6 +161,19 @@ height: "260px",
         filter: "none",
       }}
     />
+        <img
+      data-fly-from
+      src={ICED_LATTE_CANDLE}
+      alt="Iced strawberry matcha latte candle"
+      className="absolute object-contain"
+            style={{
+        left: "calc(50% + 94.5px)",
+        bottom: -4,
+        width: 78,
+        height: "auto",
+        zIndex: 4,
+      }}
+    />
   </div>
 
    {/* ================= DESKTOP HERO ================= */}
@@ -215,6 +229,19 @@ height: "260px",
         height: "500px",
         width: "auto",
         display: "block",
+      }}
+    />
+        <img
+      data-fly-from
+      src={ICED_LATTE_CANDLE}
+      alt="Iced strawberry matcha latte candle"
+      className="absolute object-contain"
+           style={{
+        left: "calc(50% + 189.5px)",
+        bottom: -7,
+        width: 161,
+        height: "auto",
+        zIndex: 4,
       }}
     />
   </div>

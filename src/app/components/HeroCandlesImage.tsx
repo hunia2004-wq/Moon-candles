@@ -11,27 +11,41 @@ export default function HeroCandlesImage({
   className: string;
 }) {
   const imgRef = useRef<HTMLImageElement>(null);
+  const lastRef = useRef("");
   const { setHeroImageRect } = useActiveCandle();
 
   useEffect(() => {
+    const el = imgRef.current;
+    if (!el) return;
+
     function report() {
-      const el = imgRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      setHeroImageRect({
-        left: rect.left + window.scrollX,
-        top: rect.top + window.scrollY,
-        width: rect.width,
-        height: rect.height,
-      });
+      const next = {
+        left: Math.round(rect.left + window.scrollX),
+        top: Math.round(rect.top + window.scrollY),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      };
+
+      // Only update when something actually changed.
+      const key = `${next.left}|${next.top}|${next.width}|${next.height}`;
+      if (key === lastRef.current) return;
+      lastRef.current = key;
+      setHeroImageRect(next);
     }
 
     report();
-    window.addEventListener("scroll", report, { passive: true });
+
+    const ro = new ResizeObserver(report);
+    ro.observe(el);
     window.addEventListener("resize", report);
+    window.addEventListener("load", report);
+
     return () => {
-      window.removeEventListener("scroll", report);
+      ro.disconnect();
       window.removeEventListener("resize", report);
+      window.removeEventListener("load", report);
     };
   }, [setHeroImageRect]);
 

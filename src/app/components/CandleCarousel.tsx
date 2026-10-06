@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import type { CarouselCandle } from "@/lib/supabase/types";
 import { useActiveCandle } from "./ActiveCandleContext";
-
+import { ICED_LATTE_CANDLE, sameImage } from "@/lib/flyingCandle";
 const ANGLE_STEP = 25;
 
 export default function CandleCarousel({
@@ -27,7 +27,8 @@ export default function CandleCarousel({
   });
 
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const activeRef = useRef<HTMLDivElement>(null);
+   const activeRef = useRef<HTMLDivElement>(null);
+  const lastRectKey = useRef("");
 
   const router = useRouter();
 
@@ -55,36 +56,37 @@ export default function CandleCarousel({
 
   const active = candles[activeIndex];
 
-  useEffect(() => {
-    let rafId: number;
+ useEffect(() => {
+  let rafId: number;
 
-    function report() {
-      if (activeRef.current && active) {
-        const rect =
-          activeRef.current.getBoundingClientRect();
+  function report() {
+    const el = activeRef.current;
 
-        setActiveItemRect({
-          left: rect.left + window.scrollX,
-          top: rect.top + window.scrollY,
-          width: rect.width,
-          height: rect.height,
-        });
+    if (el && active) {
+      const rect = el.getBoundingClientRect();
+      const next = {
+        left: Math.round(rect.left + window.scrollX),
+        top: Math.round(rect.top + window.scrollY),
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+      };
 
+      // Only touch context when something actually changed.
+      const key = `${next.left}|${next.top}|${next.width}|${next.height}|${active.image ?? ""}`;
+      if (key !== lastRectKey.current) {
+        lastRectKey.current = key;
+        setActiveItemRect(next);
         setActiveImage(active.image ?? null);
       }
-
-      rafId = requestAnimationFrame(report);
     }
 
     rafId = requestAnimationFrame(report);
+  }
 
-    return () => cancelAnimationFrame(rafId);
-  }, [
-    activeIndex,
-    active,
-    setActiveImage,
-    setActiveItemRect,
-  ]);
+  rafId = requestAnimationFrame(report);
+
+  return () => cancelAnimationFrame(rafId);
+}, [activeIndex, active, setActiveImage, setActiveItemRect]);
 
   if (candles.length === 0) {
     return (
@@ -431,8 +433,12 @@ const overlay = (
           const x =
             Math.sin(radians) * radius;
 
-          const isActive =
+                 const isActive =
             index === activeIndex;
+
+          const isFlyTarget =
+            !!candle.image &&
+            sameImage(candle.image, ICED_LATTE_CANDLE);
 
           const baseScale =
             1 -
@@ -464,6 +470,7 @@ const overlay = (
               onClick={() =>
                 handleCandleClick(index)
               }
+              data-fly-to={isFlyTarget ? "" : undefined}
               className="absolute left-1/2 top-1/2 h-64 w-44 cursor-pointer select-none rounded-lg md:h-96 md:w-64"
               style={{
                 transform: `translate(-50%, -50%) translateX(${x}px) rotateY(${-angle}deg) scale(${scale})`,
