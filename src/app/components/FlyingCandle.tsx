@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-
+import { usePathname } from "next/navigation";
 type Props = {
   src: string;
   alt?: string;
@@ -12,11 +12,13 @@ const clamp = (n: number) => Math.min(1, Math.max(0, n));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 export default function FlyingCandle({ src, alt = "", zIndex = 30 }: Props) {
-  const flyRef = useRef<HTMLImageElement>(null);
+    const flyRef = useRef<HTMLImageElement>(null);
+  const pathname = usePathname();
+  const isHome = pathname === "/";
 
   useEffect(() => {
     const fly = flyRef.current;
-    if (!fly) return;
+    if (!isHome || !fly) return;
 
     // No motion for people who turned it off: the static candles just stay put.
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -49,7 +51,8 @@ export default function FlyingCandle({ src, alt = "", zIndex = 30 }: Props) {
 
       // Scroll distance at which the target is centered on screen.
       const end = Math.max(1, toTop - (window.innerHeight - b.height) / 2);
-      const p = clamp(s / end);
+            const START = 30; // pixels of scrolling before the candle lifts off
+      const p = clamp((s - START) / Math.max(1, end - START));
 
       const x = lerp(a.left, b.left, p);
       const y = lerp(fromTop, toTop, p) - s;
@@ -61,15 +64,18 @@ export default function FlyingCandle({ src, alt = "", zIndex = 30 }: Props) {
 
       // At the two ends the flier sits exactly on a real candle, so swap
       // between them without a visible jump.
-            const flying = p > 0 && p < 1;
-      fly.style.opacity = flying ? "1" : "0";
+            const landed = p >= 1;
 
-      if (flying) {
-        fromEl.dataset.flyHidden = "1";
-        toEl.dataset.flyHidden = "1";
-      } else {
-        delete fromEl.dataset.flyHidden;
+      // Fades in over the first 60px of scroll, so nothing shows at the top.
+      const appear = clamp(s / 60);
+      fly.style.opacity = landed ? "0" : String(appear);
+
+      // The banner slot never shows; the carousel candle shows once landed.
+      fromEl.dataset.flyHidden = "1";
+      if (landed) {
         delete toEl.dataset.flyHidden;
+      } else {
+        toEl.dataset.flyHidden = "1";
       }
     };
 
@@ -90,7 +96,9 @@ export default function FlyingCandle({ src, alt = "", zIndex = 30 }: Props) {
             if (fromEl) delete fromEl.dataset.flyHidden;
       if (toEl) delete toEl.dataset.flyHidden;
     };
-  }, []);
+   }, [isHome]);
+
+  if (!isHome) return null;
 
   return (
     <img

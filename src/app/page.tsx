@@ -8,6 +8,7 @@ import Link from "next/link";
 import { ICED_LATTE_CANDLE } from "@/lib/flyingCandle";
 import OurCollection from "./components/OurCollection";
 import Testimonials from "./components/Testimonials";
+import FlyingCandle from "./components/FlyingCandle";
 const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 const cormorant = Cormorant_Garamond({
 
@@ -75,6 +76,7 @@ if (collectionError) {
       className="flex flex-col flex-1 items-center justify-center font-sans"
       style={{ backgroundColor: "#efe3c4" }}
     >
+            <FlyingCandle src={ICED_LATTE_CANDLE} />
                      <div className="relative w-full overflow-hidden md:min-h-[680px]" style={{ paddingBottom: "40px" }}>
   {/* STRIPES — fixed height, independent of the outer container's size */}
 <div className="absolute left-0 right-0 top-0 flex h-[330px] md:h-[680px]">
