@@ -128,11 +128,16 @@ const filtered = useMemo(() => {
 
   return (
     <div style={{ backgroundColor: BG }} className="min-h-screen">
-      <div className="px-6 py-8 md:px-10 md:py-10 max-w-5xl mx-auto">
+           <div className="px-4 py-6 md:px-10 md:py-10 max-w-5xl mx-auto">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <h1 className="text-3xl font-serif font-bold" style={{ color: "#000000" }}>
-            Customers
-          </h1>
+                    <div>
+            <h1 className="text-3xl font-serif font-bold" style={{ color: "#000000" }}>
+              Customers
+            </h1>
+            <p className="text-xs mt-1" style={{ color: MUTED }}>
+              {filtered.length} customer{filtered.length !== 1 ? "s" : ""}
+            </p>
+          </div>
           <button
             type="button"
             onClick={loadCustomers}
@@ -175,47 +180,92 @@ const filtered = useMemo(() => {
 
         <div className="flex flex-col gap-3">
           {filtered.map((c) => (
-            <Link
+                       <Link
               key={c.key}
               href={`/admin/customers/${encodeURIComponent(c.key)}`}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl px-5 py-4"
+              className="overflow-hidden rounded-2xl"
               style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)" }}
             >
-              <div className="flex flex-col gap-0.5 min-w-[160px]">
-                <span className="text-sm font-semibold" style={{ color: "#000000" }}>
+              {/* header band */}
+              <div
+                className="flex items-center justify-between gap-3 px-4 py-2.5"
+                style={{ backgroundColor: "#EFE3C4" }}
+              >
+                <span className="truncate font-serif text-base font-bold" style={{ color: "#000000" }}>
                   {c.name}
                 </span>
-               <span className="text-xs" style={{ color: MUTED }}>
-  {c.phone}
-</span>
-<span className="text-xs" style={{ color: MUTED }}>
-  {c.email}
-</span>
+
+                <span
+                  className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                  style={{
+                    backgroundColor: c.orderCount >= 3 ? "#8FAA8233" : "#6E86C733",
+                    color: c.orderCount >= 3 ? "#47684b" : "#3A5A9E",
+                  }}
+                >
+                  {c.orderCount >= 3 ? "Repeat customer" : "New customer"}
+                </span>
               </div>
 
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <p className="text-xs" style={{ color: MUTED }}>
-                    Orders
-                  </p>
-                  <p className="text-sm font-semibold" style={{ color: "#000000" }}>
+              {/* contact */}
+              <div className="flex flex-col gap-1 px-4 py-2.5">
+                <div className="flex items-baseline gap-3">
+                  <span
+                    className="w-11 flex-shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em]"
+                    style={{ color: MUTED }}
+                  >
+                    Phone
+                  </span>
+                  <span className="text-xs" style={{ color: "#000000" }}>
+                    {c.phone}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-3">
+                  <span
+                    className="w-11 flex-shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em]"
+                    style={{ color: MUTED }}
+                  >
+                    Email
+                  </span>
+                  <span className="min-w-0 truncate text-xs" style={{ color: "#000000" }}>
+                    {c.email}
+                  </span>
+                </div>
+              </div>
+
+              {/* stats strip */}
+              <div
+                className="grid grid-cols-3 divide-x"
+                style={{
+                  borderTop: "1px solid rgba(0,0,0,0.08)",
+                  borderColor: "rgba(0,0,0,0.08)",
+                  backgroundColor: "#FFFFFF",
+                }}
+              >
+                <div className="px-3 py-2 text-center">
+                  <p className="font-serif text-base font-bold leading-none" style={{ color: "#000000" }}>
                     {c.orderCount}
                   </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs" style={{ color: MUTED }}>
-                    Spent
-                  </p>
-                  <p className="text-sm font-bold" style={{ color: ACCENT }}>
-                    {c.totalSpent.toLocaleString()} LE
+                  <p className="mt-0.5 text-[9px] uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+                    Orders
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs" style={{ color: MUTED }}>
+                <div className="px-3 py-2 text-center" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
+                  <p className="font-serif text-base font-bold leading-none" style={{ color: ACCENT }}>
+                    {c.totalSpent.toLocaleString()}
+                  </p>
+                  <p className="mt-0.5 text-[9px] uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+                    LE spent
+                  </p>
+                </div>
+                <div className="px-3 py-2 text-center" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
+                  <p className="font-serif text-base font-bold leading-none" style={{ color: "#000000" }}>
+                    {new Date(c.lastOrderAt).toLocaleDateString(undefined, {
+                      day: "numeric",
+                      month: "short",
+                    })}
+                  </p>
+                  <p className="mt-0.5 text-[9px] uppercase tracking-[0.12em]" style={{ color: MUTED }}>
                     Last order
-                  </p>
-                  <p className="text-xs" style={{ color: "#000000" }}>
-                    {new Date(c.lastOrderAt).toLocaleDateString()}
                   </p>
                 </div>
               </div>

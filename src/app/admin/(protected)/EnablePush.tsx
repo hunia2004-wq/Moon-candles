@@ -99,13 +99,8 @@ setStatus("error");
     );
   }
 
-  if (status === "unsupported") {
-    return (
-      <div className={box} style={{ backgroundColor: "#FFFFFF", color: "rgba(0,0,0,0.65)" }}>
-        To get order alerts on iPhone: tap Share in Safari, then Add to Home Screen, and open
-        Moon Admin from your Home Screen.
-      </div>
-    );
+   if (status === "unsupported") {
+    return null;
   }
 
   if (status === "denied") {

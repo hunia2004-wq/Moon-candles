@@ -1,5 +1,5 @@
 "use client";
-
+import { useAutoRefresh } from "@/lib/useAutoRefresh";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CartItem } from "@/lib/cart";
@@ -12,6 +12,15 @@ const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
 const MUTED = "rgba(0,0,0,0.55)";
+const BORDER = "rgba(0,0,0,0.08)";
+const PANEL_CLASS = "rounded-xl px-4 py-3";
+const PANEL_STYLE = { backgroundColor: "#FFFFFF", border: `1px solid ${BORDER}` };
+const LABEL_CLASS = "text-[11px] font-semibold uppercase tracking-[0.15em] mb-1.5";
+const FIELD_STYLE = {
+  border: "1.5px solid rgba(0,0,0,0.15)",
+  backgroundColor: "#FFFFFF",
+  color: "#000000",
+};
 
 
 // Matches StatusUpdater's vocabulary for custom_orders — using the
@@ -76,11 +85,12 @@ const [view, setView] = useState<"active" | "cancelled" | "completed" | "history
   useEffect(() => {
     loadOrders();
   }, []);
+  useAutoRefresh(() => loadOrders(true));
 useEffect(() => {
   setStatusFilter("all");
 }, [view]);
-  async function loadOrders() {
-    setLoading(true);
+   async function loadOrders(silent = false) {
+    if (!silent) setLoading(true);
     setError(null);
 
     const supabase = createClient();
@@ -183,11 +193,16 @@ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "pa
 
   return (
     <div style={{ backgroundColor: BG }} className="min-h-screen">
-      <div className="px-6 py-8 md:px-10 md:py-10 max-w-5xl mx-auto">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <h1 className="text-3xl font-serif font-bold" style={{ color: "#000000" }}>
-            Orders
-          </h1>
+<div className="px-4 py-6 md:px-10 md:py-10 max-w-5xl mx-auto">
+<div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4 mb-6">
+                  <div>
+            <h1 className="text-3xl font-serif font-bold" style={{ color: "#000000" }}>
+              Orders
+            </h1>
+            <p className="text-xs mt-1" style={{ color: MUTED }}>
+              {filtered.length} order{filtered.length !== 1 ? "s" : ""} in this view
+            </p>
+          </div>
 
                             <div className="flex items-center gap-4">
             <button
@@ -202,7 +217,7 @@ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "pa
 
             <button
               type="button"
-              onClick={loadOrders}
+              onClick={() => loadOrders()}
               className="text-xs font-semibold underline"
               style={{ color: ACCENT }}
             >
@@ -210,7 +225,7 @@ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "pa
             </button>
           </div>
         </div>
-<div className="flex gap-2 mb-4">
+<div className="grid grid-cols-4 gap-1.5 mb-4 sm:flex sm:gap-2 [&>button]:px-1 [&>button]:text-[11px] [&>button]:whitespace-nowrap sm:[&>button]:px-4 sm:[&>button]:text-xs">
 <button
   type="button"
   onClick={() => setView("active")}
@@ -253,9 +268,9 @@ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "pa
   onClick={() => setView("history")}
   className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
   style={{
-    backgroundColor: view === "history" ? ACCENT : "transparent",
-    color: view === "history" ? "#FFFFFF" : ACCENT,
-    border: `1.5px solid ${ACCENT}`,
+       backgroundColor: view === "history" ? "#7A6A58" : "transparent",
+    color: view === "history" ? "#FFFFFF" : "#7A6A58",
+    border: "1.5px solid #7A6A58",
   }}
 >
   History
@@ -325,266 +340,325 @@ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "pa
                 className="rounded-2xl overflow-hidden"
                 style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)" }}
               >
-                <button
+                               <button
                   type="button"
                   onClick={() => setExpandedId(isOpen ? null : order.id)}
-                  className="w-full flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-left"
+                  className="relative w-full flex flex-col gap-3 pl-6 pr-4 py-4 text-left sm:pr-5"
                 >
-                  <div className="flex flex-col gap-0.5 min-w-[160px]">
-                    <span className="text-sm font-semibold" style={{ color: "#000000" }}>
-                      {order.customer_name || "Unnamed customer"}
-                      {order.order_code && (
-                        <span className="ml-2 text-xs font-normal" style={{ color: MUTED }}>
-                          {order.order_code}
-                        </span>
-                      )}
+                  {/* status stripe down the left edge */}
+                  <span
+                    className="absolute left-0 top-0 h-full w-1.5"
+                    style={{
+                      backgroundColor:
+                        order.status === "cancelled"
+                          ? "#A34848"
+                          : order.status === "completed"
+                          ? "#3A6DB0"
+                          : order.status === "pending"
+                                                    ? "#D08A1E"
+                          : "#3F8F5C",
+                    }}
+                  />
+
+                  <div className="flex items-center gap-3">
+                    {/* ticket-stub order number */}
+                    <span
+                      className="flex h-14 w-14 flex-shrink-0 flex-col items-center justify-center rounded-xl"
+                      style={{ backgroundColor: "#EFE3C4", border: "1.5px dashed rgba(0,0,0,0.25)" }}
+                    >
+                      <span
+                        className="text-[8px] font-semibold uppercase tracking-[0.2em]"
+                        style={{ color: MUTED }}
+                      >
+                        Moon
+                      </span>
+                      <span className="font-serif text-xl font-bold leading-none" style={{ color: "#000000" }}>
+                        {order.order_no ?? "–"}
+                      </span>
                     </span>
-                    <span className="text-xs" style={{ color: MUTED }}>
-                      {new Date(order.created_at).toLocaleString()} · {itemCount} item
-                      {itemCount !== 1 ? "s" : ""}
-                    </span>
+
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="truncate text-base font-semibold" style={{ color: "#000000" }}>
+                        {order.customer_name || "Unnamed customer"}
+                      </span>
+                      <span className="text-[11px]" style={{ color: MUTED }}>
+                        {itemCount} item{itemCount !== 1 ? "s" : ""} ·{" "}
+                        {new Date(order.created_at).toLocaleString(undefined, {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-shrink-0 flex-col items-end gap-0.5">
+                      <span className="font-serif text-xl font-bold leading-none" style={{ color: ACCENT }}>
+                        {order.total ?? 0}
+                        <span className="ml-1 text-[11px] font-semibold">LE</span>
+                      </span>
+                      <span
+                        className="text-xs transition-transform"
+                        style={{ color: MUTED, transform: isOpen ? "rotate(180deg)" : "none" }}
+                      >
+                        ▾
+                      </span>
+                    </div>
                   </div>
 
-                 <div className="flex items-center gap-2 flex-wrap">
-  <StatusPill status={order.status} />
-  <StatusPill status={order.payment_status ?? "unpaid"} />
-  <span
-    className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
-    style={{
-      backgroundColor: order.assignee ? "#6E86C71A" : "rgba(0,0,0,0.06)",
-      color: order.assignee ? "#6E86C7" : MUTED,
-    }}
-  >
-    {order.assignee ?? "Unassigned"}
-  </span>
-  <span className="text-sm font-bold ml-2" style={{ color: ACCENT }}>
-    {order.total ?? 0} LE
-  </span>
-  <span
-    className="text-xs ml-1 transition-transform"
-    style={{ color: MUTED, transform: isOpen ? "rotate(180deg)" : "none" }}
-  >
-    ▾
-  </span>
-</div>
-                </button>
-
-                {isOpen && (
-                  <div className="px-5 pb-5 pt-1 flex flex-col gap-5" style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.15em] mb-1" style={{ color: ACCENT }}>
-                          Contact
-                        </p>
-                        <p className="text-sm" style={{ color: "#000000" }}>
-                          {order.customer_phone || "No phone"}
-                        </p>
-                        <p className="text-sm" style={{ color: "#000000" }}>
-                          {order.customer_email || "No email"}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.15em] mb-1" style={{ color: ACCENT }}>
-                          Delivery
-                        </p>
-                        <p className="text-sm" style={{ color: "#000000" }}>
-                          {order.governorate || "No governorate"}
-                        </p>
-                        <p className="text-sm" style={{ color: "#000000" }}>
-                          {order.address || "No address"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <p className="text-[11px] uppercase tracking-[0.15em] mb-2" style={{ color: ACCENT }}>
-                        Items
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        {items.length === 0 && (
-                          <p className="text-sm" style={{ color: MUTED }}>
-                            No item details on this order.
-                          </p>
-                        )}
-                        {items.map((item, i) => (
-                          <div
-                            key={`${item.id}-${i}`}
-                            className="flex items-center gap-3 rounded-xl px-3 py-2"
-                            style={{ backgroundColor: "#FFFFFF", border: "1px solid rgba(0,0,0,0.06)" }}
-                          >
-                            {item.image && (
-                              <img
-                                src={item.image}
-                                alt=""
-                                className="h-12 w-12 rounded-lg object-cover flex-shrink-0"
-                              />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate" style={{ color: "#000000" }}>
-                                {item.productName}
-                              </p>
-                                <p className="text-xs" style={{ color: MUTED }}>
-  {(() => {
-    const colorLower = item.color?.trim().toLowerCase();
-
-    if (colorLower === "unscented") {
-      return "Unscented";
-    }
-
-    if (colorLower === "scented") {
-      return item.scent ? `Scented — ${item.scent}` : "Scented";
-    }
-
-    const noScent = item.productName === "Fan" || item.productName === "Tambourine";
-const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
-return [item.color, item.option, scentLabel].filter(Boolean).join(" · ");
-  })()}
-</p>
-                              {item.customization && (
-                                <p className="text-xs italic" style={{ color: MUTED }}>
-                                  Customized ({item.customization.type})
-                                </p>
-                              )}
-                              {item.customization?.type === "customized-candle" && (
-  <p className="text-xs" style={{ color: MUTED }}>
-    {candleTextNote(item.customization)}
-  </p>
-)}
-                              <CustomerImageDownloads
-  images={collectCustomerImages(item)}
-  baseName={`${order.order_code ?? "order"}-${item.productName}`}
-/>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-sm font-semibold" style={{ color: "#000000" }}>
-                                x{item.quantity}
-                              </p>
-                              <p className="text-xs" style={{ color: MUTED }}>
-                                {item.price} LE
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                                        <div
-                      className="flex flex-col gap-1 rounded-xl px-3 py-2"
+                  <div
+                    className="flex flex-wrap items-center gap-2 pt-3"
+                    style={{ borderTop: "1px dashed rgba(0,0,0,0.15)" }}
+                  >
+                    <StatusPill status={order.status} />
+                    <StatusPill status={order.payment_status ?? "unpaid"} />
+                    <span
+                      className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
                       style={{
-                        backgroundColor: "#FFFFFF",
-                        border: "1px solid rgba(0,0,0,0.06)",
+                        backgroundColor: order.assignee ? "#A85C8526" : "#A85C850F",
+                        color: order.assignee ? "#A85C85" : "#A85C85AA",
                       }}
                     >
-                      <div className="flex items-center justify-between text-sm">
-                        <span style={{ color: MUTED }}>Items total</span>
-                        <span style={{ color: "#000000" }}>
-                          {((order.total ?? 0) - (order.shipping_fee ?? 0)).toLocaleString()} LE
-                        </span>
-                      </div>
-
-             <div className="flex items-center justify-between text-sm">
-  <span style={{ color: MUTED }}>Shipping</span>   {/* was "Delivery" */}
-  <span style={{ color: "#000000" }}>
-    {(order.shipping_fee ?? 0).toLocaleString()} LE
-  </span>
-</div>
-
-<div
-  className="flex items-center justify-between text-sm font-bold pt-1"
-  style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}
->
-  <span style={{ color: "#000000" }}>Total with shipping</span>   {/* was "Total with delivery" */}
-  <span style={{ color: ACCENT }}>
-    {(order.total ?? 0).toLocaleString()} LE
-  </span>
-</div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-4 pt-1">
-                      <label className="flex items-center gap-2 text-xs" style={{ color: MUTED }}>
-                        Status
-                        <select
-                          value={order.status ?? "pending"}
-                          disabled={savingId === order.id}
-                          onChange={(e) => updateOrder(order.id, { status: e.target.value })}
-                          className="rounded-lg px-2.5 py-1.5 text-sm outline-none capitalize"
-                          style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-                        >
-                          {STATUS_OPTIONS.map((s) => (
-                            <option key={s} value={s}>
-                              {s.replace("_", " ")}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <label className="flex items-center gap-2 text-xs" style={{ color: MUTED }}>
-                        Payment
-                        <select
-                          value={order.payment_status ?? "unpaid"}
-                          disabled={savingId === order.id}
-                          onChange={(e) => updateOrder(order.id, { payment_status: e.target.value })}
-                          className="rounded-lg px-2.5 py-1.5 text-sm outline-none"
-                          style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-                        >
-                          {PAYMENT_OPTIONS.map((p) => (
-                            <option key={p} value={p}>
-                              {p}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="flex items-center gap-2 text-xs" style={{ color: MUTED }}>
-    Assigned to
-    <select
-      value={order.assignee ?? ""}
-      disabled={savingId === order.id}
-      onChange={(e) => updateOrder(order.id, { assignee: e.target.value || null })}
-      className="rounded-lg px-2.5 py-1.5 text-sm outline-none"
-      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-    >
-      <option value="">Unassigned</option>
-      {ASSIGNEE_OPTIONS.map((name) => (
-        <option key={name} value={name}>
-          {name}
-        </option>
-      ))}
-    </select>
-  </label>
- <button
-                      type="button"
-                      onClick={() => printPackingSlip(order)}
-                      className="text-xs font-semibold underline"
-                      style={{ color: ACCENT }}
-                    >
-                      Print packing slip
-                    </button>
-                    <button
-  type="button"
-  onClick={() => {
-    if (confirm("Cancel this order?")) {
-      updateOrder(order.id, { status: "cancelled" });
-    }
-  }}
-  disabled={savingId === order.id || order.status === "cancelled"}
-  className="text-xs font-semibold underline disabled:opacity-40"
-  style={{ color: "#A34848" }}
->
-  Cancel order
-</button>
-
-<button
-  type="button"
-  onClick={() => deleteOrder(order.id)}
-  disabled={savingId === order.id}
-  className="text-xs font-semibold underline ml-auto disabled:opacity-40"
-  style={{ color: "#A34848" }}
->
-  Delete order
-</button>
-                    </div>
+                      {order.assignee ?? "Unassigned"}
+                    </span>
                   </div>
-                )}
+                </button>
+
+              {isOpen && (
+  <div
+    className="px-4 pb-5 pt-4 sm:px-5 flex flex-col gap-3"
+    style={{ borderTop: `1px solid ${BORDER}` }}
+  >
+    {/* Contact + delivery */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className={PANEL_CLASS} style={PANEL_STYLE}>
+        <p className={LABEL_CLASS} style={{ color: ACCENT }}>
+          Contact
+        </p>
+        <p className="text-sm" style={{ color: "#000000" }}>
+          {order.customer_phone || "No phone"}
+        </p>
+        <p className="text-sm break-all" style={{ color: "#000000" }}>
+          {order.customer_email || "No email"}
+        </p>
+      </div>
+
+      <div className={PANEL_CLASS} style={PANEL_STYLE}>
+        <p className={LABEL_CLASS} style={{ color: ACCENT }}>
+          Delivery
+        </p>
+        <p className="text-sm" style={{ color: "#000000" }}>
+          {order.governorate || "No governorate"}
+        </p>
+        <p className="text-sm" style={{ color: "#000000" }}>
+          {order.address || "No address"}
+        </p>
+      </div>
+    </div>
+
+    {/* Items */}
+    <div className={PANEL_CLASS} style={PANEL_STYLE}>
+      <p className={LABEL_CLASS} style={{ color: ACCENT }}>
+        Items
+      </p>
+
+      {items.length === 0 && (
+        <p className="text-sm" style={{ color: MUTED }}>
+          No item details on this order.
+        </p>
+      )}
+
+      {items.map((item, i) => (
+        <div
+          key={`${item.id}-${i}`}
+          className={i > 0 ? "mt-3 pt-3" : ""}
+          style={i > 0 ? { borderTop: `1px dashed rgba(0,0,0,0.15)` } : undefined}
+        >
+          <div className="flex items-start gap-3">
+            {item.image && (
+              <img
+                src={item.image}
+                alt=""
+                className="h-14 w-14 rounded-lg object-cover flex-shrink-0"
+              />
+            )}
+
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold" style={{ color: "#000000" }}>
+                {item.productName}
+              </p>
+              <p className="text-xs" style={{ color: MUTED }}>
+                {(() => {
+                  const colorLower = item.color?.trim().toLowerCase();
+
+                  if (colorLower === "unscented") {
+                    return "Unscented";
+                  }
+
+                  if (colorLower === "scented") {
+                    return item.scent ? `Scented — ${item.scent}` : "Scented";
+                  }
+
+                  const noScent = item.productName === "Fan" || item.productName === "Tambourine";
+                  const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
+                  return [item.color, item.option, scentLabel].filter(Boolean).join(" · ");
+                })()}
+              </p>
+              {item.customization && (
+                <p className="text-xs italic" style={{ color: MUTED }}>
+                  Customized ({item.customization.type})
+                </p>
+              )}
+              {item.customization?.type === "customized-candle" && (
+                <p className="text-xs" style={{ color: MUTED }}>
+                  {candleTextNote(item.customization)}
+                </p>
+              )}
+            </div>
+
+            <div className="text-right flex-shrink-0">
+              <p className="text-sm font-semibold" style={{ color: "#000000" }}>
+                x{item.quantity}
+              </p>
+              <p className="text-xs" style={{ color: MUTED }}>
+                {item.price} LE
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-3 empty:hidden">
+            <CustomerImageDownloads
+              images={collectCustomerImages(item)}
+              baseName={`${order.order_code ?? "order"}-${item.productName}`}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* Totals */}
+    <div className={`${PANEL_CLASS} flex flex-col gap-1`} style={PANEL_STYLE}>
+      <div className="flex items-center justify-between text-sm">
+        <span style={{ color: MUTED }}>Items total</span>
+        <span style={{ color: "#000000" }}>
+          {((order.total ?? 0) - (order.shipping_fee ?? 0)).toLocaleString()} LE
+        </span>
+      </div>
+
+      <div className="flex items-center justify-between text-sm">
+        <span style={{ color: MUTED }}>Shipping</span>
+        <span style={{ color: "#000000" }}>{(order.shipping_fee ?? 0).toLocaleString()} LE</span>
+      </div>
+
+      <div
+        className="flex items-center justify-between text-sm font-bold pt-2 mt-1"
+        style={{ borderTop: `1px solid ${BORDER}` }}
+      >
+        <span style={{ color: "#000000" }}>Total with shipping</span>
+        <span style={{ color: ACCENT }}>{(order.total ?? 0).toLocaleString()} LE</span>
+      </div>
+    </div>
+
+    {/* Manage */}
+    <div className={PANEL_CLASS} style={PANEL_STYLE}>
+      <p className={LABEL_CLASS} style={{ color: ACCENT }}>
+        Manage order
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <label className="flex flex-col gap-1 text-xs" style={{ color: MUTED }}>
+          Status
+          <select
+            value={order.status ?? "pending"}
+            disabled={savingId === order.id}
+            onChange={(e) => updateOrder(order.id, { status: e.target.value })}
+            className="w-full rounded-lg px-2.5 py-2 text-sm outline-none capitalize"
+            style={FIELD_STYLE}
+          >
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s.replace("_", " ")}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1 text-xs" style={{ color: MUTED }}>
+          Payment
+          <select
+            value={order.payment_status ?? "unpaid"}
+            disabled={savingId === order.id}
+            onChange={(e) => updateOrder(order.id, { payment_status: e.target.value })}
+            className="w-full rounded-lg px-2.5 py-2 text-sm outline-none capitalize"
+            style={FIELD_STYLE}
+          >
+            {PAYMENT_OPTIONS.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-col gap-1 text-xs" style={{ color: MUTED }}>
+          Assigned to
+          <select
+            value={order.assignee ?? ""}
+            disabled={savingId === order.id}
+            onChange={(e) => updateOrder(order.id, { assignee: e.target.value || null })}
+            className="w-full rounded-lg px-2.5 py-2 text-sm outline-none"
+            style={FIELD_STYLE}
+          >
+            <option value="">Unassigned</option>
+            {ASSIGNEE_OPTIONS.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    </div>
+
+    {/* Actions */}
+    <div className="flex flex-wrap items-center gap-2 pt-1">
+      <button
+        type="button"
+        onClick={() => printPackingSlip(order)}
+        className="rounded-full px-4 py-2 text-xs font-semibold"
+        style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
+      >
+        Print packing slip
+      </button>
+
+                {order.status !== "completed" && (
+            <button
+              type="button"
+              onClick={() => {
+                if (confirm("Cancel this order?")) {
+                  updateOrder(order.id, { status: "cancelled" });
+                }
+              }}
+              disabled={savingId === order.id || order.status === "cancelled"}
+              className="w-full rounded-full px-4 py-2.5 text-xs font-semibold disabled:opacity-40"
+              style={{ border: "1px solid rgba(163,72,72,0.4)", color: "#A34848" }}
+            >
+              Cancel order
+            </button>
+          )}
+
+      <button
+        type="button"
+        onClick={() => deleteOrder(order.id)}
+        disabled={savingId === order.id}
+        className="ml-auto px-2 py-2 text-xs font-semibold underline disabled:opacity-40"
+        style={{ color: "#A34848" }}
+      >
+        Delete order
+      </button>
+    </div>
+  </div>
+)}
               </div>
             );
           })}

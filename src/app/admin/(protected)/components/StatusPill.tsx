@@ -1,13 +1,13 @@
 const STATUS_COLORS: Record<string, string> = {
-  pending: "#B8862F",
-  confirmed: "#8B6FB0",
+    pending: "#D08A1E",
+  confirmed: "#3F8F5C",
   in_production: "#5A7CA8",
-  shipped: "#4A8F8F",
-  completed: "#3F8F5C",
+  shipped: "#3F8F5C",
+  completed: "#3A6DB0",
   cancelled: "#A34848",
   // payment_status values reuse this component too
   unpaid: "#A34848",
-  paid: "#3F8F5C",
+  paid: "#3A6DB0",
 };
 
 export default function StatusPill({ status }: { status: string | null }) {

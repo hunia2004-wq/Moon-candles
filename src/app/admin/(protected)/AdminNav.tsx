@@ -11,7 +11,7 @@ const LINKS = [
   { label: "Custom Orders", href: "/admin/custom-orders" },
   { label: "Products", href: "/admin/products" },
   { label: "Customers", href: "/admin/customers" },
-  { label: "Discounts", href: "/admin/discounts" },
+  { label: "Promotions", href: "/admin/discounts" },
   { label: "Reviews", href: "/admin/reviews" },
   { label: "Profile", href: "/admin/profile" },
 ];

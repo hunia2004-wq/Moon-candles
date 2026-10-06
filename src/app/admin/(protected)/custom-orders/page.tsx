@@ -15,6 +15,15 @@ const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
 const MUTED = "rgba(0,0,0,0.55)";
+const BORDER = "rgba(0,0,0,0.08)";
+const PANEL_CLASS = "rounded-xl px-4 py-3";
+const PANEL_STYLE = { backgroundColor: "#FFFFFF", border: `1px solid ${BORDER}` };
+const LABEL_CLASS = "text-[11px] font-semibold uppercase tracking-[0.15em] mb-1.5";
+const FIELD_STYLE = {
+  border: "1.5px solid rgba(0,0,0,0.15)",
+  backgroundColor: "#FFFFFF",
+  color: "#000000",
+};
 
 const STATUS_OPTIONS = [
   "pending",
@@ -155,9 +164,8 @@ export default function CustomOrdersPage() {
     setStatusFilter("all");
     setExpandedId(null);
   }, [view]);
-
-  async function loadOrders() {
-    setLoading(true);
+  async function loadOrders(silent = false) {
+    if (!silent) setLoading(true);
     setError(null);
 
     const supabase = createClient();
@@ -589,54 +597,41 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
       style={{ backgroundColor: BG }}
       className="min-h-screen"
     >
-      <div className="px-6 py-8 md:px-10 md:py-10 max-w-5xl mx-auto">
+      <div className="px-4 py-6 md:px-10 md:py-10 max-w-5xl mx-auto">
 
-        {/* HEADER */}
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+               {/* HEADER */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4 mb-6">
           <div>
-            <h1
-              className="text-3xl font-serif font-bold"
-              style={{ color: "#000000" }}
-            >
+            <h1 className="text-3xl font-serif font-bold" style={{ color: "#000000" }}>
               Custom Orders
             </h1>
-
-            <p
-              className="text-sm mt-1"
-              style={{ color: MUTED }}
-            >
-              Candle customizations and customized
-              giveaway orders.
+            <p className="text-xs mt-1" style={{ color: MUTED }}>
+              {filtered.length} order{filtered.length !== 1 ? "s" : ""} in this view
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={loadOrders}
-            className="text-xs font-semibold underline"
-            style={{ color: ACCENT }}
-          >
-            Refresh
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => loadOrders()}
+              className="text-xs font-semibold underline"
+              style={{ color: ACCENT }}
+            >
+              Refresh
+            </button>
+          </div>
         </div>
 
-        {/* VIEWS */}
-        <div className="flex gap-2 mb-4 flex-wrap">
+               {/* VIEWS */}
+        <div className="grid grid-cols-4 gap-1.5 mb-4 sm:flex sm:gap-2 [&>button]:px-1 [&>button]:text-[11px] [&>button]:whitespace-nowrap sm:[&>button]:px-4 sm:[&>button]:text-xs">
           <button
             type="button"
             onClick={() => setView("active")}
             className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
             style={{
-              backgroundColor:
-                view === "active"
-                  ? "#3F8F5C"
-                  : "transparent",
-              color:
-                view === "active"
-                  ? "#FFFFFF"
-                  : "#3F8F5C",
-              border:
-                "1.5px solid #3F8F5C",
+              backgroundColor: view === "active" ? "#3F8F5C" : "transparent",
+              color: view === "active" ? "#FFFFFF" : "#3F8F5C",
+              border: "1.5px solid #3F8F5C",
             }}
           >
             Active
@@ -644,21 +639,12 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
 
           <button
             type="button"
-            onClick={() =>
-              setView("cancelled")
-            }
+            onClick={() => setView("cancelled")}
             className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
             style={{
-              backgroundColor:
-                view === "cancelled"
-                  ? "#A34848"
-                  : "transparent",
-              color:
-                view === "cancelled"
-                  ? "#FFFFFF"
-                  : "#A34848",
-              border:
-                "1.5px solid #A34848",
+              backgroundColor: view === "cancelled" ? "#A34848" : "transparent",
+              color: view === "cancelled" ? "#FFFFFF" : "#A34848",
+              border: "1.5px solid #A34848",
             }}
           >
             Cancelled
@@ -666,21 +652,12 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
 
           <button
             type="button"
-            onClick={() =>
-              setView("completed")
-            }
+            onClick={() => setView("completed")}
             className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
             style={{
-              backgroundColor:
-                view === "completed"
-                  ? "#3A6DB0"
-                  : "transparent",
-              color:
-                view === "completed"
-                  ? "#FFFFFF"
-                  : "#3A6DB0",
-              border:
-                "1.5px solid #3A6DB0",
+              backgroundColor: view === "completed" ? "#3A6DB0" : "transparent",
+              color: view === "completed" ? "#FFFFFF" : "#3A6DB0",
+              border: "1.5px solid #3A6DB0",
             }}
           >
             Completed
@@ -688,21 +665,12 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
 
           <button
             type="button"
-            onClick={() =>
-              setView("history")
-            }
+            onClick={() => setView("history")}
             className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
             style={{
-              backgroundColor:
-                view === "history"
-                  ? ACCENT
-                  : "transparent",
-              color:
-                view === "history"
-                  ? "#FFFFFF"
-                  : ACCENT,
-              border:
-                `1.5px solid ${ACCENT}`,
+              backgroundColor: view === "history" ? "#7A6A58" : "transparent",
+              color: view === "history" ? "#FFFFFF" : "#7A6A58",
+              border: "1.5px solid #7A6A58",
             }}
           >
             History
@@ -858,487 +826,296 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
                     "1px solid rgba(0,0,0,0.08)",
                 }}
               >
-                {/* ORDER HEADER */}
+                              {/* ORDER HEADER */}
                 <button
                   type="button"
-                  onClick={() =>
-                    setExpandedId(
-                      isOpen ? null : o.key
-                    )
-                  }
-                  className="w-full flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-left"
+                  onClick={() => setExpandedId(isOpen ? null : o.key)}
+                  className="relative w-full flex flex-col gap-3 pl-6 pr-4 py-4 text-left sm:pr-5"
                 >
-                  <div className="flex flex-col gap-0.5 min-w-[160px]">
-                    <span
-                      className="text-sm font-semibold"
-                      style={{ color: "#000000" }}
-                    >
-                      {o.customerName}
+                  {/* status stripe down the left edge */}
+                  <span
+                    className="absolute left-0 top-0 h-full w-1.5"
+                    style={{
+                      backgroundColor:
+                        o.status === "cancelled"
+                          ? "#A34848"
+                          : o.status === "completed"
+                          ? "#3A6DB0"
+                          : o.status === "pending"
+                          ? "#D08A1E"
+                          : "#3F8F5C",
+                    }}
+                  />
 
-                      {o.code && (
-                        <span
-                          className="ml-2 text-xs font-normal"
-                          style={{
-                            color: MUTED,
-                          }}
-                        >
-                          {o.code}
-                        </span>
-                      )}
+                  <div className="flex items-center gap-3">
+                    {/* ticket-stub order number */}
+                    <span
+                      className="flex h-14 w-14 flex-shrink-0 flex-col items-center justify-center rounded-xl"
+                      style={{ backgroundColor: "#EFE3C4", border: "1.5px dashed rgba(0,0,0,0.25)" }}
+                    >
+                      <span
+                        className="text-[8px] font-semibold uppercase tracking-[0.2em]"
+                        style={{ color: MUTED }}
+                      >
+                        {o.code?.split("-")[0] ?? (o.source === "custom_orders" ? "Custom" : "Moon")}
+                      </span>
+                      <span className="font-serif text-xl font-bold leading-none" style={{ color: "#000000" }}>
+                        {o.orderNo ?? "–"}
+                      </span>
                     </span>
 
-                    <span
-                      className="text-xs"
-                      style={{
-                        color: MUTED,
-                      }}
-                    >
-                      {Array.from(
-                        new Set(
-                          o.items.map(
-                            (item) =>
-                              item.productTitle
-                          )
-                        )
-                      ).join(" + ")}{" "}
-                      · {itemCount} item
-                      {itemCount !== 1
-                        ? "s"
-                        : ""}
-                    </span>
+                    <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <span className="truncate text-base font-semibold" style={{ color: "#000000" }}>
+                        {o.customerName}
+                      </span>
+                      <span className="text-[11px]" style={{ color: MUTED }}>
+                        {itemCount} item{itemCount !== 1 ? "s" : ""} ·{" "}
+                        {new Date(o.createdAt).toLocaleString(undefined, {
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
 
-                    <span
-                      className="text-xs"
-                      style={{
-                        color: MUTED,
-                      }}
-                    >
-                      {new Date(
-                        o.createdAt
-                      ).toLocaleString()}
-                    </span>
+                    <div className="flex flex-shrink-0 flex-col items-end gap-0.5">
+                      <span className="font-serif text-xl font-bold leading-none" style={{ color: ACCENT }}>
+                        {grandTotal.toLocaleString()}
+                        <span className="ml-1 text-[11px] font-semibold">LE</span>
+                      </span>
+                      <span
+                        className="text-xs transition-transform"
+                        style={{ color: MUTED, transform: isOpen ? "rotate(180deg)" : "none" }}
+                      >
+                        ▾
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <StatusPill
-                      status={o.status}
-                    />
-
-                    {o.paymentStatus && (
-                      <StatusPill
-                        status={
-                          o.paymentStatus
-                        }
-                      />
-                    )}
-
-                                      <span
-                      className="text-sm font-bold ml-2"
-                      style={{
-                        color: ACCENT,
-                      }}
-                    >
-                      {grandTotal.toLocaleString()} LE
-                    </span>
-
-                    <span
-                      className="text-xs ml-1 transition-transform"
-                      style={{
-                        color: MUTED,
-                        transform: isOpen
-                          ? "rotate(180deg)"
-                          : "none",
-                      }}
-                    >
-                      ▾
-                    </span>
+                  <div
+                    className="flex flex-wrap items-center gap-2 pt-3"
+                    style={{ borderTop: "1px dashed rgba(0,0,0,0.15)" }}
+                  >
+                    <StatusPill status={o.status} />
+                    {o.paymentStatus && <StatusPill status={o.paymentStatus} />}
                   </div>
                 </button>
+{/* EXPANDED CONTENT */}
+{isOpen && (
+  <div
+    className="px-4 pb-5 pt-4 sm:px-5 flex flex-col gap-3"
+    style={{ borderTop: `1px solid ${BORDER}` }}
+  >
+    {/* Contact + delivery */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className={PANEL_CLASS} style={PANEL_STYLE}>
+        <p className={LABEL_CLASS} style={{ color: ACCENT }}>
+          Contact
+        </p>
+        <p className="text-sm" style={{ color: "#000000" }}>
+          {o.phone || "No phone"}
+        </p>
+        <p className="text-sm break-all" style={{ color: "#000000" }}>
+          {o.email || "No email"}
+        </p>
+      </div>
 
-                {/* EXPANDED CONTENT */}
-                {isOpen && (
-                  <div
-                    className="px-5 pb-5 pt-1 flex flex-col gap-5"
-                    style={{
-                      borderTop:
-                        "1px solid rgba(0,0,0,0.08)",
-                    }}
-                  >
-                    {/* CONTACT + DELIVERY */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-                      <div>
-                        <p
-                          className="text-[11px] uppercase tracking-[0.15em] mb-1"
-                          style={{
-                            color: ACCENT,
-                          }}
-                        >
-                          Contact
-                        </p>
+      <div className={PANEL_CLASS} style={PANEL_STYLE}>
+        <p className={LABEL_CLASS} style={{ color: ACCENT }}>
+          Delivery
+        </p>
+        <p className="text-sm" style={{ color: "#000000" }}>
+          {o.governorate || "No governorate"}
+        </p>
+        <p className="text-sm" style={{ color: "#000000" }}>
+          {o.address || "No address"}
+        </p>
+      </div>
+    </div>
 
-                        <p
-                          className="text-sm"
-                          style={{
-                            color: "#000000",
-                          }}
-                        >
-                          {o.phone ||
-                            "No phone"}
-                        </p>
+    {/* Items */}
+    <div className={PANEL_CLASS} style={PANEL_STYLE}>
+      <p className={LABEL_CLASS} style={{ color: ACCENT }}>
+        Items
+      </p>
 
-                        <p
-                          className="text-sm"
-                          style={{
-                            color: "#000000",
-                          }}
-                        >
-                          {o.email ||
-                            "No email"}
-                        </p>
-                      </div>
+      {o.items.map((it, i) => (
+        <div
+          key={it.key}
+          className={i > 0 ? "mt-3 pt-3" : ""}
+          style={i > 0 ? { borderTop: "1px dashed rgba(0,0,0,0.15)" } : undefined}
+        >
+          <div className="flex items-start gap-3">
+            {it.image && (
+              <img
+                src={it.image}
+                alt=""
+                className="h-14 w-14 rounded-lg object-cover flex-shrink-0"
+              />
+            )}
 
-                      <div>
-                        <p
-                          className="text-[11px] uppercase tracking-[0.15em] mb-1"
-                          style={{
-                            color: ACCENT,
-                          }}
-                        >
-                          Delivery
-                        </p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold" style={{ color: "#000000" }}>
+                {it.productTitle}
+              </p>
+              <p className="text-xs" style={{ color: MUTED }}>
+                {it.subtitle}
+              </p>
+              {it.note && (
+                <p className="text-xs italic" style={{ color: MUTED }}>
+                  {it.note}
+                </p>
+              )}
+            </div>
 
-                        <p
-                          className="text-sm"
-                          style={{
-                            color: "#000000",
-                          }}
-                        >
-                          {o.governorate ||
-                            "No governorate"}
-                        </p>
+            <div className="text-right flex-shrink-0">
+              <p className="text-sm font-semibold" style={{ color: "#000000" }}>
+                x{it.quantity}
+              </p>
+              <p className="text-xs" style={{ color: MUTED }}>
+                {it.price.toLocaleString()} LE
+              </p>
+            </div>
+          </div>
 
-                        <p
-                          className="text-sm"
-                          style={{
-                            color: "#000000",
-                          }}
-                        >
-                          {o.address ||
-                            "No address"}
-                        </p>
-                      </div>
-                    </div>
+          <div className="mt-3 empty:hidden">
+            <CustomerImageDownloads
+              images={it.images}
+              baseName={`${o.code ?? "order"}-${it.productTitle}`}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
 
-                    {/* ITEMS */}
-                    <div>
-                      <p
-                        className="text-[11px] uppercase tracking-[0.15em] mb-2"
-                        style={{
-                          color: ACCENT,
-                        }}
-                      >
-                        Items
-                      </p>
+    {/* Totals */}
+    <div className={`${PANEL_CLASS} flex flex-col gap-1`} style={PANEL_STYLE}>
+      <div className="flex items-center justify-between text-sm">
+        <span style={{ color: MUTED }}>Items total</span>
+        <span style={{ color: "#000000" }}>{itemsTotal.toLocaleString()} LE</span>
+      </div>
 
-                      <div className="flex flex-col gap-2">
-                        {o.items.map((it) => (
-                          <div
-                            key={it.key}
-                            className="rounded-xl p-3 flex flex-col gap-3"
-                            style={{
-                              backgroundColor:
-                                "#FFFFFF",
-                              border:
-                                "1px solid rgba(0,0,0,0.06)",
-                            }}
-                          >
-                            <div className="flex items-start gap-3">
-                              {it.image && (
-                                <img
-                                  src={it.image}
-                                  alt=""
-                                  className="h-12 w-12 rounded-lg object-cover flex-shrink-0"
-                                />
-                              )}
+      <div className="flex items-center justify-between text-sm">
+        <span style={{ color: MUTED }}>Shipping</span>
+        <span style={{ color: "#000000" }}>{o.shippingFee.toLocaleString()} LE</span>
+      </div>
 
-                              <div className="flex-1 min-w-0">
-                                <p
-                                  className="text-sm font-medium"
-                                  style={{
-                                    color:
-                                      "#000000",
-                                  }}
-                                >
-                                  {
-                                    it.productTitle
-                                  }
-                                </p>
+      <div
+        className="flex items-center justify-between text-sm font-bold pt-2 mt-1"
+        style={{ borderTop: `1px solid ${BORDER}` }}
+      >
+        <span style={{ color: "#000000" }}>Total with shipping</span>
+        <span style={{ color: ACCENT }}>{grandTotal.toLocaleString()} LE</span>
+      </div>
+    </div>
 
-                                <p
-                                  className="text-xs"
-                                  style={{
-                                    color: MUTED,
-                                  }}
-                                >
-                                  {
-                                    it.subtitle
-                                  }{" "}
-                                  · x
-                                  {
-                                    it.quantity
-                                  }
-                                </p>
+    {/* Manage */}
+    <div className={PANEL_CLASS} style={PANEL_STYLE}>
+      <p className={LABEL_CLASS} style={{ color: ACCENT }}>
+        Manage order
+      </p>
 
-                                {it.note && (
-                                  <p
-                                    className="text-xs italic"
-                                    style={{
-                                      color:
-                                        MUTED,
-                                    }}
-                                  >
-                                    {it.note}
-                                  </p>
-                                )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label className="flex flex-col gap-1 text-xs" style={{ color: MUTED }}>
+          Status
+          <select
+            value={o.status ?? "pending"}
+            disabled={isSaving}
+            onChange={(e) => updateEntry(o, { status: e.target.value })}
+            className="w-full rounded-lg px-2.5 py-2 text-sm outline-none capitalize"
+            style={FIELD_STYLE}
+          >
+            {STATUS_OPTIONS.map((status) => (
+              <option key={status} value={status}>
+                {status.replace("_", " ")}
+              </option>
+            ))}
+          </select>
+        </label>
 
-                                <CustomerImageDownloads
-                                  images={
-                                    it.images
-                                  }
-                                  baseName={`${o.code ?? "order"}-${it.productTitle}`}
-                                />
-                              </div>
+        {o.paymentStatus && (
+          <label className="flex flex-col gap-1 text-xs" style={{ color: MUTED }}>
+            Payment
+            <select
+              value={o.paymentStatus}
+              disabled={isSaving}
+              onChange={(e) => updateEntry(o, { payment_status: e.target.value })}
+              className="w-full rounded-lg px-2.5 py-2 text-sm outline-none capitalize"
+              style={FIELD_STYLE}
+            >
+              <option value="unpaid">unpaid</option>
+              <option value="paid">paid</option>
+            </select>
+          </label>
+        )}
+      </div>
+    </div>
 
-                              <div className="text-right flex-shrink-0">
-                                <p
-                                  className="text-sm font-semibold"
-                                  style={{
-                                    color:
-                                      "#000000",
-                                  }}
-                                >
-                                  {it.price.toLocaleString()}{" "}
-                                  LE
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                                 </div>
+    {/* Actions */}
+    <div className="flex flex-wrap items-center gap-2 pt-1">
+      <button
+        type="button"
+        onClick={() => {
+          // Regular orders: print the whole order, not just
+          // the giveaway items shown on this page
+          if (o.rawOrder) {
+            printPackingSlip(o.rawOrder);
+            return;
+          }
 
-                    {/* TOTAL BREAKDOWN */}
-                    <div
-                      className="flex flex-col gap-1 rounded-xl px-3 py-2"
-                      style={{
-                        backgroundColor: "#FFFFFF",
-                        border: "1px solid rgba(0,0,0,0.06)",
-                      }}
-                    >
-                      <div className="flex items-center justify-between text-sm">
-                        <span style={{ color: MUTED }}>Items total</span>
-                        <span style={{ color: "#000000" }}>
-                          {itemsTotal.toLocaleString()} LE
-                        </span>
-                      </div>
+          printPackingSlip({
+            order_code: o.code,
+            created_at: o.createdAt,
+            customer_name: o.customerName,
+            customer_phone: o.phone,
+            governorate: o.governorate,
+            address: o.address,
+            payment_status: o.paymentStatus,
+            shipping_fee: o.shippingFee,
+            total: grandTotal,
+            items: o.items.map((it) => ({
+              productName: it.productTitle,
+              detail: [it.subtitle, it.note].filter(Boolean).join(" · "),
+              quantity: it.quantity,
+              amount: it.price - o.shippingFee,
+            })),
+          });
+        }}
+        className="rounded-full px-4 py-2 text-xs font-semibold"
+        style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
+      >
+        Print packing slip
+      </button>
 
-                      <div className="flex items-center justify-between text-sm">
-                        <span style={{ color: MUTED }}>Shipping</span>
-                        <span style={{ color: "#000000" }}>
-                          {o.shippingFee.toLocaleString()} LE
-                        </span>
-                      </div>
+           {o.status !== "completed" && (
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm("Cancel this order?")) {
+              updateEntry(o, { status: "cancelled" });
+            }
+          }}
+          disabled={isSaving || o.status === "cancelled"}
+          className="rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-40"
+          style={{ border: "1px solid rgba(163,72,72,0.4)", color: "#A34848" }}
+        >
+          Cancel order
+        </button>
+      )}
 
-                      <div
-                        className="flex items-center justify-between text-sm font-bold pt-1"
-                        style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}
-                      >
-                        <span style={{ color: "#000000" }}>Total with shipping</span>
-                        <span style={{ color: ACCENT }}>
-                          {grandTotal.toLocaleString()} LE
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* STATUS / PAYMENT / ACTIONS */}
-                    <div className="flex flex-wrap items-center gap-4 pt-1">
-                      <label
-                        className="flex items-center gap-2 text-xs"
-                        style={{
-                          color: MUTED,
-                        }}
-                      >
-                        Status
-
-                        <select
-                          value={
-                            o.status ??
-                            "pending"
-                          }
-                          disabled={isSaving}
-                          onChange={(e) =>
-                            updateEntry(
-                              o,
-                              {
-                                status:
-                                  e.target
-                                    .value,
-                              }
-                            )
-                          }
-                          className="rounded-lg px-2.5 py-1.5 text-sm outline-none capitalize"
-                          style={{
-                            border:
-                              "1.5px solid rgba(0,0,0,0.15)",
-                            backgroundColor:
-                              "#FFFFFF",
-                            color: "#000000",
-                          }}
-                        >
-                          {STATUS_OPTIONS.map(
-                            (status) => (
-                              <option
-                                key={status}
-                                value={status}
-                              >
-                                {status.replace(
-                                  "_",
-                                  " "
-                                )}
-                              </option>
-                            )
-                          )}
-                        </select>
-                      </label>
-
-                      {o.paymentStatus && (
-                        <label
-                          className="flex items-center gap-2 text-xs"
-                          style={{
-                            color: MUTED,
-                          }}
-                        >
-                          Payment
-
-                          <select
-                            value={
-                              o.paymentStatus
-                            }
-                            disabled={
-                              isSaving
-                            }
-                            onChange={(e) =>
-                              updateEntry(
-                                o,
-                                {
-                                  payment_status:
-                                    e.target
-                                      .value,
-                                }
-                              )
-                            }
-                            className="rounded-lg px-2.5 py-1.5 text-sm outline-none"
-                            style={{
-                              border:
-                                "1.5px solid rgba(0,0,0,0.15)",
-                              backgroundColor:
-                                "#FFFFFF",
-                              color:
-                                "#000000",
-                            }}
-                          >
-                            <option value="unpaid">
-                              unpaid
-                            </option>
-                            <option value="paid">
-                              paid
-                            </option>
-                          </select>
-                        </label>
-                      )}
-                                           <button
-                        type="button"
-                        onClick={() => {
-                          // Regular orders: print the whole order, not just
-                          // the giveaway items shown on this page
-                          if (o.rawOrder) {
-                            printPackingSlip(o.rawOrder);
-                            return;
-                          }
-
-                          printPackingSlip({
-                            order_code: o.code,
-                            created_at: o.createdAt,
-                            customer_name: o.customerName,
-                            customer_phone: o.phone,
-                            governorate: o.governorate,
-                            address: o.address,
-                            payment_status: o.paymentStatus,
-                            shipping_fee: o.shippingFee,
-                            total: grandTotal,
-                            items: o.items.map((it) => ({
-                              productName: it.productTitle,
-                              detail: [it.subtitle, it.note].filter(Boolean).join(" · "),
-                              quantity: it.quantity,
-                              amount: it.price - o.shippingFee,
-                            })),
-                          });
-                        }}
-                        className="text-xs font-semibold underline"
-                        style={{ color: ACCENT }}
-                      >
-                        Print packing slip
-                      </button>
-                      {/* CANCEL */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (
-                            confirm(
-                              "Cancel this order?"
-                            )
-                          ) {
-                            updateEntry(
-                              o,
-                              {
-                                status:
-                                  "cancelled",
-                              }
-                            );
-                          }
-                        }}
-                        disabled={
-                          isSaving ||
-                          o.status ===
-                            "cancelled"
-                        }
-                        className="text-xs font-semibold underline disabled:opacity-40"
-                        style={{
-                          color: "#A34848",
-                        }}
-                      >
-                        Cancel order
-                      </button>
-
-                      {/* DELETE */}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          deleteEntry(o)
-                        }
-                        disabled={isSaving}
-                        className="text-xs font-semibold underline ml-auto disabled:opacity-40"
-                        style={{
-                          color: "#A34848",
-                        }}
-                      >
-                        {isSaving
-                          ? "Saving..."
-                          : "Delete order"}
-                      </button>
-                    </div>
-                  </div>
-                )}
+      <button
+        type="button"
+        onClick={() => deleteEntry(o)}
+        disabled={isSaving}
+        className="ml-auto px-2 py-2 text-xs font-semibold underline disabled:opacity-40"
+        style={{ color: "#A34848" }}
+      >
+        {isSaving ? "Saving..." : "Delete order"}
+      </button>
+    </div>
+  </div>
+)}
               </div>
             );
           })}

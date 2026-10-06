@@ -62,15 +62,53 @@ export default async function AdminDashboardPage() {
             letterSpacing: "-0.03em",
           }}
         >
-          Hi Nour &amp; Jana
+                   Hi Nour &amp; Jana
         </h1>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-        <StatCard label="Total orders" value={allOrders.length.toString()} />
-        <StatCard label="Pending" value={pendingCount.toString()} />
-        <StatCard label="Completed" value={completedCount.toString()} />
-        <StatCard label="Revenue" value={`${revenue.toLocaleString()} LE`} />
+      <div
+        className="relative mb-3 overflow-hidden rounded-3xl px-6 py-6 md:mb-4"
+        style={{ backgroundColor: "#DE4B33" }}
+      >
+        <span
+          className="pointer-events-none absolute -right-4 -top-10 select-none font-serif text-[170px] leading-none"
+          style={{ color: "#FFF4E6", opacity: 0.18 }}
+        >
+          ☾
+        </span>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: "#FFF4E6" }}>
+          Revenue
+        </p>
+        <p className="mt-2 font-serif text-4xl font-bold leading-none md:text-5xl" style={{ color: "#FFFFFF" }}>
+          {revenue.toLocaleString()} <span className="text-xl font-semibold">LE</span>
+        </p>
+        <p className="mt-2 text-xs" style={{ color: "#FFF4E6", opacity: 0.85 }}>
+          Cancelled orders not counted
+        </p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3 mb-10 md:gap-4">
+        <StatCard
+          label="Total"
+          value={allOrders.length.toString()}
+          color="#3F8F5C"
+          percent={100}
+          caption="all orders"
+        />
+        <StatCard
+          label="Pending"
+          value={pendingCount.toString()}
+          color="#D08A1E"
+          percent={Math.round((pendingCount / (allOrders.length || 1)) * 100)}
+          caption={`${Math.round((pendingCount / (allOrders.length || 1)) * 100)}% of orders`}
+        />
+        <StatCard
+          label="Completed"
+          value={completedCount.toString()}
+          color="#3A6DB0"
+          percent={Math.round((completedCount / (allOrders.length || 1)) * 100)}
+          caption={`${Math.round((completedCount / (allOrders.length || 1)) * 100)}% of orders`}
+        />
       </div>
 
       <h2 className="font-serif text-xl font-bold mb-4" style={{ color: "#000000" }}>
@@ -111,14 +149,44 @@ href={o.kind === "Custom" ? `/admin/custom-orders/${o.id}` : "/admin/orders"}
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({
+  label,
+  value,
+  color,
+  percent,
+  caption,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  percent: number;
+  caption: string;
+}) {
   return (
-    <div className="rounded-2xl px-5 py-4" style={{ border: "1.5px solid rgba(0,0,0,0.1)", backgroundColor: "#FFF9F0" }}>
-      <p className="text-xs uppercase tracking-wide mb-1" style={{ color: "rgba(0,0,0,0.55)" }}>
+    <div
+      className="rounded-2xl px-4 py-4"
+      style={{ border: "1.5px solid rgba(0,0,0,0.1)", backgroundColor: "#FFF9F0" }}
+    >
+      <p
+        className="text-[10px] font-semibold uppercase tracking-[0.12em]"
+        style={{ color: "rgba(0,0,0,0.55)" }}
+      >
         {label}
       </p>
-      <p className="font-serif text-2xl font-bold" style={{ color: "#000000" }}>
+      <p className="mt-1 font-serif text-3xl font-bold leading-none" style={{ color }}>
         {value}
+      </p>
+      <div
+        className="mt-3 h-1.5 w-full overflow-hidden rounded-full"
+        style={{ backgroundColor: `${color}26` }}
+      >
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${percent}%`, backgroundColor: color }}
+        />
+      </div>
+      <p className="mt-1.5 text-[10px]" style={{ color: "rgba(0,0,0,0.5)" }}>
+        {caption}
       </p>
     </div>
   );

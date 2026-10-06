@@ -14,7 +14,7 @@ const GIVEAWAY_NAMES = [
   "Rustic Warmth",
 ];
 
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product, accent }: { product: Product; accent: string }) {
   const thumb =
     product.image_urls?.[0] ??
     product.colors?.[0]?.image_urls?.[0] ??
@@ -24,11 +24,17 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/admin/products/${product.id}`}
-      className="flex items-center gap-4 rounded-2xl p-3 transition-colors hover:bg-black/5"
-      style={{ border: "1px solid rgba(0,0,0,0.08)", opacity: product.is_active === false ? 0.55 : 1 }}
+      className="relative flex items-center gap-4 overflow-hidden rounded-2xl py-3 pl-5 pr-3 transition-colors hover:bg-black/5"
+      style={{
+        border: "1px solid rgba(0,0,0,0.08)",
+        backgroundColor: "#FFF9F0",
+        opacity: product.is_active === false ? 0.55 : 1,
+      }}
     >
+      <span className="absolute left-0 top-0 h-full w-1.5" style={{ backgroundColor: accent }} />
+
       <div
-        className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl"
+        className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl"
         style={{ backgroundColor: "#EFE3C4" }}
       >
         {thumb && (
@@ -37,15 +43,13 @@ function ProductCard({ product }: { product: Product }) {
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold" style={{ color: "#000000" }}>
+        <p className="truncate font-serif text-base font-bold" style={{ color: "#000000" }}>
           {product.name}
         </p>
-        <p className="text-xs" style={{ color: "rgba(0,0,0,0.55)" }}>
+        <p className="mt-0.5 text-sm font-semibold" style={{ color: accent }}>
           {product.price} EGP
         </p>
       </div>
-
-      
 
       <ActiveToggle productId={product.id} initialActive={product.is_active ?? true} />
     </Link>
@@ -63,7 +67,7 @@ export default async function AdminProductsPage() {
   if (error) {
     return (
       <div className="mx-auto max-w-3xl">
-        <h1 className="mb-4 text-2xl font-bold" style={{ color: "#000000" }}>
+        <h1 className="font-serif text-3xl font-bold" style={{ color: "#000000" }}>
           Products
         </h1>
         <p className="text-sm" style={{ color: "#DE4B33" }}>
@@ -86,7 +90,7 @@ export default async function AdminProductsPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-2xl font-bold" style={{ color: "#000000" }}>
+        <h1 className="font-serif text-3xl font-bold" style={{ color: "#000000" }}>
           Products
         </h1>
 
@@ -101,8 +105,8 @@ export default async function AdminProductsPage() {
 
       <section className="mb-10">
         <h2
-          className="mb-3 text-xs font-bold uppercase tracking-[0.2em]"
-          style={{ color: "#DE4B33" }}
+                   className="mb-3 text-xs font-bold uppercase tracking-[0.2em]"
+          style={{ color: "#D8A1AF" }}
         >
           Candles ({regular.length})
         </h2>
@@ -113,7 +117,9 @@ export default async function AdminProductsPage() {
               No candles yet.
             </p>
           ) : (
-            regular.map((product) => <ProductCard key={product.id} product={product} />)
+                       regular.map((product) => (
+              <ProductCard key={product.id} product={product} accent="#D8A1AF" />
+            ))
           )}
         </div>
       </section>
@@ -132,7 +138,9 @@ export default async function AdminProductsPage() {
               No giveaways yet.
             </p>
           ) : (
-            giveaways.map((product) => <ProductCard key={product.id} product={product} />)
+                        giveaways.map((product) => (
+              <ProductCard key={product.id} product={product} accent="#6E86C7" />
+            ))
           )}
         </div>
       </section>

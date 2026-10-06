@@ -1058,20 +1058,23 @@ fetch("/api/send-order-confirmation", {
                       "1px solid rgba(0,0,0,0.07)",
                   }}
                 >
-                  <div
-                    className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg"
-                    style={{
-                      backgroundColor: SAND,
-                    }}
-                  >
-                   {getCartItemThumbnails(item)[0] && (
-  <img
-    src={getCartItemThumbnails(item)[0]}
-    alt={item.productName}
-    className="h-full w-full object-contain"
-  />
-)}
-                  </div>
+                  <div className="flex flex-shrink-0 gap-1">
+  {getCartItemThumbnails(item).map((src, n) => (
+    <div
+      key={n}
+      className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg"
+      style={{ backgroundColor: SAND }}
+    >
+      {src && (
+        <img
+          src={src}
+          alt={item.productName}
+          className="h-full w-full object-contain"
+        />
+      )}
+    </div>
+  ))}
+</div>
 
                   <div className="min-w-0 flex-1">
                     <p

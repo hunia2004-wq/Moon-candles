@@ -32,6 +32,22 @@ function customerKey(r: any): string {
 function formatDate(value: string) {
   return new Date(value).toLocaleString("en-GB", { timeZone: "Africa/Cairo" });
 }
+function formatShort(value: string) {
+  return new Date(value).toLocaleString("en-GB", {
+    timeZone: "Africa/Cairo",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function toneForStatus(status: string | null): string {
+  if (status === "cancelled") return "#A34848";
+  if (status === "completed") return "#3A6DB0";
+  if (status === "pending") return "#D08A1E";
+  return "#3F8F5C";
+}
 
 export default function AdminCustomerDetailPage() {
   const params = useParams<{ key: string }>();
@@ -98,10 +114,21 @@ export default function AdminCustomerDetailPage() {
 
   const orderCount = orders.length + customOrders.length;
   const lastOrderAt = all[0]?.created_at ?? null;
+    // Custom candles placed through checkout live inside orders.items,
+  // not in the custom_orders table.
+  const candleItems = orders.flatMap((o) =>
+    (Array.isArray(o.items) ? o.items : [])
+      .filter(
+        (item: any) =>
+          item.customization?.type === "customized-candle" ||
+          item.productName === "Custom Candle"
+      )
+      .map((item: any, i: number) => ({ order: o, item, key: `${o.id}-${i}` }))
+  );
 
   return (
     <div style={{ backgroundColor: BG }} className="min-h-screen">
-      <div className="px-6 py-8 md:px-10 md:py-10 max-w-5xl mx-auto">
+      <div className="px-4 py-6 md:px-10 md:py-10 max-w-5xl mx-auto">
         <Link
           href="/admin/customers"
           className="mb-5 inline-block text-xs font-semibold underline"
@@ -133,69 +160,123 @@ export default function AdminCustomerDetailPage() {
 
         {!loading && !error && orderCount > 0 && (
           <>
-            <h1 className="text-3xl font-serif font-bold mb-5" style={{ color: "#000000" }}>
-              {name}
-            </h1>
-
-            <div
-              className="mb-6 grid grid-cols-1 gap-4 rounded-2xl p-5 sm:grid-cols-2"
+                        <div
+              className="mb-6 overflow-hidden rounded-2xl"
               style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)" }}
             >
-              <div>
-                <p className="mb-1 text-[11px] uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
-                  Contact
-                </p>
-                <p className="text-sm" style={{ color: "#000000" }}>
-                  {phone || "No phone"}
-                </p>
-                <p className="text-sm" style={{ color: "#000000" }}>
-                  {email || "No email"}
-                </p>
+              {/* header band */}
+              <div
+                className="flex items-center justify-between gap-3 px-4 py-3"
+                style={{ backgroundColor: "#EFE3C4" }}
+              >
+                <h1 className="truncate font-serif text-2xl font-bold" style={{ color: "#000000" }}>
+                  {name}
+                </h1>
+                <span
+                  className="flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                  style={{
+                    backgroundColor: orderCount >= 3 ? "#8FAA8233" : "#6E86C733",
+                    color: orderCount >= 3 ? "#47684b" : "#3A5A9E",
+                  }}
+                >
+                  {orderCount >= 3 ? "Repeat customer" : "New customer"}
+                </span>
               </div>
 
-              <div>
-                <p className="mb-1 text-[11px] uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
-                  Last delivery details
-                </p>
-                <p className="text-sm" style={{ color: "#000000" }}>
-                  {governorate || "No governorate"}
-                </p>
-                <p className="text-sm" style={{ color: "#000000" }}>
-                  {address || "No address"}
-                </p>
+              {/* contact + delivery */}
+              <div className="grid grid-cols-1 gap-x-8 gap-y-3 px-4 py-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-baseline gap-3">
+                    <span className="w-14 flex-shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+                      Phone
+                    </span>
+                    <span className="text-xs" style={{ color: "#000000" }}>
+                      {phone || "No phone"}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-3">
+                    <span className="w-14 flex-shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+                      Email
+                    </span>
+                    <span className="min-w-0 truncate text-xs" style={{ color: "#000000" }}>
+                      {email || "No email"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-baseline gap-3">
+                    <span className="w-14 flex-shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+                      Area
+                    </span>
+                    <span className="text-xs" style={{ color: "#000000" }}>
+                      {governorate || "No governorate"}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-3">
+                    <span className="w-14 flex-shrink-0 text-[9px] font-semibold uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+                      Address
+                    </span>
+                    <span className="text-xs" style={{ color: "#000000" }}>
+                      {address || "No address"}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div className="flex gap-8 sm:col-span-2">
-                <div>
-                  <p className="text-xs" style={{ color: MUTED }}>
-                    Orders
-                  </p>
-                  <p className="text-sm font-semibold" style={{ color: "#000000" }}>
+              {/* stats strip */}
+              <div
+                className="grid grid-cols-3 divide-x"
+                style={{
+                  borderTop: "1px solid rgba(0,0,0,0.08)",
+                  borderColor: "rgba(0,0,0,0.08)",
+                  backgroundColor: "#FFFFFF",
+                }}
+              >
+                <div className="px-3 py-2.5 text-center">
+                  <p className="font-serif text-lg font-bold leading-none" style={{ color: "#000000" }}>
                     {orderCount}
                   </p>
-                </div>
-                <div>
-                  <p className="text-xs" style={{ color: MUTED }}>
-                    Spent
-                  </p>
-                  <p className="text-sm font-bold" style={{ color: ACCENT }}>
-                    {totalSpent.toLocaleString()} LE
+                  <p className="mt-1 text-[9px] uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+                    Orders
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs" style={{ color: MUTED }}>
+                <div className="px-3 py-2.5 text-center" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
+                  <p className="font-serif text-lg font-bold leading-none" style={{ color: ACCENT }}>
+                    {totalSpent.toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-[9px] uppercase tracking-[0.12em]" style={{ color: MUTED }}>
+                    LE spent
+                  </p>
+                </div>
+                <div className="px-3 py-2.5 text-center" style={{ borderColor: "rgba(0,0,0,0.08)" }}>
+                  <p className="font-serif text-lg font-bold leading-none" style={{ color: "#000000" }}>
+                    {lastOrderAt
+                      ? new Date(lastOrderAt).toLocaleDateString("en-GB", {
+                          timeZone: "Africa/Cairo",
+                          day: "numeric",
+                          month: "short",
+                        })
+                      : "—"}
+                  </p>
+                  <p className="mt-1 text-[9px] uppercase tracking-[0.12em]" style={{ color: MUTED }}>
                     Last order
-                  </p>
-                  <p className="text-xs" style={{ color: "#000000" }}>
-                    {lastOrderAt ? formatDate(lastOrderAt) : "—"}
                   </p>
                 </div>
               </div>
             </div>
 
-            <p className="mb-3 text-[11px] uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
-              Orders ({orders.length})
-            </p>
+                       <div className="mb-3 flex items-center gap-2">
+              <h2 className="font-serif text-xl font-bold" style={{ color: "#000000" }}>
+                Orders
+              </h2>
+              <span
+                className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                style={{ backgroundColor: `${ACCENT}1A`, color: ACCENT }}
+              >
+                {orders.length}
+              </span>
+            </div>
 
             <div className="mb-8 flex flex-col gap-3">
               {orders.length === 0 && (
@@ -204,35 +285,44 @@ export default function AdminCustomerDetailPage() {
                 </p>
               )}
 
-              {orders.map((o) => {
+                           {orders.map((o) => {
                 const items: any[] = Array.isArray(o.items) ? o.items : [];
 
                 return (
                   <div
                     key={o.id}
-                    className="rounded-2xl p-5"
+                    className="relative overflow-hidden rounded-2xl py-3.5 pl-5 pr-4"
                     style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)" }}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span
+                      className="absolute left-0 top-0 h-full w-1.5"
+                      style={{ backgroundColor: toneForStatus(o.status) }}
+                    />
+
+                    <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold" style={{ color: "#000000" }}>
+                        <p className="font-serif text-base font-bold" style={{ color: "#000000" }}>
                           {o.order_code ?? "Order"}
                         </p>
-                        <p className="text-xs" style={{ color: MUTED }}>
-                          {formatDate(o.created_at)}
+                        <p className="text-[11px]" style={{ color: MUTED }}>
+                          {formatShort(o.created_at)}
                         </p>
                       </div>
-
-                      <div className="flex items-center gap-2">
-                        <StatusPill status={o.status} />
-                        <StatusPill status={o.payment_status ?? "unpaid"} />
-                        <span className="ml-2 text-sm font-bold" style={{ color: ACCENT }}>
-                          {Number(o.total ?? 0).toLocaleString()} LE
-                        </span>
-                      </div>
+                      <span className="font-serif text-lg font-bold leading-none" style={{ color: ACCENT }}>
+                        {Number(o.total ?? 0).toLocaleString()}
+                        <span className="ml-1 text-[11px] font-semibold">LE</span>
+                      </span>
                     </div>
 
-                    <div className="mt-3 flex flex-col gap-1">
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                      <StatusPill status={o.status} />
+                      <StatusPill status={o.payment_status ?? "unpaid"} />
+                    </div>
+
+                    <div
+                      className="mt-2.5 flex flex-col gap-0.5 pt-2.5"
+                      style={{ borderTop: "1px dashed rgba(0,0,0,0.15)" }}
+                    >
                       {items.map((item, i) => (
                         <p key={i} className="text-xs" style={{ color: "#000000" }}>
                           x{item.quantity ?? 1} · {item.productName}
@@ -246,47 +336,109 @@ export default function AdminCustomerDetailPage() {
               })}
             </div>
 
-            <p className="mb-3 text-[11px] uppercase tracking-[0.15em]" style={{ color: ACCENT }}>
-              Custom candles ({customOrders.length})
-            </p>
+                       <div className="mb-3 flex items-center gap-2">
+              <h2 className="font-serif text-xl font-bold" style={{ color: "#000000" }}>
+                Custom candles
+              </h2>
+              <span
+                className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                style={{ backgroundColor: "#D8A1AF33", color: "#B5677C" }}
+              >
+                {customOrders.length + candleItems.length}
+              </span>
+            </div>
 
             <div className="flex flex-col gap-3">
-              {customOrders.length === 0 && (
+                            {customOrders.length === 0 && candleItems.length === 0 && (
                 <p className="text-sm" style={{ color: MUTED }}>
                   No custom candles.
                 </p>
               )}
 
+                                       {candleItems.map(({ order, item, key }) => (
+                <div
+                  key={key}
+                  className="relative overflow-hidden rounded-2xl py-3.5 pl-5 pr-4"
+                  style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)" }}
+                >
+                  <span
+                    className="absolute left-0 top-0 h-full w-1.5"
+                    style={{ backgroundColor: toneForStatus(order.status) }}
+                  />
+
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-serif text-base font-bold" style={{ color: "#000000" }}>
+                        {order.order_code ?? "Custom Candle"}
+                      </p>
+                      <p className="text-[11px]" style={{ color: MUTED }}>
+                        {formatShort(order.created_at)}
+                      </p>
+                    </div>
+                    <span className="font-serif text-lg font-bold leading-none" style={{ color: ACCENT }}>
+                      {(Number(item.price ?? 0) * Number(item.quantity ?? 1)).toLocaleString()}
+                      <span className="ml-1 text-[11px] font-semibold">LE</span>
+                    </span>
+                  </div>
+
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <StatusPill status={order.status} />
+                  </div>
+
+                  <div
+                    className="mt-2.5 flex flex-col gap-0.5 pt-2.5"
+                    style={{ borderTop: "1px dashed rgba(0,0,0,0.15)" }}
+                  >
+                    <p className="text-xs" style={{ color: "#000000" }}>
+                      x{item.quantity ?? 1}
+                      {item.color ? ` · ${item.color}` : ""}
+                      {item.scent ? ` · ${item.scent}` : ""}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
               {customOrders.map((o) => (
                 <div
                   key={o.id}
-                  className="rounded-2xl p-5"
+                  className="relative overflow-hidden rounded-2xl py-3.5 pl-5 pr-4"
                   style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)" }}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span
+                    className="absolute left-0 top-0 h-full w-1.5"
+                    style={{ backgroundColor: toneForStatus(o.status) }}
+                  />
+
+                  <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-semibold" style={{ color: "#000000" }}>
+                      <p className="font-serif text-base font-bold" style={{ color: "#000000" }}>
                         {o.order_code ?? "Custom Candle"}
                       </p>
-                      <p className="text-xs" style={{ color: MUTED }}>
-                        {formatDate(o.created_at)}
+                      <p className="text-[11px]" style={{ color: MUTED }}>
+                        {formatShort(o.created_at)}
                       </p>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <StatusPill status={o.status} />
-                      <span className="ml-2 text-sm font-bold" style={{ color: ACCENT }}>
-                        {Number(o.price ?? 0).toLocaleString()} LE
-                      </span>
-                    </div>
+                    <span className="font-serif text-lg font-bold leading-none" style={{ color: ACCENT }}>
+                      {Number(o.price ?? 0).toLocaleString()}
+                      <span className="ml-1 text-[11px] font-semibold">LE</span>
+                    </span>
                   </div>
 
-                  <p className="mt-3 text-xs" style={{ color: "#000000" }}>
-                    {o.size_label} · {o.scent || "No scent chosen"}
-                  </p>
-                  <p className="text-xs italic" style={{ color: MUTED }}>
-                    {o.message ? `"${o.message}"` : "No message"}
-                  </p>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    <StatusPill status={o.status} />
+                  </div>
+
+                  <div
+                    className="mt-2.5 flex flex-col gap-0.5 pt-2.5"
+                    style={{ borderTop: "1px dashed rgba(0,0,0,0.15)" }}
+                  >
+                    <p className="text-xs" style={{ color: "#000000" }}>
+                      {o.size_label} · {o.scent || "No scent chosen"}
+                    </p>
+                    <p className="text-xs italic" style={{ color: MUTED }}>
+                      {o.message ? `"${o.message}"` : "No message"}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
