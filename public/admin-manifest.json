@@ -1,0 +1,11 @@
+{
+  "name": "Moon Candles Admin",
+  "short_name": "Moon Admin",
+  "start_url": "/admin/orders",
+  "display": "standalone",
+  "background_color": "#FFF4E6",
+  "theme_color": "#FFF4E6",
+  "icons": [
+  { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+]
+}
