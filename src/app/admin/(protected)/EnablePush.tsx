@@ -15,7 +15,7 @@ function urlBase64ToUint8Array(base64: string) {
 
 export default function EnablePush() {
   const [status, setStatus] = useState<Status>("loading");
-
+const [detail, setDetail] = useState("");
   useEffect(() => {
     async function init() {
       const supported =
@@ -74,10 +74,16 @@ export default function EnablePush() {
         body: JSON.stringify(sub.toJSON()),
       });
 
-      setStatus(res.ok ? "on" : "error");
+      if (res.ok) {
+  setStatus("on");
+} else {
+  setDetail(`server answered ${res.status}`);
+  setStatus("error");
+}
     } catch (err) {
-      console.error("Enable push failed:", err);
-      setStatus("error");
+     console.error("Enable push failed:", err);
+setDetail(err instanceof Error ? err.message : String(err));
+setStatus("error");
     }
   }
 
@@ -124,7 +130,7 @@ export default function EnablePush() {
 
       {status === "error" && (
         <p className="mt-2 text-[11px]" style={{ color: "#C0392B" }}>
-          Something went wrong. Try again.
+          Something went wrong{detail ? `: ${detail}` : ""}. Try again.
         </p>
       )}
     </div>
