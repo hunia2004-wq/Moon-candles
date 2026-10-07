@@ -64,8 +64,9 @@ function hasCustomizedItems(items: unknown): boolean {
   );
 }
 
-export default function AdminNav({ email, deletedCount = 0 }: { email: string; deletedCount?: number }) {
+export default function AdminNav({ email, deletedCount: deletedCountProp = 0 }: { email: string; deletedCount?: number }) {
   const pathname = usePathname();
+  const deletedCount = pathname.startsWith("/admin/recently-deleted") ? 0 : deletedCountProp;
   const router = useRouter();
   const [counts, setCounts] = useState<Record<Section, number>>({
     orders: 0,
@@ -271,7 +272,7 @@ export default function AdminNav({ email, deletedCount = 0 }: { email: string; d
           moon admin
         </p>
 
-        <div className="flex items-center gap-2"><Link href="/admin/recently-deleted" aria-label="Recently deleted" className="relative flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: deletedCount > 0 ? "#EFE3C4" : "transparent", color: "rgba(0,0,0,0.6)" }}><Trash2 size={16} strokeWidth={1.8} />{deletedCount > 0 && (<span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold" style={{ backgroundColor: "#6E86C7", color: "#FFFFFF" }}>{deletedCount}</span>)}</Link>{totalNew > 0 ? (
+        <div className="flex items-center gap-2"><Link href="/admin/recently-deleted" aria-label="Recently deleted" className="relative flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: deletedCount > 0 ? "#EFE3C4" : "transparent", color: "rgba(0,0,0,0.6)" }}><Trash2 size={16} strokeWidth={1.8} />{deletedCount > 0 && (<span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold" style={{ backgroundColor: "#DE4B33", color: "#FFFFFF" }}>{deletedCount}</span>)}</Link>{totalNew > 0 ? (
           <span
             className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
             style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
@@ -339,7 +340,7 @@ export default function AdminNav({ email, deletedCount = 0 }: { email: string; d
               })}
             </div>
 
-            <Link href="/admin/recently-deleted" className="mt-4 flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5 text-xs font-semibold" style={{ border: "1.5px dashed rgba(0,0,0,0.25)", color: "rgba(0,0,0,0.65)" }}><span className="flex items-center gap-2"><Trash2 size={15} strokeWidth={1.8} />Recently deleted</span>{deletedCount > 0 && (<span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ backgroundColor: "#6E86C7", color: "#FFFFFF" }}>{deletedCount}</span>)}</Link><div
+            <Link href="/admin/recently-deleted" className="mt-4 flex items-center justify-between gap-3 rounded-2xl px-4 py-2.5 text-xs font-semibold" style={{ border: "1.5px dashed rgba(0,0,0,0.25)", color: "rgba(0,0,0,0.65)" }}><span className="flex items-center gap-2"><Trash2 size={15} strokeWidth={1.8} />Recently deleted</span>{deletedCount > 0 && (<span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ backgroundColor: "#DE4B33", color: "#FFFFFF" }}>{deletedCount}</span>)}</Link><div
               className="mt-4 flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
               style={{ backgroundColor: "#EFE3C4" }}
             >
@@ -388,7 +389,7 @@ export default function AdminNav({ email, deletedCount = 0 }: { email: string; d
           </nav>
         </div>
 
-        <div className="px-2"><Link href="/admin/recently-deleted" className="mb-3 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs font-semibold" style={{ border: "1.5px dashed rgba(0,0,0,0.25)", color: "rgba(0,0,0,0.65)" }}><span className="flex items-center gap-2"><Trash2 size={15} strokeWidth={1.8} />Recently deleted</span>{deletedCount > 0 && (<span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ backgroundColor: "#6E86C7", color: "#FFFFFF" }}>{deletedCount}</span>)}</Link>
+        <div className="px-2"><Link href="/admin/recently-deleted" className="mb-3 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs font-semibold" style={{ border: "1.5px dashed rgba(0,0,0,0.25)", color: "rgba(0,0,0,0.65)" }}><span className="flex items-center gap-2"><Trash2 size={15} strokeWidth={1.8} />Recently deleted</span>{deletedCount > 0 && (<span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ backgroundColor: "#DE4B33", color: "#FFFFFF" }}>{deletedCount}</span>)}</Link>
           <p className="text-xs mb-2 truncate" style={{ color: "rgba(0,0,0,0.55)" }}>
             {email}
           </p>
