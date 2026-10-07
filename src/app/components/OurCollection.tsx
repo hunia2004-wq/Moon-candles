@@ -176,7 +176,7 @@ export default function OurCollection() {
           <text
             style={{
               fill: "#000000",
-                            fontSize: "35px",
+                            fontSize: "26px",
               fontWeight: 500,
               letterSpacing: "6px",
             }}
