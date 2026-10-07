@@ -42,9 +42,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const actingName = await getActingName();
   const staffNames = await getStaffNames();
 
+  const [delP, delO, delC] = await Promise.all([
+    supabase.from("products").select("id", { count: "exact", head: true }).not("deleted_at", "is", null),
+    supabase.from("orders").select("id", { count: "exact", head: true }).not("deleted_at", "is", null),
+    supabase.from("custom_orders").select("id", { count: "exact", head: true }).not("deleted_at", "is", null),
+  ]);
+  const deletedCount = (delP.count ?? 0) + (delO.count ?? 0) + (delC.count ?? 0);
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen" style={{ backgroundColor: "#FFF4E6" }}>
-      <AdminNav email={user.email ?? ""} />
+      <AdminNav email={user.email ?? ""} deletedCount={deletedCount} />
       <main className="flex-1 px-6 py-8 md:px-10 md:py-10 overflow-y-auto">
         <ActingAs current={actingName} names={staffNames} />
         <EnablePush />
