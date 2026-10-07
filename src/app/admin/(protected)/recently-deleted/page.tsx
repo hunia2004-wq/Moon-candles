@@ -225,71 +225,51 @@ export default function RecentlyDeletedPage() {
             const left = daysLeft(item.deletedAt);
             const urgent = left <= 5;
             const busy = busyKey === item.key;
-            const R = 24;
-            const C = 2 * Math.PI * R;
-            const ringColor = urgent ? ACCENT : GREEN;
 
             return (
               <div
                 key={item.key}
-                className="rounded-3xl p-4"
+                className="rounded-2xl p-4"
                 style={{
                   backgroundColor: CARD_BG,
-                  border: "1.5px dashed rgba(0,0,0,0.22)",
+                  border: "1px solid rgba(0,0,0,0.08)",
                   opacity: busy ? 0.6 : 1,
                 }}
               >
-                <div className="flex items-center gap-4">
-                  <div className="relative h-14 w-14 flex-shrink-0">
-                    <svg viewBox="0 0 56 56" className="h-14 w-14 -rotate-90">
-                      <circle cx="28" cy="28" r={R} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="5" />
-                      <circle
-                        cx="28"
-                        cy="28"
-                        r={R}
-                        fill="none"
-                        stroke={ringColor}
-                        strokeWidth="5"
-                        strokeLinecap="round"
-                        strokeDasharray={C}
-                        strokeDashoffset={C * (1 - left / RETENTION_DAYS)}
-                      />
-                    </svg>
-                    <span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-                      <span className="font-serif text-lg font-bold" style={{ color: "#000000" }}>
-                        {left}
-                      </span>
-                      <span className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>
-                        {left === 1 ? "day" : "days"}
-                      </span>
-                    </span>
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-serif text-lg font-bold leading-tight" style={{ color: "#000000" }}>
-                      {item.title}
-                    </p>
-                    <p className="mt-0.5 truncate text-xs" style={{ color: MUTED }}>
-                      {item.subtitle}
-                      {item.amount != null ? " - " + item.amount.toLocaleString() + " LE" : ""}
-                    </p>
-                  </div>
-
+                <div className="flex items-start gap-3">
                   {item.image && (
                     <img
                       src={item.image}
                       alt=""
-                      className="h-12 w-12 flex-shrink-0 rounded-xl object-cover"
+                      className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
                     />
                   )}
+
+                  <div className="min-w-0 flex-1">
+                    <p className="font-serif text-lg font-bold leading-tight" style={{ color: "#000000" }}>
+                      {item.title}
+                    </p>
+                    <p className="mt-0.5 text-xs" style={{ color: MUTED }}>
+                      {item.subtitle}
+                      {item.amount != null ? " - " + item.amount.toLocaleString() + " LE" : ""}
+                    </p>
+                    <p className="mt-2 text-xs font-semibold" style={{ color: urgent ? ACCENT : MUTED }}>
+                      Deleted{" "}
+                      {new Date(item.deletedAt).toLocaleDateString(undefined, {
+                        day: "numeric",
+                        month: "short",
+                      })}{" "}
+                      - {left} day{left !== 1 ? "s" : ""} left
+                    </p>
+                  </div>
                 </div>
 
-                <div className="mt-4 flex items-center gap-4">
+                <div className="mt-4 grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => restore(item)}
-                    className="flex-1 rounded-full py-2.5 text-sm font-semibold disabled:opacity-50"
+                    className="rounded-full py-2.5 text-sm font-semibold disabled:opacity-50"
                     style={{ backgroundColor: GREEN, color: "#FFFFFF" }}
                   >
                     Restore
@@ -298,8 +278,8 @@ export default function RecentlyDeletedPage() {
                     type="button"
                     disabled={busy}
                     onClick={() => deleteForever(item)}
-                    className="text-xs font-semibold underline disabled:opacity-50"
-                    style={{ color: "#A34848" }}
+                    className="rounded-full py-2.5 text-sm font-semibold disabled:opacity-50"
+                    style={{ border: "1.5px solid #A34848", color: "#A34848" }}
                   >
                     Delete forever
                   </button>
