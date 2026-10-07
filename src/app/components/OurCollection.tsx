@@ -14,7 +14,12 @@ const CANDLES_IMG =
 
 const MOON_IMG =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/collection/giveaways%20coll.png";
-
+const RIBBON_TEXT_STYLE: React.CSSProperties = {
+  fill: "#000000",
+  fontSize: "26px",
+  fontWeight: 500,
+  letterSpacing: "6px",
+};
 export default function OurCollection() {
   return (
    <section
@@ -73,12 +78,12 @@ export default function OurCollection() {
       {/* =====================================================
           CURVED RIBBON — THICKER FLOWING FABRIC SASH
       ===================================================== */}
-<div className="relative left-1/2 z-40 mt-1 w-screen -translate-x-1/2 md:mt-14">
-        <svg
-          viewBox="0 0 1600 230"
-          className="h-auto w-full overflow-visible"
-          aria-hidden="true"
-        >
+<div className="relative left-1/2 z-40 mt-1 w-screen -translate-x-1/2 md:left-0 md:mt-14 md:w-full md:translate-x-0">
+<svg
+  viewBox="0 0 1600 230"
+  className="relative left-1/2 block h-auto w-full min-w-[900px] max-w-none -translate-x-1/2 overflow-visible lg:min-w-[1200px]"
+  aria-hidden="true"
+>
           <defs>
             <filter
               id="ribbon-shadow"
@@ -173,22 +178,19 @@ export default function OurCollection() {
             fill="none"
           />
 
-          <text
-            style={{
-              fill: "#000000",
-                            fontSize: "26px",
-              fontWeight: 500,
-              letterSpacing: "6px",
-            }}
-          >
-            <textPath
-              href="#ribbon-text-path"
-              startOffset="50%"
-              textAnchor="middle"
-            >
-              SCENTED ✦ HANDMADE ✦ GIFTED WITH LOVE ✦ MADE BY MOON
-            </textPath>
-          </text>
+         {/* Phones and tablets: shorter phrase that fits fully */}
+<text className="lg:hidden" style={RIBBON_TEXT_STYLE}>
+  <textPath href="#ribbon-text-path" startOffset="50%" textAnchor="middle">
+    HANDMADE ✦ GIFTED WITH LOVE
+  </textPath>
+</text>
+
+{/* Desktop: full phrase */}
+<text className="hidden lg:inline" style={RIBBON_TEXT_STYLE}>
+  <textPath href="#ribbon-text-path" startOffset="50%" textAnchor="middle">
+    SCENTED ✦ HANDMADE ✦ GIFTED WITH LOVE ✦ MADE BY MOON
+  </textPath>
+</text>
         </svg>
       </div>
 
