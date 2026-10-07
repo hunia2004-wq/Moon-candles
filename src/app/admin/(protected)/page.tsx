@@ -9,10 +9,10 @@ export default async function AdminDashboardPage() {
   const actingName = await getActingName();
 
   const [ordersRes, customOrdersRes] = await Promise.all([
-    supabase.from("orders").select("id, total, status, created_at, customer_name"),
+    supabase.from("orders").select("id, total, status, created_at, customer_name").is("deleted_at", null),
     supabase
       .from("custom_orders")
-      .select("id, price, status, created_at, customer_name, size_label"),
+      .select("id, price, status, created_at, customer_name, size_label").is("deleted_at", null),
   ]);
 
   const orders = ordersRes.data ?? [];

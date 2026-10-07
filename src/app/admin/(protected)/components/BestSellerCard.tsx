@@ -76,7 +76,7 @@ export default function BestSellerCard() {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("orders")
-      .select("items, status, created_at")
+      .select("items, status, created_at").is("deleted_at", null)
       .gte("created_at", lastStart.toISOString());
 
     if (error) {

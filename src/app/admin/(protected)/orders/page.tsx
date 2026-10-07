@@ -98,7 +98,7 @@ useEffect(() => {
     const supabase = createClient();
     const { data, error } = await supabase
       .from("orders")
-      .select("*")
+      .select("*").is("deleted_at", null)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -166,14 +166,15 @@ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "pa
 }
 
 async function deleteOrder(id: string) {
-  if (!confirm("Delete this order? This can't be undone.")) return;
+  if (!confirm("Move this order to Recently Deleted?")) return;
 
   setSavingId(id);
 
   const before = orders.find((o) => o.id === id);
 
   const supabase = createClient();
-  const { error } = await supabase.from("orders").delete().eq("id", id);
+  const { error } = await supabase.from("orders").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (!error) window.dispatchEvent(new Event("recently-deleted-changed"));
 
   if (error) {
     alert(`Couldn't delete: ${error.message}`);

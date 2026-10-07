@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { loadScentCatalog, syncScentsToCatalog } from "@/lib/scentCatalog";
 import OptionGroupsEditor, {
   groupsFromDrafts,
   type OptionGroupDraft,
@@ -97,15 +98,7 @@ const [success, setSuccess] = useState(false);
 
   useEffect(() => {
     async function loadExistingScents() {
-      const supabase = createClient();
-      const { data } = await supabase.from("products").select("scents");
-
-      const all = new Set<string>();
-      (data ?? []).forEach((row) => {
-        (row.scents ?? []).forEach((scent: string) => all.add(scent));
-      });
-
-      setExistingScents(Array.from(all).sort());
+      setExistingScents(await loadScentCatalog());
     }
 
     loadExistingScents();
@@ -266,6 +259,8 @@ const [success, setSuccess] = useState(false);
      if (insertError) {
   throw new Error(insertError.message);
 }
+
+      await syncScentsToCatalog(scents);
 
       logAdminActivity({
         action: "product.created",

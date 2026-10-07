@@ -26,6 +26,12 @@ const ACTIONS: Record<string, { icon: string; tint: string; verb: string }> = {
   "product.price_changed": { icon: "🏷️", tint: "bg-amber-100", verb: "changed the price of" },
   "order.deleted": { icon: "🗑️", tint: "bg-rose-100", verb: "deleted" },
   "order.assigned": { icon: "👤", tint: "bg-violet-100", verb: "assigned" },
+  "scent.created": { icon: "🧴", tint: "bg-emerald-100", verb: "created the scent" },
+  "scent.added_to_products": { icon: "➕", tint: "bg-emerald-100", verb: "added the scent" },
+  "scent.removed_from_products": { icon: "➖", tint: "bg-amber-100", verb: "removed the scent" },
+  "scent.renamed": { icon: "✏️", tint: "bg-sky-100", verb: "renamed the scent" },
+  "scent.deleted": { icon: "🗑️", tint: "bg-rose-100", verb: "deleted the scent" },
+  "scent.restored": { icon: "♻️", tint: "bg-emerald-100", verb: "restored the scent" },
   "order.payment_changed": { icon: "💳", tint: "bg-emerald-100", verb: "updated the payment of" },
 };
 const FALLBACK = { icon: "✏️", tint: "bg-stone-100", verb: "updated" };
@@ -67,6 +73,45 @@ function Details({ row }: { row: Row }) {
           <StatusChip value={d.to} />
         </div>
       );
+    case "scent.created":
+    case "scent.added_to_products":
+    case "scent.removed_from_products": {
+      const list = (d.products ?? []) as string[];
+      const removed = row.action === "scent.removed_from_products";
+      return (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-stone-500">{removed ? "removed from" : "added to"}</span>
+          {list.length === 0 && <Chip>list only</Chip>}
+          {list.slice(0, 6).map((n) => (
+            <Chip key={n} className={removed ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"}>
+              {n}
+            </Chip>
+          ))}
+          {list.length > 6 && <Chip>+{list.length - 6} more</Chip>}
+        </div>
+      );
+    }
+    case "scent.renamed":
+      return (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Chip className="bg-stone-100 text-stone-500 line-through">{d.from}</Chip>
+          <span className="text-stone-400">→</span>
+          <Chip className="bg-emerald-100 text-emerald-800">{d.to}</Chip>
+        </div>
+      );
+    case "scent.deleted": {
+      const list = (d.products ?? []) as string[];
+      if (list.length === 0) return null;
+      return (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-stone-500">was on</span>
+          {list.slice(0, 6).map((n) => (
+            <Chip key={n}>{n}</Chip>
+          ))}
+          {list.length > 6 && <Chip>+{list.length - 6} more</Chip>}
+        </div>
+      );
+    }
     case "product.created":
       return (
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -206,6 +251,7 @@ const TYPE_LABELS: Record<string, string> = {
   promotion: "Promotion",
   review: "Review",
   customer: "Customer",
+  scent: "Scent",
 };
 
 function typeLabel(t: string) {

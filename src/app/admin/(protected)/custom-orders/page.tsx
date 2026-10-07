@@ -179,11 +179,13 @@ export default function CustomOrdersPage() {
       supabase
         .from("custom_orders")
         .select("*")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false }),
 
       supabase
         .from("orders")
         .select("*")
+        .is("deleted_at", null)
         .order("created_at", { ascending: false }),
     ]);
 
@@ -530,7 +532,7 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
   ) {
     if (
       !confirm(
-        "Delete this order? This can't be undone."
+        "Move this order to Recently Deleted?"
       )
     ) {
       return;
@@ -547,8 +549,10 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
 
     const { error } = await supabase
       .from(table)
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq("id", entry.id);
+
+    if (!error) window.dispatchEvent(new Event("recently-deleted-changed"));
 
     if (error) {
       alert(`Couldn't delete: ${error.message}`);

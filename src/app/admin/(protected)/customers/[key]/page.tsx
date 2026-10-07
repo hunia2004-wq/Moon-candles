@@ -73,8 +73,8 @@ export default function AdminCustomerDetailPage() {
       const supabase = createClient();
 
       const [ordersRes, customRes] = await Promise.all([
-        supabase.from("orders").select("*").order("created_at", { ascending: false }),
-        supabase.from("custom_orders").select("*").order("created_at", { ascending: false }),
+        supabase.from("orders").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
+        supabase.from("custom_orders").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
       ]);
 
       if (ordersRes.error) {

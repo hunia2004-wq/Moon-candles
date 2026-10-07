@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { logAdminActivity, diffFields, sameJson } from "@/lib/logAdminActivity";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { loadScentCatalog, syncScentsToCatalog } from "@/lib/scentCatalog";
 import type { Product } from "@/lib/supabase/types";
 import OptionGroupsEditor, {
   draftsFromGroups,
@@ -160,16 +161,11 @@ export default function EditProductPage() {
     async function load() {
       const supabase = createClient();
 
-      const [{ data: product, error: fetchError }, { data: allProducts }] = await Promise.all([
+      const [{ data: product, error: fetchError }, catalogScents] = await Promise.all([
         supabase.from("products").select("*").eq("id", productId).maybeSingle(),
-        supabase.from("products").select("scents"),
+        loadScentCatalog(),
       ]);
-
-      const allScents = new Set<string>();
-      (allProducts ?? []).forEach((row) => {
-        (row.scents ?? []).forEach((s: string) => allScents.add(s));
-      });
-      setExistingScents(Array.from(allScents).sort());
+      setExistingScents(catalogScents);
 
       if (fetchError || !product) {
         setNotFound(true);
@@ -411,6 +407,8 @@ export default function EditProductPage() {
       if (updateError) {
         throw new Error(updateError.message);
       }
+
+      await syncScentsToCatalog(scents);
 
       // Activity log
       if (original) {

@@ -1,4 +1,5 @@
 "use client";
+import { DELETED_EVENT } from "@/lib/soft-delete";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -15,6 +16,7 @@ import {
   History,
   User,
   Trash2,
+  FlaskConical,
 } from "lucide-react";
 
 const LINKS = [
@@ -22,6 +24,7 @@ const LINKS = [
   { label: "Orders", href: "/admin/orders" },
   { label: "Custom Orders", href: "/admin/custom-orders" },
   { label: "Products", href: "/admin/products" },
+  { label: "Scents", href: "/admin/scents" },
   { label: "Customers", href: "/admin/customers" },
   { label: "Promotions", href: "/admin/discounts" },
   { label: "Reviews", href: "/admin/reviews" },
@@ -35,6 +38,7 @@ const ICONS: Record<string, React.ComponentType<{ size?: number; strokeWidth?: n
   Orders: ShoppingBag,
   "Custom Orders": Sparkles,
   Products: Package,
+  Scents: FlaskConical,
   Customers: Users,
   Promotions: Tag,
   Reviews: Star,
@@ -64,9 +68,66 @@ function hasCustomizedItems(items: unknown): boolean {
   );
 }
 
-export default function AdminNav({ email, deletedCount: deletedCountProp = 0 }: { email: string; deletedCount?: number }) {
+export default function AdminNav({ email }: { email: string; deletedCount?: number }) {
   const pathname = usePathname();
-  const deletedCount = pathname.startsWith("/admin/recently-deleted") ? 0 : deletedCountProp;
+  const [deletedCount, setDeletedCount] = useState(0);
+
+  // Badge = items deleted since the bin was last opened. Opening the bin clears it.
+  useEffect(() => {
+    const supabase = createClient();
+    let cancelled = false;
+
+    async function syncDeleted() {
+      const now = new Date().toISOString();
+
+      if (pathname.startsWith("/admin/recently-deleted")) {
+        setDeletedCount(0);
+        await supabase
+          .from("admin_seen")
+          .upsert({ email, section: "recently_deleted", seen_at: now });
+        return;
+      }
+
+      const { data: row } = await supabase
+        .from("admin_seen")
+        .select("seen_at")
+        .eq("email", email)
+        .eq("section", "recently_deleted")
+        .maybeSingle();
+
+      if (!row) {
+        await supabase
+          .from("admin_seen")
+          .upsert({ email, section: "recently_deleted", seen_at: now });
+        return;
+      }
+
+      const results = await Promise.all(
+        ["products", "orders", "custom_orders", "scent_catalog"].map((table) =>
+          supabase
+            .from(table)
+            .select("*", { count: "exact", head: true })
+            .gt("deleted_at", row.seen_at)
+        )
+      );
+
+      if (!cancelled) {
+        results.forEach((r) => r.error && console.error("Recently deleted badge:", r.error.message));
+        setDeletedCount(results.reduce((sum, r) => sum + (r.count ?? 0), 0));
+      }
+    }
+
+    syncDeleted();
+    window.addEventListener(DELETED_EVENT, syncDeleted);
+    window.addEventListener("focus", syncDeleted);
+    const timer = setInterval(syncDeleted, 15000);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(DELETED_EVENT, syncDeleted);
+      window.removeEventListener("focus", syncDeleted);
+      clearInterval(timer);
+    };
+  }, [pathname, email]);
   const router = useRouter();
   const [counts, setCounts] = useState<Record<Section, number>>({
     orders: 0,
@@ -128,6 +189,7 @@ export default function AdminNav({ email, deletedCount: deletedCountProp = 0 }: 
         const { count } = await supabase
           .from(table)
           .select("id", { count: "exact", head: true })
+          .is("deleted_at", null)
           .gt("created_at", seenAt[section]);
 
         let total = count ?? 0;
@@ -137,7 +199,7 @@ export default function AdminNav({ email, deletedCount: deletedCountProp = 0 }: 
         if (section === "custom_orders") {
           const { data: newOrders } = await supabase
             .from("orders")
-            .select("items")
+            .select("items").is("deleted_at", null)
             .gt("created_at", seenAt[section]);
 
           total += (newOrders ?? []).filter((o: any) => hasCustomizedItems(o.items)).length;

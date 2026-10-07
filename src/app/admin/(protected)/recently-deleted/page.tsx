@@ -2,22 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { logAdminActivity } from "@/lib/logAdminActivity";
 
 const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
 const MUTED = "rgba(0,0,0,0.55)";
-const TONE = "#DE4B33";
-const GREEN = "#3F8F5C";
 const RETENTION_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-type Table = "products" | "orders" | "custom_orders";
+type Table = "products" | "orders" | "custom_orders" | "scent_catalog";
+type Kind = "products" | "orders" | "scents";
 
 type Item = {
   key: string;
-  table: Table;
-  id: string | number;
+  kind: Kind;
+  targets: { table: Table; ids: (string | number)[] }[];
   title: string;
   subtitle: string;
   amount: number | null;
@@ -32,7 +32,7 @@ function daysLeft(deletedAt: string) {
 
 export default function RecentlyDeletedPage() {
   const [items, setItems] = useState<Item[]>([]);
-  const [tab, setTab] = useState<"products" | "orders">("products");
+  const [tab, setTab] = useState<Kind>("products");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
@@ -50,12 +50,12 @@ export default function RecentlyDeletedPage() {
 
     // Anything that has been in here longer than the retention period is removed for good.
     await Promise.all(
-      (["products", "orders", "custom_orders"] as Table[]).map((t) =>
+      (["products", "orders", "custom_orders", "scent_catalog"] as Table[]).map((t) =>
         supabase.from(t).delete().lt("deleted_at", cutoff)
       )
     );
 
-    const [p, o, c] = await Promise.all([
+    const [p, o, c, sc] = await Promise.all([
       supabase
         .from("products")
         .select("id, name, price, image_urls, colors, deleted_at")
@@ -68,49 +68,69 @@ export default function RecentlyDeletedPage() {
         .from("custom_orders")
         .select("id, order_code, customer_name, price, size_label, deleted_at")
         .not("deleted_at", "is", null),
+      supabase
+        .from("scent_catalog")
+        .select("name, deleted_at, deleted_product_ids")
+        .not("deleted_at", "is", null),
     ]);
 
-    const failed = p.error || o.error || c.error;
+    const failed = p.error || o.error || c.error || sc.error;
     if (failed) {
       setError(failed.message);
       setLoading(false);
       return;
     }
 
-    const list: Item[] = [
-      ...(p.data ?? []).map((r: any) => ({
+    const list: Item[] = [];
+
+    (p.data ?? []).forEach((r: any) => {
+      list.push({
         key: `products-${r.id}`,
-        table: "products" as Table,
-        id: r.id,
+        kind: "products",
+        targets: [{ table: "products", ids: [r.id] }],
         title: r.name,
         subtitle: "Product",
         amount: r.price != null ? Number(r.price) : null,
         image:
           r.image_urls?.[0] ?? r.colors?.[0]?.image_urls?.[0] ?? r.colors?.[0]?.image_url ?? null,
         deletedAt: r.deleted_at,
-      })),
-      ...(o.data ?? []).map((r: any) => ({
-        key: `orders-${r.id}`,
-        table: "orders" as Table,
-        id: r.id,
-        title: r.customer_name || "Unnamed customer",
-        subtitle: r.order_code ?? "Order",
-        amount: r.total != null ? Number(r.total) : null,
-        image: null,
-        deletedAt: r.deleted_at,
-      })),
-      ...(c.data ?? []).map((r: any) => ({
-        key: `custom_orders-${r.id}`,
-        table: "custom_orders" as Table,
-        id: r.id,
-        title: r.customer_name || "Unnamed customer",
-        subtitle: `${r.order_code ?? "Custom candle"}${r.size_label ? " - " + r.size_label : ""}`,
-        amount: r.price != null ? Number(r.price) : null,
-        image: null,
-        deletedAt: r.deleted_at,
-      })),
-    ].sort((a, b) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime());
+      });
+    });
 
+    [
+      ...(o.data ?? []).map((r: any) => ({ ...r, _table: "orders" as Table, _amount: r.total })),
+      ...(c.data ?? []).map((r: any) => ({ ...r, _table: "custom_orders" as Table, _amount: r.price })),
+    ].forEach((r: any) => {
+      list.push({
+        key: `${r._table}-${r.id}`,
+        kind: "orders",
+        targets: [{ table: r._table, ids: [r.id] }],
+        title: r.customer_name || "Unnamed customer",
+        subtitle:
+          r._table === "custom_orders"
+            ? `${r.order_code ?? "Custom candle"}${r.size_label ? " - " + r.size_label : ""}`
+            : r.order_code ?? "Order",
+        amount: r._amount != null ? Number(r._amount) : null,
+        image: null,
+        deletedAt: r.deleted_at,
+      });
+    });
+
+    (sc.data ?? []).forEach((r: any) => {
+      const n = (r.deleted_product_ids ?? []).length;
+      list.push({
+        key: `scents-${r.name}`,
+        kind: "scents",
+        targets: [{ table: "scent_catalog", ids: [r.name] }],
+        title: r.name,
+        subtitle: `Scent - was on ${n} product${n !== 1 ? "s" : ""}`,
+        amount: null,
+        image: null,
+        deletedAt: r.deleted_at,
+      });
+    });
+
+    list.sort((a, b) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime());
     setItems(list);
     setLoading(false);
   }
@@ -118,12 +138,38 @@ export default function RecentlyDeletedPage() {
   async function restore(item: Item) {
     setBusyKey(item.key);
     const supabase = createClient();
-    const { error } = await supabase.from(item.table).update({ deleted_at: null }).eq("id", item.id);
 
-    if (error) {
-      alert("Could not restore: " + error.message);
-      setBusyKey(null);
-      return;
+    for (const t of item.targets) {
+      if (t.table === "scent_catalog") {
+        for (const name of t.ids) {
+          const { error } = await supabase.rpc("restore_scent", { p_name: name });
+          if (!error)
+            logAdminActivity({
+              action: "scent.restored",
+              entityType: "scent",
+              entityId: String(name),
+              entityLabel: String(name),
+            });
+          if (error) {
+            alert("Could not restore: " + error.message);
+            setBusyKey(null);
+            return;
+          }
+        }
+        continue;
+      }
+
+      const patch =
+        t.table === "products"
+          ? { deleted_at: null }
+          : { deleted_at: null, deleted_with_customer: false };
+      const { error } = await supabase.from(t.table).update(patch).in("id", t.ids);
+
+      if (error) {
+        alert("Could not restore: " + error.message);
+        setBusyKey(null);
+        return;
+      }
     }
 
     setItems((prev) => prev.filter((i) => i.key !== item.key));
@@ -135,21 +181,28 @@ export default function RecentlyDeletedPage() {
 
     setBusyKey(item.key);
     const supabase = createClient();
-    const { error } = await supabase.from(item.table).delete().eq("id", item.id);
 
-    if (error) {
-      alert("Could not delete: " + error.message);
-      setBusyKey(null);
-      return;
+    for (const t of item.targets) {
+      const col = t.table === "scent_catalog" ? "name" : "id";
+      const { error } = await supabase.from(t.table).delete().in(col, t.ids);
+
+      if (error) {
+        alert("Could not delete: " + error.message);
+        setBusyKey(null);
+        return;
+      }
     }
 
     setItems((prev) => prev.filter((i) => i.key !== item.key));
     setBusyKey(null);
   }
 
-  const productItems = items.filter((i) => i.table === "products");
-  const orderItems = items.filter((i) => i.table !== "products");
-  const shown = tab === "products" ? productItems : orderItems;
+  const tabs: { id: Kind; label: string }[] = [
+    { id: "products", label: "Products" },
+    { id: "orders", label: "Orders" },
+    { id: "scents", label: "Scents" },
+  ];
+  const shown = items.filter((i) => i.kind === tab);
 
   return (
     <div style={{ backgroundColor: BG }} className="min-h-screen">
@@ -173,27 +226,23 @@ export default function RecentlyDeletedPage() {
           </button>
         </div>
 
-        <div className="mb-5 grid grid-cols-2 gap-2 sm:flex">
-          {(
-            [
-              { id: "products", label: "Products", n: productItems.length },
-              { id: "orders", label: "Orders", n: orderItems.length },
-            ] as const
-          ).map((t) => {
+        <div className="mb-5 grid grid-cols-3 gap-2 sm:flex">
+          {tabs.map((t) => {
             const on = tab === t.id;
+            const n = items.filter((i) => i.kind === t.id).length;
             return (
               <button
                 key={t.id}
                 type="button"
                 onClick={() => setTab(t.id)}
-                className="rounded-full px-5 py-1.5 text-xs font-semibold transition-colors"
+                className="rounded-full px-3 py-1.5 text-xs font-semibold transition-colors sm:px-5"
                 style={{
-                  backgroundColor: on ? TONE : "transparent",
-                  color: on ? "#FFFFFF" : TONE,
-                  border: `1.5px solid ${TONE}`,
+                  backgroundColor: on ? ACCENT : "transparent",
+                  color: on ? "#FFF4E6" : ACCENT,
+                  border: `1.5px solid ${ACCENT}`,
                 }}
               >
-                {t.label} ({t.n})
+                {t.label} ({n})
               </button>
             );
           })}
