@@ -1,5 +1,6 @@
 "use client";
 
+import { LOGO_URL, LOGO_SIZE } from "@/lib/brand";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
@@ -49,9 +50,9 @@ export default function Header() {
           className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center"
         >
           <img
-            src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/moon%20logo/logo.png"
+            src={LOGO_URL}
             alt="Moon Candles"
-            className="h-28 w-auto md:h-36"
+            className={LOGO_SIZE.header}
           />
         </Link>
 

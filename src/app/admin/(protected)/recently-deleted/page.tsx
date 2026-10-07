@@ -30,6 +30,24 @@ function daysLeft(deletedAt: string) {
   return Math.max(0, Math.ceil(left / DAY_MS));
 }
 
+function logItem(item: Item, verb: "restored" | "deleted_forever") {
+  const prefix = item.kind === "products" ? "product" : item.kind === "scents" ? "scent" : "order";
+  const entityType =
+    item.kind === "products"
+      ? "product"
+      : item.kind === "scents"
+      ? "scent"
+      : item.key.startsWith("custom_orders")
+      ? "custom_order"
+      : "order";
+  logAdminActivity({
+    action: `${prefix}.${verb}`,
+    entityType,
+    entityId: item.key,
+    entityLabel: item.kind === "orders" ? `${item.subtitle} - ${item.title}` : item.title,
+  });
+}
+
 export default function RecentlyDeletedPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [tab, setTab] = useState<Kind>("products");
@@ -172,6 +190,7 @@ export default function RecentlyDeletedPage() {
       }
     }
 
+    if (item.kind !== "scents") logItem(item, "restored"); // scent restores are logged above
     setItems((prev) => prev.filter((i) => i.key !== item.key));
     setBusyKey(null);
   }
@@ -193,6 +212,7 @@ export default function RecentlyDeletedPage() {
       }
     }
 
+    logItem(item, "deleted_forever");
     setItems((prev) => prev.filter((i) => i.key !== item.key));
     setBusyKey(null);
   }

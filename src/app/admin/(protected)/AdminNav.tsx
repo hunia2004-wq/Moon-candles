@@ -1,4 +1,5 @@
 "use client";
+import { LOGO_URL, LOGO_SIZE } from "@/lib/brand";
 import { DELETED_EVENT } from "@/lib/soft-delete";
 
 import Link from "next/link";
@@ -330,9 +331,7 @@ export default function AdminNav({ email }: { email: string; deletedCount?: numb
           </span>
         </button>
 
-        <p className="uppercase tracking-[0.2em] text-xs" style={{ color: "#DE4B33" }}>
-          moon admin
-        </p>
+        <img src={LOGO_URL} alt="Moon Candles admin" className={LOGO_SIZE.adminMobile} />
 
         <div className="flex items-center gap-2"><Link href="/admin/recently-deleted" aria-label="Recently deleted" className="relative flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: deletedCount > 0 ? "#EFE3C4" : "transparent", color: "rgba(0,0,0,0.6)" }}><Trash2 size={16} strokeWidth={1.8} />{deletedCount > 0 && (<span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold" style={{ backgroundColor: "#DE4B33", color: "#FFFFFF" }}>{deletedCount}</span>)}</Link>{totalNew > 0 ? (
           <span
@@ -430,9 +429,12 @@ export default function AdminNav({ email }: { email: string; deletedCount?: numb
         style={{ backgroundColor: "#FFF9F0", borderRight: "1.5px solid rgba(0,0,0,0.08)" }}
       >
         <div>
-          <p className="uppercase tracking-[0.2em] text-xs mb-8 px-2" style={{ color: "#DE4B33" }}>
-            moon admin
-          </p>
+          <div className="mb-8 px-2">
+            <img src={LOGO_URL} alt="Moon Candles admin" className={LOGO_SIZE.adminSidebar} />
+            <p className="mt-1 uppercase tracking-[0.2em] text-[10px]" style={{ color: "#DE4B33" }}>
+              admin
+            </p>
+          </div>
           <nav className="flex flex-col gap-1">
             {LINKS.map((link) => (
               <Link

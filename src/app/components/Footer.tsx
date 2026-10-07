@@ -1,5 +1,6 @@
 "use client";
 
+import { LOGO_URL, LOGO_SIZE } from "@/lib/brand";
 import Link from "next/link";
 
 // Same page background used across the site (see OurCollection's PAGE_BG,
@@ -11,7 +12,7 @@ const ICON_COLOR = "#000000"; // deep green, matches other text/buttons
 const ICON_HOVER = "#000000"; // darker shade of the same green — not the accent
 
 const LOGO_IMG =
-  "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/moon%20logo/logo.png";
+  LOGO_URL;
 
 const SOCIALS = [
   {
@@ -54,12 +55,12 @@ export default function Footer() {
         <Link
           href="/"
           aria-label="Moon Candles home"
-          className="absolute left-1/2 flex h-12 -translate-x-1/2 items-center justify-center overflow-hidden select-none"
+          className={`absolute left-1/2 flex -translate-x-1/2 items-center justify-center overflow-hidden select-none ${LOGO_SIZE.footerBox}`}
         >
           <img
             src={LOGO_IMG}
             alt="Moon Candles"
-            className="h-35 w-auto max-w-none shrink-0 md:h-11"
+            className={LOGO_SIZE.footerImg}
           />
         </Link>
 

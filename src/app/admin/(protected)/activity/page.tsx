@@ -32,6 +32,11 @@ const ACTIONS: Record<string, { icon: string; tint: string; verb: string }> = {
   "scent.renamed": { icon: "✏️", tint: "bg-sky-100", verb: "renamed the scent" },
   "scent.deleted": { icon: "🗑️", tint: "bg-rose-100", verb: "deleted the scent" },
   "scent.restored": { icon: "♻️", tint: "bg-emerald-100", verb: "restored the scent" },
+  "product.restored": { icon: "♻️", tint: "bg-emerald-100", verb: "restored" },
+  "order.restored": { icon: "♻️", tint: "bg-emerald-100", verb: "restored" },
+  "product.deleted_forever": { icon: "❌", tint: "bg-rose-100", verb: "permanently deleted" },
+  "order.deleted_forever": { icon: "❌", tint: "bg-rose-100", verb: "permanently deleted" },
+  "scent.deleted_forever": { icon: "❌", tint: "bg-rose-100", verb: "permanently deleted the scent" },
   "order.payment_changed": { icon: "💳", tint: "bg-emerald-100", verb: "updated the payment of" },
 };
 const FALLBACK = { icon: "✏️", tint: "bg-stone-100", verb: "updated" };
