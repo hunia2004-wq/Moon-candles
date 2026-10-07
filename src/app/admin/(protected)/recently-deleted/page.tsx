@@ -7,7 +7,7 @@ const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
 const MUTED = "rgba(0,0,0,0.55)";
-const TONE = "#7A6A58";
+const TONE = "#DE4B33";
 const GREEN = "#3F8F5C";
 const RETENTION_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -270,7 +270,7 @@ export default function RecentlyDeletedPage() {
                     disabled={busy}
                     onClick={() => restore(item)}
                     className="rounded-full py-2.5 text-sm font-semibold disabled:opacity-50"
-                    style={{ backgroundColor: GREEN, color: "#FFFFFF" }}
+                    style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
                   >
                     Restore
                   </button>
@@ -279,7 +279,7 @@ export default function RecentlyDeletedPage() {
                     disabled={busy}
                     onClick={() => deleteForever(item)}
                     className="rounded-full py-2.5 text-sm font-semibold disabled:opacity-50"
-                    style={{ border: "1.5px solid #A34848", color: "#A34848" }}
+                    style={{ border: "1.5px solid rgba(0,0,0,0.25)", color: "#000000" }}
                   >
                     Delete forever
                   </button>
