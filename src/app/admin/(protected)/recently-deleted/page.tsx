@@ -7,7 +7,7 @@ const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
 const MUTED = "rgba(0,0,0,0.55)";
-const BLUE = "#6E86C7";
+const TONE = "#7A6A58";
 const GREEN = "#3F8F5C";
 const RETENTION_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -188,9 +188,9 @@ export default function RecentlyDeletedPage() {
                 onClick={() => setTab(t.id)}
                 className="rounded-full px-5 py-1.5 text-xs font-semibold transition-colors"
                 style={{
-                  backgroundColor: on ? BLUE : "transparent",
-                  color: on ? "#FFFFFF" : BLUE,
-                  border: `1.5px solid ${BLUE}`,
+                  backgroundColor: on ? TONE : "transparent",
+                  color: on ? "#FFFFFF" : TONE,
+                  border: `1.5px solid ${TONE}`,
                 }}
               >
                 {t.label} ({t.n})
@@ -225,57 +225,71 @@ export default function RecentlyDeletedPage() {
             const left = daysLeft(item.deletedAt);
             const urgent = left <= 5;
             const busy = busyKey === item.key;
+            const R = 24;
+            const C = 2 * Math.PI * R;
+            const ringColor = urgent ? ACCENT : GREEN;
 
             return (
               <div
                 key={item.key}
-                className="relative overflow-hidden rounded-2xl py-3.5 pl-5 pr-4"
-                style={{ backgroundColor: CARD_BG, border: "1px solid rgba(0,0,0,0.08)", opacity: busy ? 0.6 : 1 }}
+                className="rounded-3xl p-4"
+                style={{
+                  backgroundColor: CARD_BG,
+                  border: "1.5px dashed rgba(0,0,0,0.22)",
+                  opacity: busy ? 0.6 : 1,
+                }}
               >
-                <span className="absolute left-0 top-0 h-full w-1.5" style={{ backgroundColor: BLUE }} />
-
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl"
-                    style={{ backgroundColor: "#EFE3C4" }}
-                  >
-                    {item.image ? (
-                      <img src={item.image} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="text-xl">{item.table === "products" ? "🕯️" : "🧾"}</span>
-                    )}
+                <div className="flex items-center gap-4">
+                  <div className="relative h-14 w-14 flex-shrink-0">
+                    <svg viewBox="0 0 56 56" className="h-14 w-14 -rotate-90">
+                      <circle cx="28" cy="28" r={R} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="5" />
+                      <circle
+                        cx="28"
+                        cy="28"
+                        r={R}
+                        fill="none"
+                        stroke={ringColor}
+                        strokeWidth="5"
+                        strokeLinecap="round"
+                        strokeDasharray={C}
+                        strokeDashoffset={C * (1 - left / RETENTION_DAYS)}
+                      />
+                    </svg>
+                    <span className="absolute inset-0 flex flex-col items-center justify-center leading-none">
+                      <span className="font-serif text-lg font-bold" style={{ color: "#000000" }}>
+                        {left}
+                      </span>
+                      <span className="text-[8px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>
+                        {left === 1 ? "day" : "days"}
+                      </span>
+                    </span>
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-serif text-base font-bold" style={{ color: "#000000" }}>
+                    <p className="truncate font-serif text-lg font-bold leading-tight" style={{ color: "#000000" }}>
                       {item.title}
                     </p>
-                    <p className="truncate text-xs" style={{ color: MUTED }}>
+                    <p className="mt-0.5 truncate text-xs" style={{ color: MUTED }}>
                       {item.subtitle}
-                      {item.amount != null ? ` - ${item.amount.toLocaleString()} LE` : ""}
+                      {item.amount != null ? " - " + item.amount.toLocaleString() + " LE" : ""}
                     </p>
                   </div>
 
-                  <span
-                    className="flex-shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold"
-                    style={{
-                      backgroundColor: urgent ? `${ACCENT}1A` : "rgba(0,0,0,0.06)",
-                      color: urgent ? ACCENT : MUTED,
-                    }}
-                  >
-                    {left} day{left !== 1 ? "s" : ""} left
-                  </span>
+                  {item.image && (
+                    <img
+                      src={item.image}
+                      alt=""
+                      className="h-12 w-12 flex-shrink-0 rounded-xl object-cover"
+                    />
+                  )}
                 </div>
 
-                <div
-                  className="mt-3 flex items-center gap-2 pt-3"
-                  style={{ borderTop: "1px dashed rgba(0,0,0,0.15)" }}
-                >
+                <div className="mt-4 flex items-center gap-4">
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => restore(item)}
-                    className="rounded-full px-4 py-1.5 text-xs font-semibold disabled:opacity-50"
+                    className="flex-1 rounded-full py-2.5 text-sm font-semibold disabled:opacity-50"
                     style={{ backgroundColor: GREEN, color: "#FFFFFF" }}
                   >
                     Restore
@@ -284,7 +298,7 @@ export default function RecentlyDeletedPage() {
                     type="button"
                     disabled={busy}
                     onClick={() => deleteForever(item)}
-                    className="ml-auto text-xs font-semibold underline disabled:opacity-50"
+                    className="text-xs font-semibold underline disabled:opacity-50"
                     style={{ color: "#A34848" }}
                   >
                     Delete forever
