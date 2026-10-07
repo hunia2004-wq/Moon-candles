@@ -11,6 +11,7 @@ import {
 } from "@/lib/customerImages";
 import CustomerImageDownloads from "../components/CustomerImageDownloads";
 import { printPackingSlip } from "@/lib/packingSlip";
+import { logAdminActivity } from "@/lib/logAdminActivity";
 const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
@@ -460,6 +461,30 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
       return;
     }
 
+    // log:custom-update
+    {
+      const isCustom = entry.source === "custom_orders";
+      const base = {
+        entityType: isCustom ? "custom_order" : "order",
+        entityId: String(entry.id),
+        entityLabel: `${isCustom ? "Custom order" : "Order"} #${String(entry.id).slice(0, 8)}`,
+      };
+      if (fullPatch.status !== undefined && fullPatch.status !== entry.status) {
+        logAdminActivity({
+          ...base,
+          action: "order.status_changed",
+          details: { from: entry.status, to: fullPatch.status },
+        });
+      }
+      if (patch.payment_status !== undefined && patch.payment_status !== entry.paymentStatus) {
+        logAdminActivity({
+          ...base,
+          action: "order.payment_changed",
+          details: { from: entry.paymentStatus, to: patch.payment_status },
+        });
+      }
+    }
+
     setEntries((prev) =>
       prev.map((item) =>
         item.key === entry.key
@@ -511,6 +536,18 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
       alert(`Couldn't delete: ${error.message}`);
       setSavingId(null);
       return;
+    }
+
+    // log:custom-delete
+    {
+      const isCustom = entry.source === "custom_orders";
+      logAdminActivity({
+        action: "order.deleted",
+        entityType: isCustom ? "custom_order" : "order",
+        entityId: String(entry.id),
+        entityLabel: `${isCustom ? "Custom order" : "Order"} #${String(entry.id).slice(0, 8)}`,
+        details: { snapshot: entry },
+      });
     }
 
     setEntries((prev) =>

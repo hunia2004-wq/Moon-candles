@@ -22,7 +22,8 @@ export default function FlyingCandle({ src, alt = "", zIndex = 30 }: Props) {
 
    
 
-    let raf = 0;
+        let raf = 0;
+    let hasLanded = false;
     let fromEl: HTMLElement | null = null;
     let toEl: HTMLElement | null = null;
 
@@ -63,7 +64,8 @@ export default function FlyingCandle({ src, alt = "", zIndex = 30 }: Props) {
 
       // At the two ends the flier sits exactly on a real candle, so swap
       // between them without a visible jump.
-            const landed = p >= 1;
+                 if (p >= 1) hasLanded = true;
+      const landed = hasLanded;
 
       // Fades in over the first 60px of scroll, so nothing shows at the top.
       const appear = clamp(s / 60);

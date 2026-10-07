@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AdminNav from "./AdminNav";
 import EnablePush from "./EnablePush";
+import ActingAs from "./ActingAs";
+import { getActingName, getStaffNames } from "@/lib/adminStaff";
 
 export const metadata: Metadata = {
   manifest: "/admin-manifest.json",
@@ -37,10 +39,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/admin/login");
   }
 
+  const actingName = await getActingName();
+  const staffNames = await getStaffNames();
+
   return (
     <div className="flex flex-col md:flex-row min-h-screen" style={{ backgroundColor: "#FFF4E6" }}>
       <AdminNav email={user.email ?? ""} />
       <main className="flex-1 px-6 py-8 md:px-10 md:py-10 overflow-y-auto">
+        <ActingAs current={actingName} names={staffNames} />
         <EnablePush />
         {children}
       </main>

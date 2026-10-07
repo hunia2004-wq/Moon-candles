@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { logAdminActivity, diffFields, sameJson } from "@/lib/logAdminActivity";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Product } from "@/lib/supabase/types";
@@ -135,6 +136,7 @@ export default function EditProductPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [original, setOriginal] = useState<any>(null);
 
   useEffect(() => {
     async function load() {
@@ -161,6 +163,7 @@ export default function EditProductPage() {
 
       setName(p.name ?? "");
       setDescription(p.description ?? "");
+      setOriginal(p);
       setPrice(String(p.price ?? ""));
       setSizeMl(p.size_ml != null ? String(p.size_ml) : "");
       setIsFeatured(!!p.is_featured);
@@ -391,6 +394,54 @@ export default function EditProductPage() {
         throw new Error(updateError.message);
       }
 
+      // Activity log
+      if (original) {
+        const label = name.trim();
+        const oldPrice = Number(original.price);
+        const newPrice = Number(price);
+        if (oldPrice !== newPrice) {
+          logAdminActivity({
+            action: "product.price_changed",
+            entityType: "product",
+            entityId: String(productId),
+            entityLabel: label,
+            details: { from: oldPrice, to: newPrice },
+          });
+        }
+        const changes = diffFields(
+          {
+            name: original.name,
+            category: original.category,
+            description: original.description ?? null,
+            size_ml: original.size_ml ?? null,
+            is_featured: !!original.is_featured,
+            scents: original.scents ?? [],
+            show_order_counter: !!original.show_order_counter,
+          },
+          {
+            name: name.trim(),
+            category,
+            description: description.trim() || null,
+            size_ml: sizeMl ? Number(sizeMl) : null,
+            is_featured: isFeatured,
+            scents,
+            show_order_counter: showOrderCounter,
+          }
+        );
+        if (!sameJson(original.colors ?? [], colorsPayload)) changes.colors = { from: "previous", to: "updated" };
+        if (!sameJson(original.image_urls ?? [], imageUrls)) changes.images = { from: "previous", to: "updated" };
+        if (!sameJson(original.option_groups ?? [], groupsFromDrafts(optionGroups))) changes.option_groups = { from: "previous", to: "updated" };
+        if (Object.keys(changes).length) {
+          logAdminActivity({
+            action: "product.updated",
+            entityType: "product",
+            entityId: String(productId),
+            entityLabel: label,
+            details: { changes },
+          });
+        }
+      }
+
       router.push("/admin/products");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -415,6 +466,14 @@ export default function EditProductPage() {
       setError(deleteError.message);
       return;
     }
+
+    logAdminActivity({
+      action: "product.deleted",
+      entityType: "product",
+      entityId: String(productId),
+      entityLabel: original?.name ?? name,
+      details: { snapshot: original ?? null },
+    });
 
     router.push("/admin/products");
   }

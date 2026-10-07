@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { logAdminActivity, diffFields } from "@/lib/logAdminActivity";
 
 const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
@@ -76,17 +77,26 @@ export default function AdminReviewsPage() {
 
     setSaving(true);
     const supabase = createClient();
-    const { error } = await supabase.from("reviews").insert({
+    const { data: created, error } = await supabase.from("reviews").insert({
       customer_name: form.customer_name.trim(),
       rating: form.rating,
       body: form.body.trim(),
-    });
+    }).select("id").single();
 
     if (error) {
       alert(`Couldn't add review: ${error.message}`);
       setSaving(false);
       return;
     }
+
+    // log:review-create
+    logAdminActivity({
+      action: "review.created",
+      entityType: "review",
+      entityId: String(created?.id ?? form.customer_name.trim()),
+      entityLabel: `Review by ${form.customer_name.trim()}`,
+      details: { rating: form.rating, body: form.body.trim() },
+    });
 
     setForm(EMPTY_FORM);
     setSaving(false);
@@ -102,6 +112,25 @@ export default function AdminReviewsPage() {
       alert(`Couldn't save: ${error.message}`);
       setBusyId(null);
       return;
+    }
+
+    // log:review-toggle
+    {
+      const review = reviews.find((r) => r.id === id);
+      logAdminActivity({
+        action: "review.updated",
+        entityType: "review",
+        entityId: String(id),
+        entityLabel: `Review by ${review?.customer_name ?? "customer"}`,
+        details: {
+          changes: {
+            visibility: {
+              from: value ? "hidden" : "published",
+              to: value ? "published" : "hidden",
+            },
+          },
+        },
+      });
     }
 
     setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, is_published: value } : r)));
@@ -131,6 +160,26 @@ export default function AdminReviewsPage() {
       return;
     }
 
+    // log:review-edit
+    {
+      const review = reviews.find((r) => r.id === id);
+      if (review) {
+        const changes = diffFields(
+          { customer_name: review.customer_name, rating: review.rating, body: review.body },
+          payload
+        );
+        if (Object.keys(changes).length) {
+          logAdminActivity({
+            action: "review.updated",
+            entityType: "review",
+            entityId: String(id),
+            entityLabel: `Review by ${payload.customer_name}`,
+            details: { changes },
+          });
+        }
+      }
+    }
+
     setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, ...payload } : r)));
     setEditingId(null);
     setBusyId(null);
@@ -147,6 +196,18 @@ export default function AdminReviewsPage() {
       alert(`Couldn't delete: ${error.message}`);
       setBusyId(null);
       return;
+    }
+
+    // log:review-delete
+    {
+      const review = reviews.find((r) => r.id === id);
+      logAdminActivity({
+        action: "review.deleted",
+        entityType: "review",
+        entityId: String(id),
+        entityLabel: `Review by ${review?.customer_name ?? "customer"}`,
+        details: { snapshot: review ?? null },
+      });
     }
 
     setReviews((prev) => prev.filter((r) => r.id !== id));

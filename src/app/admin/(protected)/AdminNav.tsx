@@ -14,6 +14,7 @@ const LINKS = [
   { label: "Promotions", href: "/admin/discounts" },
   { label: "Reviews", href: "/admin/reviews" },
   { label: "Profile", href: "/admin/profile" },
+  {label:"Activity Log", href:"/admin/activity"}
 ];
 
 type Section = "orders" | "custom_orders";

@@ -70,7 +70,7 @@ export default async function Shop({
       <main className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 md:px-16 md:py-16">
 
         {/* SECTION INTRO */}
-        <div className="mb-10">
+                <div className="mb-2 md:mb-3">
           <p
             className="mb-1 text-sm italic md:text-base"
             style={{
@@ -93,11 +93,9 @@ export default async function Shop({
           </h1>
         </div>
 
-             {category === "candles" && (
-          <div className="mb-8">
-            <HandmadeNote accent={accent} />
-          </div>
-        )}
+                   <div className="mb-5">
+          <HandmadeNote accent={accent} />
+        </div>
 
         <ShopGrid
           products={products ?? []}

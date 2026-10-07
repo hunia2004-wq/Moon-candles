@@ -7,6 +7,7 @@ import OptionGroupsEditor, {
   groupsFromDrafts,
   type OptionGroupDraft,
 } from "../../components/OptionGroupsEditor";
+import { logAdminActivity } from "@/lib/logAdminActivity";
 type OptionDraft = {
   key: string;
   name: string;
@@ -265,6 +266,14 @@ const [success, setSuccess] = useState(false);
      if (insertError) {
   throw new Error(insertError.message);
 }
+
+      logAdminActivity({
+        action: "product.created",
+        entityType: "product",
+        entityId: String(data?.id ?? name.trim()),
+        entityLabel: data?.name ?? name.trim(),
+        details: { price: Number(price), category },
+      });
 
 setSuccess(true);
 setTimeout(() => {

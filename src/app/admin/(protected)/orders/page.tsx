@@ -9,7 +9,7 @@ import CustomerImageDownloads from "../components/CustomerImageDownloads";
 import { printPackingSlip } from "@/lib/packingSlip";
 import { exportOrdersCsv } from "@/lib/exportOrders";
 import { customizationNote } from "@/lib/customizationNote";
-
+import { logAdminActivity } from "@/lib/logAdminActivity";
 const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
 const CARD_BG = "#FFF9F0";
@@ -114,11 +114,10 @@ useEffect(() => {
 async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "payment_status" | "assignee">>) {
   setSavingId(id);
 
+  const before = orders.find((o) => o.id === id);
+
   const fullPatch: Partial<Pick<Order, "status" | "payment_status" | "completed_at">> = { ...patch };
 
-  // Completed and Paid are treated as the same state — setting either
-  // one also sets the other, and stamps completed_at so the Completed
-  // tab knows when it happened (for the 1-week cutoff).
   if (patch.status === "completed") {
     fullPatch.payment_status = "paid";
     fullPatch.completed_at = new Date().toISOString();
@@ -136,13 +135,42 @@ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "pa
     return;
   }
 
+  // Activity log. Swap `id.slice(0, 8)` for your order number field if you have one.
+  const entityLabel = `Order #${id.slice(0, 8)}`;
+  const base = { entityType: "order", entityId: id, entityLabel };
+
+  if (fullPatch.status !== undefined && fullPatch.status !== before?.status) {
+    logAdminActivity({
+      ...base,
+      action: "order.status_changed",
+      details: { from: before?.status, to: fullPatch.status },
+    });
+  }
+  if (patch.payment_status !== undefined && patch.payment_status !== before?.payment_status) {
+    logAdminActivity({
+      ...base,
+      action: "order.payment_changed",
+      details: { from: before?.payment_status, to: patch.payment_status },
+    });
+  }
+  if (patch.assignee !== undefined && patch.assignee !== before?.assignee) {
+    logAdminActivity({
+      ...base,
+      action: "order.assigned",
+      details: { from: before?.assignee ?? null, assigned_to: patch.assignee ?? "" },
+    });
+  }
+
   setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...fullPatch } : o)));
   setSavingId(null);
 }
-  async function deleteOrder(id: string) {
+
+async function deleteOrder(id: string) {
   if (!confirm("Delete this order? This can't be undone.")) return;
 
   setSavingId(id);
+
+  const before = orders.find((o) => o.id === id);
 
   const supabase = createClient();
   const { error } = await supabase.from("orders").delete().eq("id", id);
@@ -152,6 +180,14 @@ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "pa
     setSavingId(null);
     return;
   }
+
+  logAdminActivity({
+    action: "order.deleted",
+    entityType: "order",
+    entityId: id,
+    entityLabel: `Order #${id.slice(0, 8)}`,
+    details: { snapshot: before ?? null }, // full copy of the order, so a deletion can be reconstructed
+  });
 
   setOrders((prev) => prev.filter((o) => o.id !== id));
   setSavingId(null);

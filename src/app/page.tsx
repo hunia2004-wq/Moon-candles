@@ -416,9 +416,10 @@ height: "260px",
 
   
 
-  <CustomizationTeaser />
-  <Testimonials />
+   <CustomizationTeaser />
 </main>
+
+<Testimonials />
     </div>
   );
 }

@@ -194,8 +194,8 @@ setReviews([...FALLBACK_REVIEWS, ...featuredReviews]);
   if (reviews.length === 0) return null;
 
   return (
-    <section
-      className="w-full py-14 md:py-20"
+       <section
+      className="w-full overflow-hidden py-14 md:py-20"
       style={{ backgroundColor: "#efe3c4" }}
     >
       <div className="mx-auto max-w-6xl px-6">
@@ -224,7 +224,7 @@ setReviews([...FALLBACK_REVIEWS, ...featuredReviews]);
             CAROUSEL
             ============================================================ */}
 
-        <div className="relative">
+                      <div className="relative sm:left-1/2 sm:w-screen sm:-translate-x-1/2">
           {/* PREV */}
           <button
             type="button"
@@ -255,7 +255,7 @@ setReviews([...FALLBACK_REVIEWS, ...featuredReviews]);
 
           <div
             ref={scrollRef}
-            className="flex snap-x snap-mandatory overflow-x-auto scroll-smooth px-2 py-2"
+                       className="flex snap-x snap-mandatory overflow-x-auto scroll-smooth px-2 py-2 sm:px-[calc(50%-180px)]"
             style={{
               scrollbarWidth: "none",
               WebkitOverflowScrolling: "touch",
@@ -267,7 +267,7 @@ setReviews([...FALLBACK_REVIEWS, ...featuredReviews]);
                 ref={(el) => {
                   cardRefs.current[index] = el;
                 }}
-                className="w-[86%] sm:w-[60%] md:w-[38%] flex-shrink-0 snap-center px-3"
+className="w-[86%] flex-shrink-0 snap-center px-3 sm:w-[360px]"
               >
                 <div
   className="relative flex h-full flex-col gap-4 overflow-hidden rounded-3xl px-7 pb-7 pt-9 text-left shadow-sm"
@@ -296,7 +296,7 @@ setReviews([...FALLBACK_REVIEWS, ...featuredReviews]);
 
   {/* QUOTE */}
   <p
-    className="relative text-sm md:text-base leading-relaxed"
+className="relative text-sm leading-relaxed"
     style={{ color: "rgba(0,0,0,0.75)" }}
   >
     {review.quote}

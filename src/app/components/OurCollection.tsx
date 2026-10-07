@@ -176,9 +176,9 @@ export default function OurCollection() {
           <text
             style={{
               fill: "#000000",
-              fontSize: "30px",
+                            fontSize: "35px",
               fontWeight: 500,
-              letterSpacing: "9px",
+              letterSpacing: "6px",
             }}
           >
             <textPath

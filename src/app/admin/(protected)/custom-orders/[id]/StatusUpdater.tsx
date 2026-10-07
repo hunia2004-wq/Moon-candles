@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { logAdminActivity } from "@/lib/logAdminActivity";
 
 const STATUSES = ["pending", "confirmed", "in_production", "shipped", "completed", "cancelled"];
 
@@ -40,6 +41,16 @@ export default function StatusUpdater({
       setStatus(previous);
       setError(updateError?.message ?? "Couldn't save. Please try again.");
       return;
+    }
+
+    if (previous !== next) {
+      logAdminActivity({
+        action: "order.status_changed",
+        entityType: "custom_order",
+        entityId: orderId,
+        entityLabel: `Custom order #${orderId.slice(0, 8)}`,
+        details: { from: previous, to: next },
+      });
     }
 
     router.refresh();

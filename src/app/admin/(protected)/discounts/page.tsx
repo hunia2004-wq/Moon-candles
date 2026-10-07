@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { logAdminActivity, diffFields } from "@/lib/logAdminActivity";
 
 const ACCENT = "#DE4B33";
 const BG = "#FFF4E6";
@@ -259,6 +260,49 @@ export default function AdminPromotionsPage() {
         return;
       }
 
+      // log:promo-edit
+      {
+        const before: any = promotions.find((p) => p.id === promoId);
+        if (before) {
+          const dt = (v: unknown) =>
+            v
+              ? new Date(v as string).toLocaleString("en-GB", {
+                  timeZone: "Africa/Cairo",
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })
+              : null;
+          const pick = (o: any) => ({
+            title: o.title,
+            subtitle: o.subtitle ?? null,
+            link_url: o.link_url ?? null,
+            code: o.code ?? null,
+            discount_type: o.discount_type ?? null,
+            discount_value: o.discount_value ?? null,
+            starts_at: dt(o.starts_at),
+            ends_at: dt(o.ends_at),
+            usage_limit: o.usage_limit ?? null,
+            show_on_homepage: !!o.show_on_homepage,
+            min_spend_amount: o.min_spend_amount ?? null,
+            free_gift_product_id: o.free_gift_product_id ?? null,
+            bundle_quantity: o.bundle_quantity ?? null,
+            bundle_price: o.bundle_price ?? null,
+            tiered_min_qty: o.tiered_min_qty ?? null,
+            bundle_same_product_only: !!o.bundle_same_product_only,
+          });
+          const changes = diffFields(pick(before), pick(payload));
+          if (Object.keys(changes).length) {
+            logAdminActivity({
+              action: "promotion.updated",
+              entityType: "promotion",
+              entityId: String(promoId),
+              entityLabel: payload.title,
+              details: { changes },
+            });
+          }
+        }
+      }
+
       // Replace product links wholesale — simplest way to keep them in
       // sync with whatever is checked now.
       const { error: deleteLinkError } = await supabase
@@ -288,6 +332,19 @@ export default function AdminPromotionsPage() {
         setSaving(false);
         return;
       }
+
+      // log:promo-create
+      logAdminActivity({
+        action: "promotion.created",
+        entityType: "promotion",
+        entityId: String(inserted.id),
+        entityLabel: payload.title,
+        details: {
+          code: payload.code,
+          discount_type: payload.discount_type,
+          discount_value: payload.discount_value,
+        },
+      });
 
       if (selectedProductIds.length > 0) {
         const { error: linkError } = await supabase.from("promotion_products").insert(
@@ -321,6 +378,18 @@ export default function AdminPromotionsPage() {
       return;
     }
 
+    // log:promo-toggle
+    {
+      const promo: any = promotions.find((p) => p.id === id);
+      logAdminActivity({
+        action: "promotion.updated",
+        entityType: "promotion",
+        entityId: String(id),
+        entityLabel: promo?.title ?? "Promotion",
+        details: { changes: { [field]: { from: !value, to: value } } },
+      });
+    }
+
     setPromotions((prev) => prev.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
     setBusyId(null);
   }
@@ -336,6 +405,18 @@ export default function AdminPromotionsPage() {
       alert(`Couldn't delete: ${error.message}`);
       setBusyId(null);
       return;
+    }
+
+    // log:promo-delete
+    {
+      const promo: any = promotions.find((p) => p.id === id);
+      logAdminActivity({
+        action: "promotion.deleted",
+        entityType: "promotion",
+        entityId: String(id),
+        entityLabel: promo?.title ?? "Promotion",
+        details: { snapshot: promo ?? null },
+      });
     }
 
     setPromotions((prev) => prev.filter((p) => p.id !== id));

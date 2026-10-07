@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { Caveat } from "next/font/google";
-
+import BestSellerCard from "./components/BestSellerCard";
+import { getActingName } from "@/lib/adminStaff";
 const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
+  const actingName = await getActingName();
 
   const [ordersRes, customOrdersRes] = await Promise.all([
     supabase.from("orders").select("id, total, status, created_at, customer_name"),
@@ -62,7 +64,7 @@ export default async function AdminDashboardPage() {
             letterSpacing: "-0.03em",
           }}
         >
-                   Hi Nour &amp; Jana
+                   {actingName ? `Hi ${actingName}` : "Hi there"}
         </h1>
       </div>
 
@@ -109,6 +111,10 @@ export default async function AdminDashboardPage() {
           percent={Math.round((completedCount / (allOrders.length || 1)) * 100)}
           caption={`${Math.round((completedCount / (allOrders.length || 1)) * 100)}% of orders`}
         />
+      </div>
+
+            <div className="mb-10">
+        <BestSellerCard />
       </div>
 
       <h2 className="font-serif text-xl font-bold mb-4" style={{ color: "#000000" }}>
@@ -201,7 +207,7 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "#888888",
 };
 
-export function StatusPill({ status }: { status: string }) {
+function StatusPill({ status }: { status: string }) {
   return (
     <span
       className="rounded-full px-2.5 py-1 text-[11px] font-semibold capitalize"
