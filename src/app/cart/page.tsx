@@ -27,14 +27,15 @@ export default function CartPage() {
   const [promoDiscount, setPromoDiscount] = useState(0);
   const [appliedPromos, setAppliedPromos] = useState<AppliedPromotion[]>([]);
   const [freeGiftEligible, setFreeGiftEligible] = useState(false);
-
+const [going, setGoing] = useState(false);
   function refresh() {
     setItems(getCart());
   }
+useEffect(() => {
+  refresh();
+  setHydrated(true);
+  router.prefetch("/checkout");
 
-  useEffect(() => {
-    refresh();
-    setHydrated(true);
 
      window.addEventListener("cartUpdated", refresh);
     window.addEventListener("storage", refresh);
@@ -428,17 +429,22 @@ export default function CartPage() {
                 </span>
               </div>
 
-              <button
-                type="button"
-                onClick={() => router.push("/checkout")}
-                className="mt-6 w-full rounded-full px-6 py-3.5 text-sm font-semibold shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]"
-                style={{
-                  backgroundColor: ACCENT,
-                  color: WHITE,
-                }}
-              >
-                Proceed to Checkout
-              </button>
+           <button
+  type="button"
+  disabled={going}
+  onClick={() => {
+    if (going) return;
+    setGoing(true);
+    router.push("/checkout");
+  }}
+  className="mt-6 w-full rounded-full px-6 py-3.5 text-sm font-semibold shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-[0.97] disabled:opacity-60 disabled:hover:scale-100"
+  style={{
+    backgroundColor: ACCENT,
+    color: WHITE,
+  }}
+>
+  {going ? "Opening checkout…" : "Proceed to Checkout"}
+</button>
 
               <Link
                 href="/shop"

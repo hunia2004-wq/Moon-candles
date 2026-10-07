@@ -615,17 +615,17 @@ className="fixed right-0 top-0 z-[10002] flex h-full w-full max-w-sm flex-col sh
               </span>
             </div>
 
-            <a
-              href="/checkout"
-              className="block w-full rounded-full px-6 py-3.5 text-center text-sm font-semibold shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]"
-              style={{
-                backgroundColor:
-                  ACCENT,
-                color: WHITE,
-              }}
-            >
-              Proceed to Checkout
-            </a>
+           <Link
+  href="/checkout"
+  onClick={() => setOpen(false)}
+  className="block w-full rounded-full px-6 py-3.5 text-center text-sm font-semibold shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]"
+  style={{
+    backgroundColor: ACCENT,
+    color: WHITE,
+  }}
+>
+  Proceed to Checkout
+</Link>
           </div>
         )}
            </div>

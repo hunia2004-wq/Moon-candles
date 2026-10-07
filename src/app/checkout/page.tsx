@@ -130,6 +130,7 @@ export default function CheckoutPage() {
     setItems(getCart());
     setHydrated(true);
   }, []);
+  const [placing, setPlacing] = useState(false);
 
   // Checks active free_shipping promotions against what's actually in the
   // cart. A promo with no products attached applies store-wide. A promo
@@ -279,8 +280,9 @@ if (!emailTrimmed) {
   const subtotal = cartTotal(items);
   const grandTotal = subtotal - promoDiscount + shippingFee;
 
-  async function handleSubmit(e: React.FormEvent) {
+async function handleSubmit(e: React.FormEvent) {
   e.preventDefault();
+  if (placing) return;
 
   const nextErrors = validate();
   setErrors(nextErrors);
@@ -293,7 +295,7 @@ if (!emailTrimmed) {
     el?.focus({ preventScroll: true });
     return;
   }
-
+setPlacing(true);
   const order: PlacedOrder = {
     items,
     subtotal,
@@ -319,6 +321,7 @@ const { data: orderCode, error } = await supabase.rpc("place_order", {
 
 if (error) {
   alert(`Couldn't place your order: ${error.message}`);
+  setPlacing(false);
   return;
 }
 
@@ -1013,16 +1016,17 @@ fetch("/api/send-order-confirmation", {
                 </div>
               )}
 
-              <button
-                type="submit"
-                className="mt-2 w-full rounded-full px-8 py-3.5 text-sm font-semibold shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-[0.97]"
-                style={{
-                  backgroundColor: ACCENT,
-                  color: WHITE,
-                }}
-              >
-                Place Order
-              </button>
+             <button
+  type="submit"
+  disabled={placing}
+  className="mt-2 w-full rounded-full px-8 py-3.5 text-sm font-semibold shadow-sm transition-all duration-150 hover:scale-[1.02] active:scale-[0.97] disabled:opacity-60 disabled:hover:scale-100"
+  style={{
+    backgroundColor: ACCENT,
+    color: WHITE,
+  }}
+>
+  {placing ? "Placing your order…" : "Place Order"}
+</button>
             </form>
           </div>
 
