@@ -18,7 +18,6 @@ const INPUT_STYLE = {
 const LABEL_CLASS = "block text-xs font-semibold mb-1";
 
 const DISCOUNT_TYPES: { value: string; label: string }[] = [
-  { value: "", label: "None" },
   { value: "percentage", label: "% off" },
   { value: "fixed", label: "Fixed amount off" },
   { value: "bogo", label: "Buy 1 Get 1" },
@@ -69,7 +68,6 @@ const EMPTY_FORM = {
   discount_value: "",
   starts_at: "",
   ends_at: "",
-  usage_limit: "",
   show_on_homepage: true,
   min_spend_amount: "",
   free_gift_product_id: "",
@@ -79,6 +77,57 @@ const EMPTY_FORM = {
   bundle_same_product_only: false,
   
 };
+
+const ERROR_COLOR = "#C0392B";
+
+// Fields each discount type can't work without
+const REQUIRED_BY_TYPE: Record<string, string[]> = {
+  percentage: ["discount_value"],
+  fixed: ["discount_value"],
+  second_item_percent_off: ["discount_value"],
+  buy_x_get_y_free: ["tiered_min_qty"],
+  free_gift: ["min_spend_amount"],
+  min_spend_percent_off: ["discount_value", "min_spend_amount"],
+  bundle_price: ["bundle_quantity", "bundle_price"],
+  tiered_quantity_percent_off: ["discount_value", "tiered_min_qty"],
+};
+
+const PERCENT_TYPES = [
+  "percentage",
+  "second_item_percent_off",
+  "min_spend_percent_off",
+  "tiered_quantity_percent_off",
+];
+
+function validateForm(form: typeof EMPTY_FORM): Record<string, string> {
+  const errors: Record<string, string> = {};
+
+  if (!form.title.trim()) errors.title = "Enter a title.";
+  if (!form.discount_type) errors.discount_type = "Choose a discount type.";
+
+  const messages: Record<string, string> = {
+    discount_value: form.discount_type === "fixed" ? "Enter the amount off." : "Enter the percentage off.",
+    min_spend_amount: "Enter the minimum spend.",
+    bundle_quantity: "Enter the bundle quantity.",
+    bundle_price: "Enter the bundle price.",
+    tiered_min_qty: "Enter the minimum quantity.",
+  };
+
+  for (const key of REQUIRED_BY_TYPE[form.discount_type] ?? []) {
+    const v = (form as Record<string, any>)[key];
+    if (v === "" || v == null || !(Number(v) > 0)) errors[key] = messages[key];
+  }
+
+  if (
+    PERCENT_TYPES.includes(form.discount_type) &&
+    !errors.discount_value &&
+    Number(form.discount_value) > 100
+  ) {
+    errors.discount_value = "A percentage can't be over 100.";
+  }
+
+  return errors;
+}
 
 export default function AdminPromotionsPage() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
@@ -92,6 +141,21 @@ export default function AdminPromotionsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [attempted, setAttempted] = useState(false);
+  const formErrors: Record<string, string> = attempted ? validateForm(form) : {};
+  const fieldStyle = (key: string) =>
+    formErrors[key]
+      ? { ...INPUT_STYLE, border: `1.5px solid ${ERROR_COLOR}`, backgroundColor: "#FFF8F7" }
+      : INPUT_STYLE;
+  const req = (key: string) =>
+    (REQUIRED_BY_TYPE[form.discount_type] ?? []).includes(key) ? (
+      <span style={{ color: ERROR_COLOR }}> *</span>
+    ) : null;
+
+  useEffect(() => {
+    if (!showForm) setAttempted(false);
+  }, [showForm]);
+
 
   useEffect(() => {
     load();
@@ -180,7 +244,6 @@ export default function AdminPromotionsPage() {
       discount_value: promo.discount_value != null ? String(promo.discount_value) : "",
       starts_at: promo.starts_at ? toLocalDatetimeInputValue(promo.starts_at) : "",
       ends_at: promo.ends_at ? toLocalDatetimeInputValue(promo.ends_at) : "",
-      usage_limit: promo.usage_limit != null ? String(promo.usage_limit) : "",
       show_on_homepage: promo.show_on_homepage,
       min_spend_amount: promo.min_spend_amount != null ? String(promo.min_spend_amount) : "",
       free_gift_product_id: "",
@@ -225,7 +288,13 @@ export default function AdminPromotionsPage() {
 
    async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.title.trim()) return;
+    const problems = validateForm(form);
+    if (Object.keys(problems).length > 0) {
+      setAttempted(true);
+      const first = Object.keys(problems)[0];
+      document.getElementById(`promo-${first}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
 
     setSaving(true);
     const supabase = createClient();
@@ -239,7 +308,6 @@ export default function AdminPromotionsPage() {
       discount_value: form.discount_value ? Number(form.discount_value) : null,
       starts_at: form.starts_at ? new Date(form.starts_at).toISOString() : null,
       ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
-      usage_limit: form.usage_limit ? Number(form.usage_limit) : null,
       show_on_homepage: form.show_on_homepage,
       min_spend_amount: form.min_spend_amount ? Number(form.min_spend_amount) : null,
       free_gift_product_id: form.free_gift_product_id ? Number(form.free_gift_product_id) : null,
@@ -281,7 +349,6 @@ export default function AdminPromotionsPage() {
             discount_value: o.discount_value ?? null,
             starts_at: dt(o.starts_at),
             ends_at: dt(o.ends_at),
-            usage_limit: o.usage_limit ?? null,
             show_on_homepage: !!o.show_on_homepage,
             min_spend_amount: o.min_spend_amount ?? null,
             free_gift_product_id: o.free_gift_product_id ?? null,
@@ -455,6 +522,10 @@ export default function AdminPromotionsPage() {
         </p>
         {showForm && (
           <form onSubmit={handleSubmit} className="mb-8 flex flex-col gap-4">
+            <p className="text-[11px]" style={{ color: MUTED }}>
+              <span style={{ color: ERROR_COLOR }}>*</span> Required
+            </p>
+
             {/* 1. BASICS */}
             <FormSection number={1} title="Basics">
               <div>
@@ -467,8 +538,8 @@ export default function AdminPromotionsPage() {
                   onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                   placeholder="Buy 1 Get 1 Free"
                   className={INPUT_CLASS}
-                  style={INPUT_STYLE}
-                  required
+                  id="promo-title"
+                  style={fieldStyle("title")}
                 />
               </div>
 
@@ -626,34 +697,74 @@ export default function AdminPromotionsPage() {
             <FormSection number={3} title="Discount">
               <div>
                 <label className={LABEL_CLASS} style={{ color: "#000000" }}>
-                  Type
+                  Type<span style={{ color: ERROR_COLOR }}> *</span>
                 </label>
-                <div className="flex flex-wrap gap-2">
-                  {DISCOUNT_TYPES.map((t) => {
-                    const selected = form.discount_type === t.value;
-                    return (
-                      <button
-                        key={t.value || "none"}
-                        type="button"
-                        onClick={() => setForm((f) => ({ ...f, discount_type: t.value }))}
-                        className="rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors"
-                        style={{
-                          backgroundColor: selected ? "#3F8F5C" : "#FFFFFF",
-                          color: selected ? "#FFFFFF" : "#000000",
-                          border: `1.5px solid ${selected ? "#3F8F5C" : "rgba(0,0,0,0.15)"}`,
-                        }}
-                      >
-                        {t.label}
-                      </button>
-                    );
-                  })}
+                <div
+                  id="promo-discount_type"
+                  className="grid grid-cols-2 gap-2 rounded-2xl"
+                  style={formErrors.discount_type ? { outline: "1.5px solid " + ERROR_COLOR, outlineOffset: "4px" } : undefined}
+                >
+                  {(() => {
+                    const order = [
+                      "",
+                      "percentage",
+                      "fixed",
+                      "bogo",
+                      "second_item_percent_off",
+                      "buy_x_get_y_free",
+                      "tiered_quantity_percent_off",
+                      "bundle_price",
+                      "min_spend_percent_off",
+                      "free_gift",
+                      "free_shipping",
+                    ];
+                    const ordered = order
+                      .map((v) => DISCOUNT_TYPES.find((t) => t.value === v))
+                      .filter((t): t is { value: string; label: string } => !!t);
+                    const rest = DISCOUNT_TYPES.filter((t) => !order.includes(t.value));
+
+                    return [...ordered, ...rest].map((t) => {
+                      const selected = form.discount_type === t.value;
+                      return (
+                        <button
+                          key={t.value || "none"}
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, discount_type: t.value }))}
+                          className={`flex min-h-[48px] items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13px] transition-colors ${
+                            t.value === "" ? "col-span-2" : ""
+                          }`}
+                          style={{
+                            backgroundColor: selected ? `${ACCENT}14` : "#FFFFFF",
+                            border: `1.5px solid ${selected ? ACCENT : "rgba(0,0,0,0.12)"}`,
+                            color: "#000000",
+                            fontWeight: selected ? 600 : 400,
+                          }}
+                        >
+                          <span
+                            className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full"
+                            style={{
+                              border: `1.5px solid ${selected ? ACCENT : "rgba(0,0,0,0.25)"}`,
+                            }}
+                          >
+                            {selected && (
+                              <span
+                                className="h-2 w-2 rounded-full"
+                                style={{ backgroundColor: ACCENT }}
+                              />
+                            )}
+                          </span>
+                          <span className="min-w-0 flex-1 break-words leading-tight">{t.label}</span>
+                        </button>
+                      );
+                    });
+                  })()}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className={LABEL_CLASS} style={{ color: "#000000" }}>
-                    Value
+                    Value{req("discount_value")}
                   </label>
                   <input
                     type="number"
@@ -661,21 +772,8 @@ export default function AdminPromotionsPage() {
                     onChange={(e) => setForm((f) => ({ ...f, discount_value: e.target.value }))}
                     placeholder="e.g. 20"
                     className={INPUT_CLASS}
-                    style={INPUT_STYLE}
-                  />
-                </div>
-
-                <div>
-                  <label className={LABEL_CLASS} style={{ color: "#000000" }}>
-                    Usage limit
-                  </label>
-                  <input
-                    type="number"
-                    value={form.usage_limit}
-                    onChange={(e) => setForm((f) => ({ ...f, usage_limit: e.target.value }))}
-                    placeholder="Unlimited"
-                    className={INPUT_CLASS}
-                    style={INPUT_STYLE}
+                    id="promo-discount_value"
+                    style={fieldStyle("discount_value")}
                   />
                 </div>
               </div>
@@ -683,7 +781,7 @@ export default function AdminPromotionsPage() {
               {form.discount_type === "free_gift" && (
                 <div>
                   <label className={LABEL_CLASS} style={{ color: "#000000" }}>
-                    Minimum spend (EGP)
+                    Minimum spend (EGP){req("min_spend_amount")}
                   </label>
                   <p className="mb-2 text-xs" style={{ color: MUTED }}>
                     Customers spending over this amount will see a message that a free gift is included — no
@@ -695,7 +793,8 @@ export default function AdminPromotionsPage() {
                     onChange={(e) => setForm((f) => ({ ...f, min_spend_amount: e.target.value }))}
                     placeholder="e.g. 1000"
                     className={INPUT_CLASS}
-                    style={INPUT_STYLE}
+                    id="promo-min_spend_amount"
+                    style={fieldStyle("min_spend_amount")}
                   />
                 </div>
               )}
@@ -703,7 +802,7 @@ export default function AdminPromotionsPage() {
               {form.discount_type === "min_spend_percent_off" && (
                 <div>
                   <label className={LABEL_CLASS} style={{ color: "#000000" }}>
-                    Minimum spend (EGP)
+                    Minimum spend (EGP){req("min_spend_amount")}
                   </label>
                   <p className="mb-2 text-xs" style={{ color: MUTED }}>
                     Use the Value field above for the percentage off (e.g. 10 for 10%).
@@ -714,7 +813,8 @@ export default function AdminPromotionsPage() {
                     onChange={(e) => setForm((f) => ({ ...f, min_spend_amount: e.target.value }))}
                     placeholder="e.g. 1000"
                     className={INPUT_CLASS}
-                    style={INPUT_STYLE}
+                    id="promo-min_spend_amount"
+                    style={fieldStyle("min_spend_amount")}
                   />
                 </div>
               )}
@@ -723,7 +823,7 @@ export default function AdminPromotionsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={LABEL_CLASS} style={{ color: "#000000" }}>
-                      Bundle quantity
+                      Bundle quantity{req("bundle_quantity")}
                     </label>
                     <input
                       type="number"
@@ -731,12 +831,13 @@ export default function AdminPromotionsPage() {
                       onChange={(e) => setForm((f) => ({ ...f, bundle_quantity: e.target.value }))}
                       placeholder="e.g. 2"
                       className={INPUT_CLASS}
-                      style={INPUT_STYLE}
+                      id="promo-bundle_quantity"
+                    style={fieldStyle("bundle_quantity")}
                     />
                   </div>
                   <div>
                     <label className={LABEL_CLASS} style={{ color: "#000000" }}>
-                      Bundle price (EGP)
+                      Bundle price (EGP){req("bundle_price")}
                     </label>
                     <input
                       type="number"
@@ -744,7 +845,8 @@ export default function AdminPromotionsPage() {
                       onChange={(e) => setForm((f) => ({ ...f, bundle_price: e.target.value }))}
                       placeholder="e.g. 900"
                       className={INPUT_CLASS}
-                      style={INPUT_STYLE}
+                      id="promo-bundle_price"
+                    style={fieldStyle("bundle_price")}
                     />
                   </div>
                   <label className="col-span-2 flex items-center gap-2 text-sm" style={{ color: "#000000" }}>
@@ -766,7 +868,7 @@ export default function AdminPromotionsPage() {
               {form.discount_type === "tiered_quantity_percent_off" && (
                 <div>
                   <label className={LABEL_CLASS} style={{ color: "#000000" }}>
-                    Minimum quantity
+                    Minimum quantity{req("tiered_min_qty")}
                   </label>
                   <p className="mb-2 text-xs" style={{ color: MUTED }}>
                     Use the Value field above for the percentage off (e.g. 15 for 15%).
@@ -777,7 +879,8 @@ export default function AdminPromotionsPage() {
                     onChange={(e) => setForm((f) => ({ ...f, tiered_min_qty: e.target.value }))}
                     placeholder="e.g. 3"
                     className={INPUT_CLASS}
-                    style={INPUT_STYLE}
+                    id="promo-tiered_min_qty"
+                    style={fieldStyle("tiered_min_qty")}
                   />
                 </div>
               )}
@@ -785,7 +888,7 @@ export default function AdminPromotionsPage() {
               {form.discount_type === "buy_x_get_y_free" && (
                 <div>
                   <label className={LABEL_CLASS} style={{ color: "#000000" }}>
-                    Quantity to buy
+                    Quantity to buy{req("tiered_min_qty")}
                   </label>
                   <p className="mb-2 text-xs" style={{ color: MUTED }}>
                     e.g. 2 for "buy 2, get 1 free." The Value field above isn't used for this type.
@@ -796,7 +899,8 @@ export default function AdminPromotionsPage() {
                     onChange={(e) => setForm((f) => ({ ...f, tiered_min_qty: e.target.value }))}
                     placeholder="e.g. 2"
                     className={INPUT_CLASS}
-                    style={INPUT_STYLE}
+                    id="promo-tiered_min_qty"
+                    style={fieldStyle("tiered_min_qty")}
                   />
                 </div>
               )}
@@ -859,6 +963,21 @@ export default function AdminPromotionsPage() {
               </div>
             </FormSection>
 
+            {attempted && Object.keys(formErrors).length > 0 && (
+              <div
+                role="alert"
+                className="rounded-xl px-4 py-3 text-xs font-medium"
+                style={{ backgroundColor: "#FBEAE7", border: `1px solid ${ERROR_COLOR}`, color: ERROR_COLOR }}
+              >
+                <p className="mb-1 font-semibold">Please fill in the highlighted fields:</p>
+                <ul className="list-disc pl-4">
+                  {Object.values(formErrors).map((m) => (
+                    <li key={m}>{m}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={saving}
@@ -899,10 +1018,6 @@ export default function AdminPromotionsPage() {
             const coversAll =
               productNames.length === 0 ||
               (products.length > 0 && productNames.length >= products.length);
-            const usedPercent =
-              p.usage_limit != null && p.usage_limit > 0
-                ? Math.min(100, Math.round((p.times_used / p.usage_limit) * 100))
-                : 0;
             const tone = p.is_active ? "#3F8F5C" : "#8A8A8A";
 
             return (
@@ -1017,27 +1132,6 @@ export default function AdminPromotionsPage() {
                     </span>
                   )}
                 </div>
-
-                {/* usage bar */}
-                {p.usage_limit != null && (
-                  <div className="px-4 pb-3">
-                    <div className="mb-1 flex justify-between text-[10px]" style={{ color: MUTED }}>
-                      <span>Used</span>
-                      <span>
-                        {p.times_used} / {p.usage_limit}
-                      </span>
-                    </div>
-                    <div
-                      className="h-1.5 w-full overflow-hidden rounded-full"
-                      style={{ backgroundColor: `${ACCENT}26` }}
-                    >
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${usedPercent}%`, backgroundColor: ACCENT }}
-                      />
-                    </div>
-                  </div>
-                )}
 
                 {/* actions */}
                 <div

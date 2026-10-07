@@ -38,6 +38,12 @@ const inputStyle = {
   color: "#000000",
 };
 
+const ERROR_COLOR = "#C0392B";
+const errStyle = (bad: boolean) =>
+  bad ? { ...inputStyle, border: `1.5px solid ${ERROR_COLOR}`, backgroundColor: "#FFF8F7" } : inputStyle;
+const Star = () => <span style={{ color: ERROR_COLOR }}> *</span>;
+const NOTE = "Please fill in the highlighted fields.";
+
 export default function AdminReviewsPage() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +53,9 @@ export default function AdminReviewsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState(EMPTY_FORM);
+  const [addAttempted, setAddAttempted] = useState(false);
+  const [editAttempted, setEditAttempted] = useState(false);
+
 
   useEffect(() => {
     loadReviews();
@@ -73,7 +82,12 @@ export default function AdminReviewsPage() {
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.customer_name.trim() || !form.body.trim()) return;
+    if (!form.customer_name.trim() || !form.body.trim()) {
+      setAddAttempted(true);
+      const id = !form.customer_name.trim() ? "review-name" : "review-body";
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
 
     setSaving(true);
     const supabase = createClient();
@@ -99,6 +113,7 @@ export default function AdminReviewsPage() {
     });
 
     setForm(EMPTY_FORM);
+    setAddAttempted(false);
     setSaving(false);
     loadReviews();
   }
@@ -139,11 +154,15 @@ export default function AdminReviewsPage() {
 
   function startEdit(r: Review) {
     setEditingId(r.id);
+    setEditAttempted(false);
     setEditForm({ customer_name: r.customer_name, rating: r.rating, body: r.body });
   }
 
   async function saveEdit(id: string) {
-    if (!editForm.customer_name.trim() || !editForm.body.trim()) return;
+    if (!editForm.customer_name.trim() || !editForm.body.trim()) {
+      setEditAttempted(true);
+      return;
+    }
 
     setBusyId(id);
     const supabase = createClient();
@@ -227,21 +246,22 @@ export default function AdminReviewsPage() {
         {/* Add form */}
         <form
           onSubmit={handleAdd}
+          noValidate
           className="rounded-2xl p-5 mb-8 flex flex-col gap-4"
           style={{ backgroundColor: CARD_BG, border: `1px solid ${BORDER}` }}
         >
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_140px] gap-4">
             <div>
               <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
-                Customer name
+                Customer name<Star />
               </label>
               <input
                 type="text"
                 value={form.customer_name}
                 onChange={(e) => setForm((f) => ({ ...f, customer_name: e.target.value }))}
                 className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
-                style={inputStyle}
-                required
+                id="review-name"
+                style={errStyle(addAttempted && !form.customer_name.trim())}
               />
             </div>
 
@@ -266,17 +286,27 @@ export default function AdminReviewsPage() {
 
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: "#000000" }}>
-              Review text
+              Review text<Star />
             </label>
             <textarea
               value={form.body}
               onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
               rows={3}
               className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none"
-              style={inputStyle}
-              required
+              id="review-body"
+              style={errStyle(addAttempted && !form.body.trim())}
             />
           </div>
+
+          {addAttempted && (!form.customer_name.trim() || !form.body.trim()) && (
+            <p
+              role="alert"
+              className="rounded-xl px-4 py-3 text-xs font-medium"
+              style={{ backgroundColor: "#FBEAE7", border: `1px solid ${ERROR_COLOR}`, color: ERROR_COLOR }}
+            >
+              {NOTE}
+            </p>
+          )}
 
           <button
             type="submit"
@@ -344,7 +374,8 @@ export default function AdminReviewsPage() {
                         value={editForm.customer_name}
                         onChange={(e) => setEditForm((f) => ({ ...f, customer_name: e.target.value }))}
                         className="w-full rounded-xl px-4 py-2.5 text-sm outline-none"
-                        style={inputStyle}
+                        placeholder="Customer name *"
+                        style={errStyle(editAttempted && !editForm.customer_name.trim())}
                       />
                       <select
                         value={editForm.rating}
@@ -364,8 +395,18 @@ export default function AdminReviewsPage() {
                       onChange={(e) => setEditForm((f) => ({ ...f, body: e.target.value }))}
                       rows={3}
                       className="w-full rounded-xl px-4 py-2.5 text-sm outline-none resize-none"
-                      style={inputStyle}
+                      placeholder="Review text *"
+                      style={errStyle(editAttempted && !editForm.body.trim())}
                     />
+                    {editAttempted && (!editForm.customer_name.trim() || !editForm.body.trim()) && (
+                      <p
+                        role="alert"
+                        className="rounded-xl px-4 py-3 text-xs font-medium"
+                        style={{ backgroundColor: "#FBEAE7", border: `1px solid ${ERROR_COLOR}`, color: ERROR_COLOR }}
+                      >
+                        {NOTE}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="pl-7 pr-5 pt-5 pb-4" style={{ opacity: r.is_published ? 1 : 0.55 }}>

@@ -41,7 +41,7 @@ export default async function Shop({
      .from("products")
      .select("*")
      .eq("is_active", true)
-     .order("created_at", { ascending: true });
+              .order("created_at", { ascending: true });
 
   if (error) {
     console.error("Failed to fetch products:", error.message);

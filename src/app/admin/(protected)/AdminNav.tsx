@@ -4,6 +4,17 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  Sparkles,
+  Package,
+  Users,
+  Tag,
+  Star,
+  History,
+  User,
+} from "lucide-react";
 
 const LINKS = [
   { label: "Dashboard", href: "/admin" },
@@ -13,9 +24,22 @@ const LINKS = [
   { label: "Customers", href: "/admin/customers" },
   { label: "Promotions", href: "/admin/discounts" },
   { label: "Reviews", href: "/admin/reviews" },
-  { label: "Profile", href: "/admin/profile" },
-  {label:"Activity Log", href:"/admin/activity"}
+  {label:"Activity Log", href:"/admin/activity"},
+  { label: "Profile", href: "/admin/profile" }
+  
 ];
+
+const ICONS: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
+  Dashboard: LayoutDashboard,
+  Orders: ShoppingBag,
+  "Custom Orders": Sparkles,
+  Products: Package,
+  Customers: Users,
+  Promotions: Tag,
+  Reviews: Star,
+  "Activity Log": History,
+  Profile: User,
+};
 
 type Section = "orders" | "custom_orders";
 
@@ -174,6 +198,7 @@ export default function AdminNav({ email }: { email: string }) {
 
   async function handleSignOut() {
     const supabase = createClient();
+    try { sessionStorage.removeItem("actingAsConfirmed"); } catch {}
     await supabase.auth.signOut();
     router.push("/admin/login");
     router.refresh();
@@ -268,34 +293,62 @@ export default function AdminNav({ email }: { email: string }) {
           onClick={() => setMobileOpen(false)}
         >
           <nav
-            className="absolute top-14 left-0 right-0 flex flex-col gap-1 px-4 py-4"
-            style={{ backgroundColor: "#FFF9F0", borderBottom: "1.5px solid rgba(0,0,0,0.08)" }}
+            className="absolute top-14 left-0 right-0 max-h-[calc(100vh-3.5rem)] overflow-y-auto px-4 pb-5 pt-4"
+            style={{
+              backgroundColor: "#FFF9F0",
+              borderBottom: "1.5px solid rgba(0,0,0,0.08)",
+              borderRadius: "0 0 24px 24px",
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            {LINKS.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className="flex items-center justify-between rounded-xl px-3 py-3 text-sm font-medium"
-                style={{
-                  backgroundColor: isActive(link.href) ? "#EFE3C4" : "transparent",
-                  color: "#000000",
-                }}
-              >
-                <span>{link.label}</span>
-                <Badge href={link.href} />
-              </Link>
-            ))}
+            <div className="flex flex-col gap-2">
+              {LINKS.map((link) => {
+                const active = isActive(link.href);
+                const Icon = ICONS[link.label];
+                const section = BADGE_SECTION[link.href];
+                const n = section ? counts[section] : 0;
 
-            <div className="mt-2 pt-3 px-3" style={{ borderTop: "1px solid rgba(0,0,0,0.08)" }}>
-              <p className="text-xs mb-2 truncate" style={{ color: "rgba(0,0,0,0.55)" }}>
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold"
+                    style={{
+                      backgroundColor: active ? "#DE4B33" : "#FFFFFF",
+                      color: active ? "#FFF4E6" : "#000000",
+                      border: active ? "1px solid #DE4B33" : "1px solid rgba(0,0,0,0.08)",
+                    }}
+                  >
+                    {Icon && <Icon size={18} strokeWidth={1.8} />}
+                    <span className="flex-1">{link.label}</span>
+                    {n > 0 && (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                        style={{
+                          backgroundColor: active ? "#FFF4E6" : "#DE4B33",
+                          color: active ? "#DE4B33" : "#FFF4E6",
+                        }}
+                      >
+                        {n}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
+            <div
+              className="mt-4 flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
+              style={{ backgroundColor: "#EFE3C4" }}
+            >
+              <p className="min-w-0 truncate text-xs" style={{ color: "rgba(0,0,0,0.65)" }}>
                 {email}
               </p>
               <button
                 type="button"
                 onClick={handleSignOut}
-                className="text-xs font-semibold"
-                style={{ color: "#DE4B33" }}
+                className="flex-shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold"
+                style={{ backgroundColor: "#FFFFFF", color: "#DE4B33" }}
               >
                 Sign out
               </button>

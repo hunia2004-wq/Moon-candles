@@ -101,6 +101,23 @@ function ImageSlotPicker({
   );
 }
 
+function Card({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section
+      className="rounded-3xl p-5"
+      style={{ backgroundColor: "#FFFFFF", border: "1px solid rgba(0,0,0,0.08)" }}
+    >
+      <h2
+        className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em]"
+        style={{ color: "#DE4B33" }}
+      >
+        {title}
+      </h2>
+      <div className="flex flex-col gap-4">{children}</div>
+    </section>
+  );
+}
+
 export default function EditProductPage() {
   const params = useParams();
   const productId = params.id as string;
@@ -128,6 +145,7 @@ export default function EditProductPage() {
   const [scents, setScents] = useState<string[]>([]);
   const [scentInput, setScentInput] = useState("");
   const [existingScents, setExistingScents] = useState<string[]>([]);
+  const [scentSearch, setScentSearch] = useState("");
 
   const [hasColors, setHasColors] = useState(false);
   const [plainImages, setPlainImages] = useState<ImageItem[]>([]);
@@ -487,7 +505,15 @@ export default function EditProductPage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl">
+    <div className="mx-auto max-w-2xl">
+      <button
+        type="button"
+        onClick={() => router.push("/admin/products")}
+        className="mb-3 text-xs font-semibold"
+        style={{ color: "rgba(0,0,0,0.55)" }}
+      >
+        ← Products
+      </button>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold" style={{ color: "#000000" }}>
           Edit Product
@@ -510,7 +536,8 @@ export default function EditProductPage() {
         </p>
       )}
 
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-4">
+        <Card title="Basics">
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
             Name
@@ -536,7 +563,9 @@ export default function EditProductPage() {
           />
         </div>
 
-               <div className="flex flex-wrap gap-4">
+               </Card>
+        <Card title="Pricing">
+        <div className="flex flex-wrap gap-4">
           {hasColors && distinctOptionNames.length > 0 ? (
             distinctOptionNames.map((optionName) => (
               <div key={optionName} className="flex-1" style={{ minWidth: "120px" }}>
@@ -581,56 +610,107 @@ export default function EditProductPage() {
           </div>
         </div>
 
+        </Card>
+        <Card title="Scents">
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
-            Scents
-          </label>
 
-          {existingScents.length > 0 && (
-            <div
-              className="mb-3 flex flex-col gap-2 rounded-xl p-3"
-              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-            >
-              <label className="flex items-center gap-3 pb-2" style={{ borderBottom: "1px solid rgba(0,0,0,0.1)" }}>
+          {existingScents.length > 0 && (() => {
+            const q = scentSearch.trim().toLowerCase();
+
+            const visible = [...existingScents]
+              .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }) || a.localeCompare(b))
+              .filter((sc) => !q || sc.toLowerCase().includes(q));
+
+            const allSelected = existingScents.every((sc) => scents.includes(sc));
+
+            const byName: Record<string, string[]> = {};
+            existingScents.forEach((sc) => {
+              const k = sc.trim().toLowerCase();
+              if (!byName[k]) byName[k] = [];
+              byName[k].push(sc);
+            });
+            const dupes = Object.values(byName).filter((v) => v.length > 1);
+
+            return (
+              <div className="mb-4">
                 <input
-                  type="checkbox"
-                  checked={existingScents.every((scent) => scents.includes(scent))}
-                  onChange={() => {
-                    const allSelected = existingScents.every((scent) => scents.includes(scent));
-                    if (allSelected) {
-                      setScents(scents.filter((s) => !existingScents.includes(s)));
-                    } else {
-                      setScents([...new Set([...scents, ...existingScents])]);
-                    }
-                  }}
-                  className="h-4 w-4"
+                  value={scentSearch}
+                  onChange={(e) => setScentSearch(e.target.value)}
+                  placeholder="Search scents"
+                  className="mb-3 w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                  style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                 />
-                <span className="text-sm font-semibold" style={{ color: "#000000" }}>
-                  Choose all
-                </span>
-              </label>
 
-              {existingScents.map((scent) => (
-                <label key={scent} className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={scents.includes(scent)}
-                    onChange={() => {
-                      if (scents.includes(scent)) {
-                        removeScent(scent);
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs" style={{ color: "rgba(0,0,0,0.55)" }}>
+                    {scents.length} selected
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (allSelected) {
+                        setScents(scents.filter((s) => !existingScents.includes(s)));
                       } else {
-                        setScents([...scents, scent]);
+                        setScents([...new Set([...scents, ...existingScents])]);
                       }
                     }}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-sm" style={{ color: "#000000" }}>
-                    {scent}
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
+                    className="text-xs font-semibold underline"
+                    style={{ color: "#DE4B33" }}
+                  >
+                    {allSelected ? "Clear all" : "Choose all"}
+                  </button>
+                </div>
+
+                {dupes.length > 0 && (
+                  <p
+                    className="mb-2 rounded-lg px-3 py-2 text-[11px] leading-4"
+                    style={{ backgroundColor: "#EFE3C4", color: "rgba(0,0,0,0.7)" }}
+                  >
+                    Listed twice with different capitalization:{" "}
+                    {dupes.map((v) => v.join(" / ")).join(", ")}
+                  </p>
+                )}
+
+                {visible.length === 0 ? (
+                  <p className="py-4 text-center text-sm" style={{ color: "rgba(0,0,0,0.5)" }}>
+                    No scents match your search.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {visible.map((scent) => {
+                      const on = scents.includes(scent);
+                      return (
+                        <button
+                          key={scent}
+                          type="button"
+                          onClick={() => (on ? removeScent(scent) : setScents([...scents, scent]))}
+                          className="flex min-h-[44px] items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13px] transition-colors"
+                          style={{
+                            backgroundColor: on ? "#FDEEEA" : "#FFFFFF",
+                            border: on ? "1.5px solid #DE4B33" : "1.5px solid rgba(0,0,0,0.12)",
+                            color: "#000000",
+                            fontWeight: on ? 600 : 400,
+                          }}
+                        >
+                          <span
+                            className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-[10px] font-bold"
+                            style={{
+                              backgroundColor: on ? "#DE4B33" : "transparent",
+                              border: on ? "1.5px solid #DE4B33" : "1.5px solid rgba(0,0,0,0.25)",
+                              color: "#FFF4E6",
+                            }}
+                          >
+                            {on ? "✓" : ""}
+                          </span>
+                          <span className="min-w-0 flex-1 break-words leading-tight">{scent}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <div className="flex gap-2">
             <input
@@ -676,6 +756,8 @@ export default function EditProductPage() {
           )}
         </div>
 
+        </Card>
+        <Card title="Settings">
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
             Category
@@ -721,6 +803,8 @@ export default function EditProductPage() {
           </span>
         </label>
 
+        </Card>
+        <Card title="Photos & colors">
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
             Does this product have colors?
@@ -988,16 +1072,27 @@ export default function EditProductPage() {
             </div>
           </div>
         )}
+        </Card>
         <OptionGroupsEditor groups={optionGroups} onChange={setOptionGroups} />
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="mt-4 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-wide"
-          style={{ backgroundColor: "#DE4B33", color: "#FFF4E6", opacity: saving ? 0.6 : 1 }}
+        <div
+          className="sticky bottom-0 z-10 pb-3 pt-6"
+          style={{ background: "linear-gradient(to top, #FFF4E6 65%, rgba(255,244,230,0))" }}
         >
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
+          {error && (
+            <p className="mb-2 text-center text-xs font-semibold" style={{ color: "#DE4B33" }}>
+              {error}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-wide shadow-lg"
+            style={{ backgroundColor: "#DE4B33", color: "#FFF4E6", opacity: saving ? 0.6 : 1 }}
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
       </div>
     </div>
   );

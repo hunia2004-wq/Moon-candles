@@ -33,6 +33,8 @@ const STATUS_OPTIONS = [
   "completed",
 ] as const;
 
+const ASSIGNEE_OPTIONS = ["Jana", "Nour"] as const;
+
 function statusOptionsForView(view: string): readonly string[] {
   if (view === "active") {
     return STATUS_OPTIONS.filter((s) => s !== "completed");
@@ -85,6 +87,8 @@ type CustomizedEntry = {
 
   status: string;
   paymentStatus: string | null;
+
+  assignee: string | null;
 
   createdAt: string;
   completedAt: string | null;
@@ -214,6 +218,7 @@ export default function CustomOrdersPage() {
 
           status: o.status || "pending",
       paymentStatus: o.payment_status ?? null,
+      assignee: o.assignee ?? null,
 
       shippingFee: Number(o.shipping_fee ?? 0),
 
@@ -387,6 +392,8 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
         paymentStatus:
           order.payment_status ?? null,
 
+        assignee: order.assignee ?? null,
+
         shippingFee: Number(order.shipping_fee ?? 0),
 
         createdAt: order.created_at,
@@ -418,6 +425,7 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
     patch: {
       status?: string;
       payment_status?: string;
+      assignee?: string | null;
     }
   ) {
     setSavingId(entry.key);
@@ -426,6 +434,7 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
       status?: string;
       payment_status?: string;
       completed_at?: string;
+      assignee?: string | null;
     } = {
       ...patch,
     };
@@ -483,6 +492,13 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
           details: { from: entry.paymentStatus, to: patch.payment_status },
         });
       }
+      if (patch.assignee !== undefined && patch.assignee !== entry.assignee) {
+        logAdminActivity({
+          ...base,
+          action: "order.assigned",
+          details: { from: entry.assignee ?? null, assigned_to: patch.assignee ?? "" },
+        });
+      }
     }
 
     setEntries((prev) =>
@@ -499,6 +515,8 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
               completedAt:
                 fullPatch.completed_at ??
                 item.completedAt,
+              assignee:
+                patch.assignee !== undefined ? patch.assignee : item.assignee,
             }
           : item
       )
@@ -936,6 +954,15 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
                   >
                     <StatusPill status={o.status} />
                     {o.paymentStatus && <StatusPill status={o.paymentStatus} />}
+                    <span
+                      className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                      style={{
+                        backgroundColor: o.assignee ? "#A85C8526" : "#A85C850F",
+                        color: o.assignee ? "#A85C85" : "#A85C85AA",
+                      }}
+                    >
+                      {o.assignee ?? "Unassigned"}
+                    </span>
                   </div>
                 </button>
 {/* EXPANDED CONTENT */}
@@ -1053,7 +1080,7 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
         Manage order
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <label className="flex flex-col gap-1 text-xs" style={{ color: MUTED }}>
           Status
           <select
@@ -1086,6 +1113,25 @@ const scentLabel = item.scent ? item.scent : noScent ? null : "Unscented";
             </select>
           </label>
         )}
+      
+
+        <label className="flex flex-col gap-1 text-xs" style={{ color: MUTED }}>
+          Assigned to
+          <select
+            value={o.assignee ?? ""}
+            disabled={isSaving}
+            onChange={(e) => updateEntry(o, { assignee: e.target.value || null })}
+            className="w-full rounded-lg px-2.5 py-2 text-sm outline-none"
+            style={FIELD_STYLE}
+          >
+            <option value="">Unassigned</option>
+            {ASSIGNEE_OPTIONS.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
     </div>
 

@@ -42,6 +42,7 @@ export default function AdminLoginPage() {
       return;
     }
 
+    try { sessionStorage.removeItem("actingAsConfirmed"); } catch {}
     router.push("/admin");
     router.refresh();
   }

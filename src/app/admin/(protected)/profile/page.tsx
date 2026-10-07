@@ -140,6 +140,7 @@ export default function AdminProfilePage() {
   }
 
   async function signOut(scope: "local" | "global") {
+    try { sessionStorage.removeItem("actingAsConfirmed"); } catch {}
     await supabase.auth.signOut({ scope });
     router.push("/admin/login");
     router.refresh();
