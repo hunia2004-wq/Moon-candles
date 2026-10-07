@@ -32,7 +32,7 @@ export default async function Home() {
   .from("products")
   .select("*")
   .eq("name", "Iced Latte")
-  .eq("is_active", true)
+  .eq("is_active", true).is("deleted_at", null)
   .maybeSingle();
 
   if (error) {
@@ -42,7 +42,7 @@ export default async function Home() {
   await supabase
     .from("products")
     .select("*")
-    .eq("is_active", true)
+    .eq("is_active", true).is("deleted_at", null)
     .limit(3);
 
 if (collectionError) {

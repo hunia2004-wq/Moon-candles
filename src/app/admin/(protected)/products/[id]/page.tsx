@@ -469,14 +469,14 @@ export default function EditProductPage() {
   }
 
   async function handleDelete() {
-    const confirmed = window.confirm(`Delete "${name}"? This cannot be undone.`);
+    const confirmed = window.confirm(`Move "${name}" to Recently Deleted? You can restore it for 30 days.`);
     if (!confirmed) return;
 
     setDeleting(true);
     setError(null);
 
     const supabase = createClient();
-    const { error: deleteError } = await supabase.from("products").delete().eq("id", productId);
+    const { error: deleteError } = await supabase.from("products").update({ deleted_at: new Date().toISOString() }).eq("id", productId);
 
     setDeleting(false);
 

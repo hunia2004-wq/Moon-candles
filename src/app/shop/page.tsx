@@ -40,7 +40,7 @@ export default async function Shop({
      const { data: products, error } = await supabase
      .from("products")
      .select("*")
-     .eq("is_active", true)
+     .eq("is_active", true).is("deleted_at", null)
               .order("created_at", { ascending: true });
 
   if (error) {

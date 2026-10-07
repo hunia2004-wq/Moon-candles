@@ -62,6 +62,7 @@ export default async function AdminProductsPage() {
   const { data: products, error } = await supabase
     .from("products")
     .select("*")
+    .is("deleted_at", null)
     .order("name");
 
   if (error) {
