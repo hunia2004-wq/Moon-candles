@@ -389,7 +389,7 @@ height: "260px",
       </div>
 
       {/* ================= MAIN CONTENT ================= */}
- <main className="flex flex-1 w-full max-w-4xl flex-col items-center py-4 px-4 md:py-8 md:px-16">
+ <main className="flex w-full max-w-4xl flex-col items-center px-4 pt-4 md:px-16 md:pt-8">
   <RevealOnScroll>
     <div className="w-full flex flex-col items-center">
       <p
@@ -410,13 +410,13 @@ height: "260px",
       <CandleCarousel candles={candles} />
     </div>
   </RevealOnScroll>
+</main>
 
-    {/* OUR COLLECTION */}
-  <OurCollection />
+{/* OUR COLLECTION: full width, outside the narrow main column */}
+<OurCollection />
 
-  
-
-   <CustomizationTeaser />
+<main className="flex flex-1 w-full max-w-4xl flex-col items-center px-4 pb-4 md:px-16 md:pb-8">
+  <CustomizationTeaser />
 </main>
 
 <Testimonials />
