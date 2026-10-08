@@ -295,6 +295,12 @@ async function handleSubmit(e: React.FormEvent) {
     el?.focus({ preventScroll: true });
     return;
   }
+  if (JSON.stringify(items).includes('"blob:')) {
+  alert(
+    "Some images you uploaded have expired. Please remove those items from your cart and add them again so your images are included."
+  );
+  return;
+}
 setPlacing(true);
   const order: PlacedOrder = {
     items,
