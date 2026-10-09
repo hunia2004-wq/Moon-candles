@@ -9,6 +9,7 @@ export function editHref(item: CartItem): string | null {
   if (type === "customized-candle") return `/customize?edit=${id}`;
   if (type === "customized-fan") return `/customize/fan?edit=${id}`;
   if (type === "customized-tambourine") return `/customize/tambourine?edit=${id}`;
+  if (item.productId === "mini-candles") return "/customize-mini";
 
   return null;
 }

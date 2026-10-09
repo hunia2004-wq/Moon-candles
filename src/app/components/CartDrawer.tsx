@@ -11,7 +11,8 @@ import {
   cartCount,
   updateCartItemQuantity,
   removeCartItem,
-  getCartItemThumbnails,
+   getCartItemThumbnails,
+  getMiniCandlesPhoto,
 } from "@/lib/cart";
 
 import { computeCartPromotions, type AppliedPromotion } from "@/lib/promotions";
@@ -344,6 +345,19 @@ className="fixed right-0 top-0 z-[10002] flex h-full w-full max-w-sm flex-col sh
       />
     )
 )}
+  {(() => {
+    const miniPhoto = getMiniCandlesPhoto(item);
+    if (!miniPhoto || getCartItemThumbnails(item).includes(miniPhoto)) {
+      return null;
+    }
+    return (
+      <img
+        src={miniPhoto}
+        alt="Your initials design"
+        className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
+      />
+    );
+  })()}
   {item.customization?.type === "monogram" &&
     item.customization.monogramImage && (
       <img

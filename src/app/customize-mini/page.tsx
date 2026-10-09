@@ -107,7 +107,46 @@ export default function CustomizeMiniPage() {
   const [pendingColorB, setPendingColorB] = useState<string>(COLORS[1]);
   const [scents, setScents] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-const [category, setCategory] = useState<string | null>("giveaway");
+  const [category, setCategory] = useState<string | null>("giveaway");
+
+  // Keeps combos you haven't added to the cart yet, and the photo,
+  // so they're still here after you leave and come back.
+  const DRAFT_KEY = "mini-candles-draft";
+  const [draftHydrated, setDraftHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      const saved = raw ? JSON.parse(raw) : null;
+
+      if (saved?.photo) {
+        setPhotoUrl((prev) => prev ?? saved.photo);
+      }
+
+      if (Array.isArray(saved?.pending) && saved.pending.length) {
+        setCombos((prev) => [
+          ...prev,
+          ...saved.pending.filter(
+            (p: ColorCombo) => !prev.some((c) => c.id === p.id)
+          ),
+        ]);
+      }
+    } catch {}
+    setDraftHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!draftHydrated) return;
+    try {
+      sessionStorage.setItem(
+        DRAFT_KEY,
+        JSON.stringify({
+          photo: photoUrl,
+          pending: combos.filter((c) => !c.committed),
+        })
+      );
+    } catch {}
+  }, [draftHydrated, photoUrl, combos]);
   useEffect(() => {
     async function loadScents() {
       const supabase = createClient();
@@ -238,7 +277,16 @@ const photoInCart = getCart()
   }
 }
 
+    function removePhoto() {
+    setPhotoUrl(null);
+    // Candles already in the cart need updating too
+    setCombos((prev) =>
+      prev.map((c) => (c.committed ? { ...c, synced: false } : c))
+    );
+  }
+
   function addCombo() {
+    if (uploading) return;
     const defaultScent = scents[0] ?? "";
     setCombos((prev) => [
       ...prev,
@@ -323,6 +371,14 @@ function syncComboToCart(combo: ColorCombo) {
     );
   }
 
+  function saveAllChanges() {
+    if (uploading) return;
+    combos
+      .filter((c) => c.committed && c.synced === false)
+      .forEach((c) => pushComboUpdate(c));
+    window.dispatchEvent(new Event("openCart"));
+  }
+
   function updateQuantity(id: string, delta: number) {
     setCombos((prev) =>
       prev.map((c) => {
@@ -396,7 +452,7 @@ function removeCombo(id: string) {
    */
 function addComboOrderToCart() {
     const hasPending = combos.some((c) => !c.committed);
-    if (!hasPending) return;
+        if (!hasPending || uploading) return;
 
     // Compute the new combo list FIRST, as a plain value — no cart
     // writes here. syncComboToCart (which dispatches "cartUpdated")
@@ -441,6 +497,7 @@ function addComboOrderToCart() {
   const totalQuantity = combos.reduce((sum, c) => sum + c.quantity, 0);
   const totalPrice = totalQuantity * PRICE_PER_CANDLE;
   const hasPendingCombo = combos.some((c) => !c.committed);
+  const hasDirty = combos.some((c) => c.committed && c.synced === false);
 
   return (
     <div style={{ backgroundColor: "#FFF4E6" }} className="w-full min-h-screen">
@@ -479,6 +536,20 @@ function addComboOrderToCart() {
 {/* Step 1 — Photo, initials-only note */}
 
         {/* Step 1 — Photo, initials-only note */}
+               {combos.some((c) => c.committed) && (
+          <div
+            className="mb-4 rounded-xl px-4 py-3 text-xs"
+            style={{
+              backgroundColor: "#EFE3C4",
+              border: "1px solid #DE4B33",
+              color: "#000000",
+            }}
+          >
+                        Editing your order: your photo and color combos from the cart are
+            below. Change anything, then press "Save changes to cart".
+          </div>
+        )}
+
         <StepLabel n={1} title="Add a photo" />
         <div
           className="rounded-xl px-4 py-3 mb-2"
@@ -500,6 +571,17 @@ function addComboOrderToCart() {
               <span className="text-[11px]">JPG, PNG up to 5MB</span>
             </span>
           </button>
+                   {photoUrl && !uploading && (
+            <button
+              type="button"
+              onClick={removePhoto}
+              className="mt-2 text-xs underline"
+              style={{ color: "rgba(0,0,0,0.5)" }}
+            >
+              Remove photo
+            </button>
+          )}
+
           {uploading && (
   <p className="mt-2 text-xs" style={{ color: "#DE4B33" }}>
     Uploading your photo…
@@ -567,13 +649,14 @@ function addComboOrderToCart() {
         </div>
 
         <button
-          onClick={addCombo}
-          className="w-full rounded-full py-2.5 text-sm font-medium mb-6 transition-colors"
+                   onClick={addCombo}
+          disabled={uploading}
+          className="w-full rounded-full py-2.5 text-sm font-medium mb-6 transition-colors disabled:cursor-not-allowed disabled:opacity-40"
           style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
           onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#B23A26")}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#DE4B33")}
         >
-          + Add this combo
+                   {uploading ? "Uploading photo…" : "+ Add this combo"}
         </button>
 
         {/* Step 4 — Per-combo quantity + per-unit scent */}
@@ -582,7 +665,7 @@ function addComboOrderToCart() {
             <StepLabel n={4} title="Set quantity & scent for each candle" />
             <div className="flex flex-col gap-4 mb-8">
               {combos.map((combo) => {
-                const isDirty = combo.committed && combo.synced === false;
+
 
                 return (
                 <div
@@ -593,6 +676,14 @@ function addComboOrderToCart() {
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-medium" style={{ color: "#000000" }}>
                       {combo.colorA} + {combo.colorB}
+                      {combo.committed && (
+                        <span
+                          className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                          style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
+                        >
+                          In cart
+                        </span>
+                      )}
                     </span>
 
                     <div className="flex items-center gap-3">
@@ -669,22 +760,24 @@ function addComboOrderToCart() {
 
                   {/* Update button — only appears once this combo has
                       unsaved changes relative to what's in the cart. */}
-                  {isDirty && (
-                    <button
-                      onClick={() => pushComboUpdate(combo)}
-                      className="mt-4 w-full rounded-full py-2 text-xs font-semibold transition-colors"
-                      style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#B23A26")}
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#DE4B33")}
-                    >
-                      Update cart
-                    </button>
-                  )}
+                
                 </div>
                 );
               })}
             </div>
           </>
+        )}
+
+             {hasDirty && (
+          <button
+            type="button"
+            onClick={saveAllChanges}
+            disabled={uploading}
+            className="mb-3 w-full rounded-full border-2 py-3 text-sm font-bold transition-all duration-150 hover:scale-[1.02] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ borderColor: "#DE4B33", color: "#DE4B33" }}
+          >
+            {uploading ? "Uploading photo…" : "Save changes to cart"}
+          </button>
         )}
 
         {/* Summary + checkout */}
@@ -701,16 +794,16 @@ function addComboOrderToCart() {
         </div>
 
                <button
-          disabled={!hasPendingCombo}
+              disabled={!hasPendingCombo || uploading}
           onClick={addComboOrderToCart}
           className="w-full inline-flex items-center justify-center gap-2 px-10 py-3.5 rounded-full text-sm md:text-base font-semibold transition-colors disabled:opacity-40"
           style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
           onMouseEnter={(e) => {
-            if (hasPendingCombo) e.currentTarget.style.backgroundColor = "#B23A26";
+            if (hasPendingCombo && !uploading) e.currentTarget.style.backgroundColor = "#B23A26";
           }}
           onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#DE4B33")}
         >
-          Add to cart
+          {uploading ? "Uploading photo…" : "Add to cart"}
         </button>
       </div>
     </div>
