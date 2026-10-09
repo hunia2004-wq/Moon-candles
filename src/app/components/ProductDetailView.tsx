@@ -517,7 +517,7 @@ function handleInitialsInput(raw: string) {
 // Tapping "upload image" while initials exist asks first
 function requestImageUpload() {
   if (monogramText.trim()) {
-       setMonogramConflict({ kind: "image" });
+    setMonogramConflict({ kind: "image" });
     return;
   }
   monogramFileInputRef.current?.click();
@@ -686,10 +686,8 @@ const selectedOptionNameRef = useRef<string | null>(null);
     setSelectedBride(false);
     setSelectedGroom(false);
 
-   setBrideQuantity(1);
+    setBrideQuantity(1);
     setGroomQuantity(1);
-
-   
 
     setOrderLines([]);
 
@@ -1795,7 +1793,7 @@ if (closestIndex !== selectedImageIndexRef.current) {
     scent: null,
     color: "White",
     image: gallery[0] ?? "",
-    category: product.category,   // add this line
+    category: product.category,
   });
 }
 
@@ -1811,7 +1809,7 @@ if (closestIndex !== selectedImageIndexRef.current) {
     scent: null,
     color: "Gray",
     image: gallery[0] ?? "",
-    category: product.category,   // add this line
+    category: product.category,
   });
 }
 
@@ -1923,7 +1921,7 @@ updatedCart.push({
   scent: null,
   color: "Bride Duck",
   image: QUACK_IMAGES.bride,
-  category: product.category,   // add this line
+  category: product.category,
 });
 
     localStorage.setItem("cart", JSON.stringify(updatedCart));
@@ -1969,7 +1967,7 @@ updatedCart.push({
   scent: null,
   color: "Groom Duck",
   image: QUACK_IMAGES.groom,
-  category: product.category,   // add this line
+  category: product.category,
 });
 
     localStorage.setItem("cart", JSON.stringify(updatedCart));
@@ -2144,9 +2142,9 @@ updatedCart.push({
 
   setUploadingMonogram(true);
   try {
-       const smaller = await shrinkImage(file);
+    const smaller = await shrinkImage(file);
     const url = await uploadCustomerImage(smaller, "monogram");
-       setMonogramImageUrl(url);
+    setMonogramImageUrl(url);
   } catch {
     alert("Couldn't upload your image. Please check your connection and try again.");
   } finally {
@@ -2236,8 +2234,6 @@ updatedCart.push({
     category: product.category,
     customization: monogramCustomization,
   });
-
-  
 }
 
   /*
@@ -2363,7 +2359,7 @@ const ribbon = activeRibbon;
   scent: null,
   color: line.colorName,
   image: line.image,
-  category: product.category,   // add this line
+  category: product.category,
 });
       }
     });
@@ -3266,7 +3262,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                                     1
                                 )
                               }
-                              className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                             >
                               −
                             </button>
@@ -3286,7 +3282,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                                     1
                                 )
                               }
-                              className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                             >
                               +
                             </button>
@@ -3340,7 +3336,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                                     1
                                 )
                               }
-                              className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                             >
                               −
                             </button>
@@ -3360,7 +3356,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                                     1
                                 )
                               }
-                              className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                             >
                               +
                             </button>
@@ -3509,7 +3505,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                                     1
                                 )
                               }
-                              className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                             >
                               −
                             </button>
@@ -3529,7 +3525,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                                     1
                                 )
                               }
-                              className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                             >
                               +
                             </button>
@@ -3583,7 +3579,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                                     1
                                 )
                               }
-                              className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                             >
                               −
                             </button>
@@ -3603,7 +3599,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                                     1
                                 )
                               }
-                              className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                              className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                             >
                               +
                             </button>
@@ -3649,16 +3645,10 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                 </p>
 
                 <input
-                  value={monogramText} ref={monogramTextInputRef} onFocus={handleInitialsFocus}
-                  onChange={(e) => {
-                                       setMonogramImageUrl(null);
-                    // Keep this to initials only — two letters with
-                    // "&" between them, e.g. "S & H".
-                    const raw = e.target.value
-                      .toUpperCase()
-                      .replace(/[^A-Z&\s]/g, "");
-                    setMonogramText(raw.slice(0, 6));
-                  }}
+                  value={monogramText}
+                  ref={monogramTextInputRef}
+                  onFocus={handleInitialsFocus}
+                  onChange={(e) => handleInitialsInput(e.target.value)}
                   placeholder="e.g. S & H"
                   maxLength={6}
                   className="w-full rounded-xl px-4 py-3 text-sm outline-none"
@@ -3672,7 +3662,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                 <div className="mt-3 flex items-center gap-3">
                   <button
                     type="button"
-                                       onClick={requestImageUpload}
+                    onClick={requestImageUpload}
                     className="flex-1 rounded-xl border px-4 py-3 text-left text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5"
                     style={{
                       backgroundColor: "transparent",
@@ -3695,7 +3685,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                   )}
                 </div>
 
-                               {uploadingMonogram && (
+                {uploadingMonogram && (
                   <p className="mt-2 text-xs" style={{ color: accent }}>
                     Uploading your image…
                   </p>
@@ -3729,14 +3719,10 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                 </p>
 
                 <input
-                  value={monogramText} ref={monogramTextInputRef} onFocus={handleInitialsFocus}
-                                    onChange={(e) => {
-                    setMonogramImageUrl(null);
-                    const raw = e.target.value
-                      .toUpperCase()
-                      .replace(/[^A-Z&\s]/g, "");
-                    setMonogramText(raw.slice(0, 6));
-                  }}
+                  value={monogramText}
+                  ref={monogramTextInputRef}
+                  onFocus={handleInitialsFocus}
+                  onChange={(e) => handleInitialsInput(e.target.value)}
                   placeholder="e.g. S & H"
                   maxLength={6}
                   className="w-full rounded-xl px-4 py-3 text-sm outline-none"
@@ -3750,7 +3736,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                                <div className="mt-3 flex items-center gap-3">
                   <button
                     type="button"
-                                        onClick={requestImageUpload}
+                    onClick={requestImageUpload}
                     className="flex-1 rounded-xl border px-4 py-3 text-left text-xs font-semibold transition-all duration-200 hover:-translate-y-0.5"
                     style={{
                       backgroundColor: "transparent",
@@ -3775,7 +3761,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                         type="button"
                         onClick={() => setMonogramImageUrl(null)}
                         aria-label="Remove image"
-className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-transform hover:scale-110 active:scale-95"
+                        className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-transform hover:scale-110 active:scale-95"
                         style={{ backgroundColor: "#000000", color: "#FFFFFF" }}
                       >
                         ×
@@ -3888,11 +3874,10 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
                     // they stay until the person edits them or taps the × on
                     // the preview, so the same initials/photo can be reused
                     // for the next color without re-entering them.
-                                    // for the next color without re-entering them.
                   }}
                   disabled={uploadingMonogram}
                   className="mt-4 w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-200 hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-                                   style={{ backgroundColor: "transparent", borderColor: accent, color: accent }}
+                  style={{ backgroundColor: "transparent", borderColor: accent, color: accent }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = accent;
                     e.currentTarget.style.color = "#FFF4E6";
@@ -3961,7 +3946,7 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
                               <button
                                 type="button"
                                 onClick={() => updatePocketHeartsQuantity(line.id, line.quantity - 1)}
-                                className="flex h-7 w-7 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                                className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                               >
                                 −
                               </button>
@@ -3971,7 +3956,7 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
                               <button
                                 type="button"
                                 onClick={() => updatePocketHeartsQuantity(line.id, line.quantity + 1)}
-                                className="flex h-7 w-7 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                                className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                               >
                                 +
                               </button>
@@ -4048,7 +4033,7 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
                             scent: line.scentName,
                             color: line.colorName,
                             image: line.image,
-                            category: product.category,  
+                            category: product.category,
                             customization,
                           });
                           }
@@ -4057,7 +4042,7 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
                         window.dispatchEvent(new Event("openCart"));
 
                         setPocketHeartsOrderLines((prev) =>
-                                                   prev.map((line) => ({ ...line, inCart: true }))
+                          prev.map((line) => ({ ...line, inCart: true }))
                         );
                       }}
                       disabled={uploadingMonogram}
@@ -4070,14 +4055,14 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
                         e.currentTarget.style.backgroundColor = accent;
                       }}
                     >
-                                          {uploadingMonogram ? "Uploading image…" : "Add Order to Cart"}
+                      {uploadingMonogram ? "Uploading image…" : "Add Order to Cart"}
                     </button>
                   </div>
                 )}
               </div>
             )}
 
-                       {/* ==================================================
+            {/* ==================================================
                 REGULAR ADD TO CART
                 ================================================== */}
 
@@ -4091,14 +4076,14 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
          
       <button
         type="button"
-               onClick={addRegularProductToCart}
+        onClick={addRegularProductToCart}
         disabled={uploadingMonogram}
-                className="mt-6 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
+        className="mt-6 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
         style={{ backgroundColor: accent, color: "#FFF4E6" }}
         onMouseEnter={(e) => {
           e.currentTarget.style.backgroundColor = accentDark;
         }}
-              onMouseLeave={(e) => {
+        onMouseLeave={(e) => {
           e.currentTarget.style.backgroundColor = accent;
         }}
            >
@@ -4135,7 +4120,7 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
                       onClick={() =>
                         updateNormalLineQuantity(line.id, line.quantity - 1)
                       }
-                      className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                     >
                       −
                     </button>
@@ -4149,7 +4134,7 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
                       onClick={() =>
                         updateNormalLineQuantity(line.id, line.quantity + 1)
                       }
-                      className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                     >
                       +
                     </button>
@@ -4211,7 +4196,7 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
           onClick={() =>
             setPlainQuantity((q) => Math.max(1, q - 1))
           }
-          className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95 transition-all hover:scale-105 active:scale-95"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
         >
           −
         </button>
@@ -4223,7 +4208,7 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
         <button
           type="button"
           onClick={() => setPlainQuantity((q) => q + 1)}
-          className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95 transition-all hover:scale-105 active:scale-95"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
         >
           +
         </button>
@@ -4235,7 +4220,7 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
       type="button"
       onClick={addTambourineLineToOrder}
       className="mt-4 w-full rounded-full border-2 px-8 py-3.5 text-sm font-bold uppercase tracking-[0.12em] transition-all duration-200 hover:-translate-y-0.5"
-          style={{
+      style={{
         backgroundColor: "transparent",
         borderColor: accent,
         color: accent,
@@ -4279,7 +4264,7 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
                     onClick={() =>
                       updateTambourineLineQuantity(line.id, line.quantity - 1)
                     }
-                    className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                   >
                     −
                   </button>
@@ -4293,7 +4278,7 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
                     onClick={() =>
                       updateTambourineLineQuantity(line.id, line.quantity + 1)
                     }
-                    className="flex h-8 w-8 items-center justify-center                                        rounded-full bg-white text-base font-bold  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95  transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-base font-bold transition-all duration-150 hover:scale-110 hover:brightness-95 active:scale-95"
                   >
                     +
                   </button>
@@ -4462,7 +4447,8 @@ className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center
           </section>
         </div>
       </main>
-            {monogramConflict && (
+
+      {monogramConflict && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center px-6"
           style={{ backgroundColor: "rgba(0,0,0,0.45)" }}
