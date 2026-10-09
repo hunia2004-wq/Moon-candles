@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { CartItem } from "@/lib/cart";
 import StatusPill from "../components/StatusPill";
+import LoadingImage from "../components/LoadingImage";
 import { collectCustomerImages, candleTextNote } from "@/lib/customerImages";
 import CustomerImageDownloads from "../components/CustomerImageDownloads";
 import { printPackingSlip } from "@/lib/packingSlip";
@@ -514,12 +515,8 @@ async function deleteOrder(id: string) {
           style={i > 0 ? { borderTop: `1px dashed rgba(0,0,0,0.15)` } : undefined}
         >
           <div className="flex items-start gap-3">
-            {item.image && (
-              <img
-                src={item.image}
-                alt=""
-                className="h-14 w-14 rounded-lg object-cover flex-shrink-0"
-              />
+                       {item.image && (
+              <LoadingImage src={item.image} className="h-14 w-14 rounded-lg" />
             )}
 
             <div className="min-w-0 flex-1">
