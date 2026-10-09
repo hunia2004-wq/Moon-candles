@@ -7,8 +7,8 @@ export const LOGO_SIZE = {
   // header image: mobile / desktop
   header: "h-32 w-auto md:h-36",
   // footer: clipping box around the logo, then the image inside it
-  footerBox: "h-12",
-  footerImg: "h-32 w-auto max-w-none shrink-0 md:h-11",
+  footerBox: "h-12 md:h-16",
+  footerImg: "h-32 w-auto max-w-none shrink-0 md:h-36",
   // admin: mobile top bar, desktop sidebar, login page
   adminMobile: "h-24 w-auto",
   adminSidebar: "h-14 w-auto",
