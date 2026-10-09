@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { editHref } from "@/lib/cartEdit";
 import { useRouter } from "next/navigation";
 import {
   type CartItem,
@@ -323,6 +324,15 @@ useEffect(() => {
                           >
                             remove
                           </button>
+                          {editHref(item) && (
+  <Link
+    href={editHref(item)!}
+    className="text-xs underline underline-offset-2"
+    style={{ color: "rgba(0,0,0,0.55)" }}
+  >
+    edit
+  </Link>
+)}
                         </div>
                       </div>
                     </div>

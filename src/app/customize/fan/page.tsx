@@ -23,6 +23,8 @@ import {
   nextPaint,
   type DesignScene,
 } from "@/lib/captureDesign";
+import { shrinkImage } from "@/lib/shrinkImage";
+import { replaceCartItem } from "@/lib/cartEdit";
 
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: "400" });
 const dancing = Dancing_Script({ subsets: ["latin"] });
@@ -47,6 +49,13 @@ const SIZES = [
 ] as const;
 
 type SizeId = (typeof SIZES)[number]["id"];
+
+// Width in pixels of the finished design pictures. Lower numbers are
+// faster to prepare and upload, at the cost of some sharpness in print.
+const CAPTURE_WIDTH: Record<SizeId, number> = {
+  small: 2000,
+  large: 2400,
+};
 
 const PATTERN_SCALE_OPTS = { minScale: 1, maxScale: 6 };
 
@@ -156,6 +165,8 @@ type Layer = TextLayer | PatternLayer | FillLayer;
 type SideId = "front" | "back";
 type LayersBySide = Record<SideId, Layer[]>;
 
+type RenderedUrls = { front?: string; back?: string };
+
 type FanOrderLine = {
   id: string;
   size: SizeId;
@@ -163,8 +174,10 @@ type FanOrderLine = {
   quantity: number;
   inCart: boolean;
   layersBySide: LayersBySide;
-  renderedDesignUrls?: { front?: string; back?: string };
-    createdAt: number;   // add this
+  renderedDesignUrls?: RenderedUrls;
+  // Points at the pictures that are still being prepared in the background
+  designKey?: string;
+  createdAt: number;
 };
 
 function makeId() {
@@ -173,6 +186,22 @@ function makeId() {
 
 function defaultLayersForSide(): Layer[] {
   return [];
+}
+
+// Older or partly saved designs may be missing a side
+function normalizeSides(value: any): LayersBySide {
+  return {
+    front: Array.isArray(value?.front) ? value.front : [],
+    back: Array.isArray(value?.back) ? value.back : [],
+  };
+}
+
+// Gives up after `ms` so a stuck connection can never freeze the page.
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
 }
 
 function ColorWheelPicker({
@@ -267,7 +296,6 @@ function FontPicker({
 
 export default function CustomizeFanPage() {
   const [size, setSize] = useState<SizeId>("small");
-  const [uploading, setUploading] = useState(false);
   const [activeSide, setActiveSide] = useState<SideId>("front");
   const [designMode, setDesignMode] = useState<"upload" | "build" | null>(
     null
@@ -284,7 +312,7 @@ export default function CustomizeFanPage() {
   const [selectedTassel, setSelectedTassel] = useState<TasselColorId>(
     TASSEL_COLORS[0].id
   );
-    const [tasselChoices, setTasselChoices] = useState<
+  const [tasselChoices, setTasselChoices] = useState<
     readonly { id: string; label: string; hex: string }[]
   >(TASSEL_COLORS);
 
@@ -329,24 +357,63 @@ export default function CustomizeFanPage() {
       }));
 
       setTasselChoices(loaded);
+      // While editing, keep the tassel that was loaded from the cart
       setSelectedTassel((prev) =>
-        loaded.some((c) => c.id === prev) ? prev : loaded[0].id
+        new URLSearchParams(window.location.search).get("edit") ||
+        loaded.some((c) => c.id === prev)
+          ? prev
+          : loaded[0].id
       );
     }
 
     loadTasselColors();
   }, []);
+
   const [fanOrderLines, setFanOrderLines] = useState<FanOrderLine[]>([]);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [addingToCart, setAddingToCart] = useState(false);
+
+  // True while a customer photo is being uploaded
+  const [photoUploading, setPhotoUploading] = useState(false);
+
+  // How many design pictures are being prepared in the background right now.
+  // The ref copy is for the browser back-button handler, which is only set up
+  // once and would otherwise see an old number.
+  const [pendingCaptures, setPendingCaptures] = useState(0);
+  const pendingRef = useRef(0);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const nextZ = useRef(1);
   const patternFileInputRef = useRef<HTMLInputElement>(null);
   const cartSnapshotRef = useRef<string>("");
 
+  const originalLayersJson = useRef("");
+  const originalSize = useRef<SizeId>("small");
+  const originalRenderedUrls = useRef<RenderedUrls | undefined>(undefined);
+
+  // One picture set per design (size + both sides). Adding the same design
+  // in another tassel color reuses it instead of making it all over again.
+  const captureCache = useRef<Map<string, Promise<RenderedUrls | undefined>>>(
+    new Map()
+  );
+
+  // Pictures are made one design at a time, because each one has to flip
+  // the stage to the side it is capturing.
+  const captureQueue = useRef<Promise<unknown>>(Promise.resolve());
+
+  // The side the customer was looking at before the pictures started
+  const sideBeforeCapturesRef = useRef<SideId>("front");
+
   const selectedSize = SIZES.find((s) => s.id === size)!;
 
   const fanImg = selectedSize.img;
   const layers = layersBySide[activeSide];
+
+  const activeSideRef = useRef<SideId>(activeSide);
+  activeSideRef.current = activeSide;
 
   function setLayers(updater: (prev: Layer[]) => Layer[]) {
     setLayersBySide((prev) => ({
@@ -367,6 +434,69 @@ export default function CustomizeFanPage() {
 
   const otherSide: SideId =
     activeSide === "front" ? "back" : "front";
+
+  /* -------------------------------------------------------------- */
+  /* EDIT MODE: LOAD FROM CART                                      */
+  /* -------------------------------------------------------------- */
+
+  // Opened from a cart item's "edit" link: load that design and every
+  // cart line that shares it (same design, same size), so the tassel
+  // colors and quantities chosen before show up again.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("edit");
+    if (!id) return;
+
+    const cart: any[] = getCart();
+    const item = cart.find((i) => i.id === id);
+    const c = item?.customization;
+    if (!item || c?.type !== "customized-fan") return;
+
+    const loadedSides = normalizeSides(c.layersBySide);
+    const layersJson = JSON.stringify(loadedSides);
+    const loadedSize: SizeId = c.size === "large" ? "large" : "small";
+
+    const siblings = cart.filter(
+      (i) =>
+        i.customization?.type === "customized-fan" &&
+        i.customization.size === c.size &&
+        JSON.stringify(normalizeSides(i.customization.layersBySide)) ===
+          layersJson
+    );
+
+    originalLayersJson.current = layersJson;
+    originalSize.current = loadedSize;
+    originalRenderedUrls.current = c.renderedDesignUrls;
+
+    const allLayers = [...loadedSides.front, ...loadedSides.back];
+
+    setEditingId(id);
+    setSize(loadedSize);
+    if (c.tasselColor) setSelectedTassel(c.tasselColor);
+    setLayersBySide(loadedSides);
+    nextZ.current = allLayers.reduce((m, l) => Math.max(m, l.z), 0) + 1;
+    setDesignMode(allLayers.length ? "build" : null);
+
+    setFanOrderLines(
+      siblings.map((s) => ({
+        id: s.id,
+        size: loadedSize,
+        tasselColor: s.customization.tasselColor,
+        quantity: s.quantity,
+        inCart: true,
+        layersBySide: loadedSides,
+        renderedDesignUrls: s.customization.renderedDesignUrls,
+        createdAt: Date.now(),
+      }))
+    );
+  }, []);
+
+  // If the size is changed while editing, every tassel line follows it
+  useEffect(() => {
+    if (!editingId) return;
+    setFanOrderLines((prev) =>
+      prev.map((l) => (l.size === size ? l : { ...l, size }))
+    );
+  }, [size, editingId]);
 
   /* -------------------------------------------------------------- */
   /* CART SYNC                                                      */
@@ -394,23 +524,23 @@ export default function CustomizeFanPage() {
 
       const placedAt = Number(localStorage.getItem("orderPlacedAt") || 0);
 
-setFanOrderLines((prev) =>
-  prev
-    .filter((line) => line.createdAt > placedAt)
-    .map((line) => {
-      if (!line.inCart) return line;
-      const cartItem = cartById.get(line.id);
-      if (!cartItem) return null;
-      const customization = cartItem.customization;
-      if (!customization || customization.type !== "customized-fan") return null;
-      return {
-        ...line,
-        quantity: cartItem.quantity,
-        layersBySide: customization.layersBySide ?? line.layersBySide,
-      };
-    })
-    .filter((line): line is FanOrderLine => line !== null)
-);
+      setFanOrderLines((prev) =>
+        prev
+          .filter((line) => line.createdAt > placedAt)
+          .map((line) => {
+            if (!line.inCart) return line;
+            const cartItem = cartById.get(line.id);
+            if (!cartItem) return null;
+            const customization = cartItem.customization;
+            if (!customization || customization.type !== "customized-fan") return null;
+            return {
+              ...line,
+              quantity: cartItem.quantity,
+              layersBySide: customization.layersBySide ?? line.layersBySide,
+            };
+          })
+          .filter((line): line is FanOrderLine => line !== null)
+      );
     }
 
     function handleCartUpdated() {
@@ -449,31 +579,33 @@ setFanOrderLines((prev) =>
     };
   }, []);
 
-
-
-  // Opening the preview adds a history entry, so the phone/browser
-  // back button closes the preview instead of leaving the page.
+  // Pressing the preview button pushes a history entry, so the
+  // phone/browser back button closes the preview first instead of
+  // leaving the page.
   useEffect(() => {
-    if (!showPreview) return;
-
-    window.history.pushState(
-      { ...window.history.state, fanPreview: true },
-      ""
-    );
-
     function handlePopState() {
+      // Don't close the preview while a design picture is still being made
+      if (pendingRef.current > 0) {
+        window.history.pushState(
+          { ...window.history.state, fanPreview: true },
+          ""
+        );
+        return;
+      }
       setShowPreview(false);
     }
 
     window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
-    return () => {
-      window.removeEventListener(
-        "popstate",
-        handlePopState
-      );
-    };
-  }, [showPreview]);
+  function openPreview() {
+    window.history.pushState(
+      { ...window.history.state, fanPreview: true },
+      ""
+    );
+    setShowPreview(true);
+  }
 
   function closePreview() {
     if (window.history.state?.fanPreview) {
@@ -553,15 +685,26 @@ setFanOrderLines((prev) =>
       return;
     }
 
-    if (file.size > 8 * 1024 * 1024) {
-      alert("Please choose an image under 8MB.");
+    if (file.size > 20 * 1024 * 1024) {
+      alert("Please choose an image under 20MB.");
       return;
     }
 
-    setUploading(true);
+    setPhotoUploading(true);
 
     try {
-      const url = await uploadCustomerImage(file, "fan");
+      // Phone photos are shrunk first, which makes the upload much quicker
+      const smaller = await shrinkImage(file);
+      const url = await uploadCustomerImage(smaller, "fan");
+
+      // Wait until the picture has loaded, so the badge stays until the design is really there
+      await new Promise<void>((resolve) => {
+        const probe = new Image();
+        probe.onload = () => resolve();
+        probe.onerror = () => resolve();
+        probe.src = url;
+      });
+
       const id = makeId();
 
       setLayers((prev) => [
@@ -585,7 +728,7 @@ setFanOrderLines((prev) =>
         "Couldn't upload your image. Please check your connection and try again."
       );
     } finally {
-      setUploading(false);
+      setPhotoUploading(false);
     }
   }
 
@@ -695,82 +838,258 @@ setFanOrderLines((prev) =>
   }
 
   /* -------------------------------------------------------------- */
-  /* ORDER LINE ACTIONS                                             */
+  /* DESIGN PICTURES (made in the background)                        */
   /* -------------------------------------------------------------- */
 
-  async function addFanLineToOrder() {
-    const lineId = makeId();
-    const designSnapshot = structuredClone(
-      layersBySide
+  // Starts making the finished design pictures for what is on the stage
+  // right now. The same design is only made once; asking again for it
+  // (another tassel color, say) returns the same pictures straight away.
+  function startDesignCapture(): Promise<RenderedUrls | undefined> {
+    const stage = stageRef.current;
+
+    const hasAnyContent =
+      layersBySide.front.length > 0 || layersBySide.back.length > 0;
+
+    if (!stage || !hasAnyContent) {
+      return Promise.resolve(undefined);
+    }
+
+    const key = `${size}|${JSON.stringify(layersBySide)}`;
+    const cached = captureCache.current.get(key);
+    if (cached) return cached;
+
+    const sidesSnapshot = structuredClone(layersBySide);
+    const imgSnapshot = fanImg;
+    const targetWidth = CAPTURE_WIDTH[size];
+
+    // Remember the side the customer was on before the first picture starts,
+    // so the stage goes back to it once everything is finished.
+    if (pendingRef.current === 0) {
+      sideBeforeCapturesRef.current = activeSideRef.current;
+    }
+
+    // Counted straight away, so the preview can't be closed while this waits its turn
+    pendingRef.current += 1;
+    setPendingCaptures((n) => n + 1);
+
+    const task = captureQueue.current.then(async () => {
+      const urls: RenderedUrls = {};
+      let missedASide = false;
+
+      try {
+        for (const side of ["front", "back"] as SideId[]) {
+          setActiveSide(side);
+
+          setActiveSide(side);
+          setSelectedId(null);
+
+          await nextPaint();
+
+          const scene: DesignScene = {
+            baseImageUrl: imgSnapshot,
+            layers: sidesSnapshot[side],
+            shape: {
+              kind: "mask",
+              clipBottomPct: 24,
+            },
+          };
+
+          let url = await withTimeout(
+            captureAndUploadDesign(stage, `fan-${side}`, targetWidth, scene),
+            30000
+          );
+
+          if (!url) {
+            // One automatic retry, since a first attempt can fail on a slow phone.
+            url = await withTimeout(
+              captureAndUploadDesign(stage, `fan-${side}`, targetWidth, scene),
+              30000
+            );
+          }
+
+          if (url) {
+            urls[side] = url;
+          } else {
+            missedASide = true;
+          }
+        }
+      } finally {
+        pendingRef.current -= 1;
+        setPendingCaptures((n) => n - 1);
+
+        if (pendingRef.current === 0) {
+          setActiveSide(sideBeforeCapturesRef.current);
+        }
+      }
+
+      // Forget a failed attempt so the next try starts fresh
+      if (missedASide) captureCache.current.delete(key);
+
+      return urls.front || urls.back ? urls : undefined;
+    });
+
+    captureQueue.current = task.catch(() => undefined);
+    captureCache.current.set(key, task);
+    return task;
+  }
+
+  /* -------------------------------------------------------------- */
+  /* EDIT MODE                                                       */
+  /* -------------------------------------------------------------- */
+
+  // Edit mode: add a tassel color, or add to the quantity if it's already there
+  function addTasselToEditedOrder() {
+    const existing = fanOrderLines.find(
+      (l) => l.tasselColor === selectedTassel
     );
+
+    if (existing) {
+      updateFanLineQuantity(existing.id, existing.quantity + orderQuantity);
+    } else {
+      setFanOrderLines((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          size,
+          tasselColor: selectedTassel,
+          quantity: orderQuantity,
+          inCart: false,
+          layersBySide: structuredClone(layersBySide),
+          renderedDesignUrls: undefined,
+          createdAt: Date.now(),
+        },
+      ]);
+    }
+
+    setOrderQuantity(1);
+  }
+
+  // Edit mode: apply the design and every tassel line to the cart
+  async function saveFanEdits() {
+    if (!editingId || saving) return;
+
+    if (fanOrderLines.length === 0) {
+      alert("Add at least one tassel color first.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const layersJson = JSON.stringify(layersBySide);
+      const designChanged =
+        layersJson !== originalLayersJson.current ||
+        size !== originalSize.current;
+
+      const hasAnyContent =
+        layersBySide.front.length > 0 || layersBySide.back.length > 0;
+
+      let renderedDesignUrls: RenderedUrls | undefined =
+        originalRenderedUrls.current;
+
+      if (!hasAnyContent) {
+        renderedDesignUrls = undefined;
+      } else if (designChanged) {
+        const urls = await startDesignCapture();
+
+        if (!urls) {
+          alert(
+            "We couldn't prepare your design. Please check your connection and try again."
+          );
+          return;
+        }
+
+        renderedDesignUrls = urls;
+      }
+
+      // Tassel lines removed while editing leave the cart now
+      removedIds.forEach((id) => removeCartItem(id));
+
+      const currentCart = getCart();
+
+      fanOrderLines.forEach((line) => {
+        const tasselLabel = findTassel(line.tasselColor).label;
+
+        const item = {
+          id: line.id,
+          productId: "fan",
+          productName: "Fan",
+          price: selectedSize.price,
+          quantity: line.quantity,
+          scent: null,
+          color: `${selectedSize.label} · ${tasselLabel} Tassel`,
+          image: selectedSize.img,
+          productRefId: 30,
+          customization: {
+            type: "customized-fan" as const,
+            size,
+            tasselLabel,
+            tasselColor: line.tasselColor,
+            layersBySide,
+            renderedDesignUrls,
+          },
+        };
+
+        if (currentCart.some((i) => i.id === line.id)) {
+          replaceCartItem(line.id, item);
+        } else {
+          addToCart(item, { open: false });
+        }
+      });
+
+      originalLayersJson.current = layersJson;
+      originalSize.current = size;
+      originalRenderedUrls.current = renderedDesignUrls;
+
+      setRemovedIds([]);
+
+      setFanOrderLines((prev) =>
+        prev.map((l) => ({
+          ...l,
+          size,
+          inCart: true,
+          layersBySide: structuredClone(layersBySide),
+          renderedDesignUrls,
+        }))
+      );
+
+      cartSnapshotRef.current = JSON.stringify(getCart());
+
+      closePreview();
+      window.dispatchEvent(new Event("openCart"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /* -------------------------------------------------------------- */
+  /* NEW ORDER                                                       */
+  /* -------------------------------------------------------------- */
+
+  // The line is added straight away. Its design pictures are made in the
+  // background and are waited for only when the order goes to the cart.
+  function addFanLineToOrder() {
+    const lineId = makeId();
+    const designSnapshot = structuredClone(layersBySide);
 
     const hasAnyContent =
       layersBySide.front.length > 0 ||
       layersBySide.back.length > 0;
 
-    let renderedDesignUrls:
-      | { front?: string; back?: string }
-      | undefined;
+    const designKey = hasAnyContent
+      ? `${size}|${JSON.stringify(layersBySide)}`
+      : undefined;
 
-    if (hasAnyContent && stageRef.current) {
-      setUploading(true);
+    if (hasAnyContent) {
+      startDesignCapture().then((urls) => {
+        if (!urls) return;
 
-      const originalSide = activeSide;
-      const urls: {
-        front?: string;
-        back?: string;
-      } = {};
-
-      const targetWidth =
-        size === "small" ? 2000 : 2400;
-
-      for (const side of [
-        "front",
-        "back",
-      ] as SideId[]) {
-        if (layersBySide[side].length === 0) {
-          continue;
-        }
-
-        setActiveSide(side);
-        setSelectedId(null);
-
-        await nextPaint();
-
-        const scene: DesignScene = {
-          baseImageUrl: fanImg,
-          layers: layersBySide[side],
-          shape: {
-            kind: "mask",
-            clipBottomPct: 24,
-          },
-        };
-
-        let url = await captureAndUploadDesign(
-          stageRef.current!,
-          `fan-${side}`,
-          targetWidth,
-          scene
+        setFanOrderLines((prev) =>
+          prev.map((l) =>
+            l.id === lineId ? { ...l, renderedDesignUrls: urls } : l
+          )
         );
-
-        if (!url) {
-          url = await captureAndUploadDesign(
-            stageRef.current!,
-            `fan-${side}`,
-            targetWidth,
-            scene
-          );
-        }
-
-        if (url) {
-          urls[side] = url;
-        }
-      }
-
-      setActiveSide(originalSide);
-      setUploading(false);
-
-      renderedDesignUrls = urls;
+      });
     }
 
     setFanOrderLines((prev) => [
@@ -782,8 +1101,9 @@ setFanOrderLines((prev) =>
         quantity: orderQuantity,
         inCart: false,
         layersBySide: designSnapshot,
-        renderedDesignUrls,
-          createdAt: Date.now(), 
+        renderedDesignUrls: undefined,
+        designKey,
+        createdAt: Date.now(),
       },
     ]);
 
@@ -819,7 +1139,8 @@ setFanOrderLines((prev) =>
       )
     );
 
-    if (existingLine?.inCart) {
+    // While editing, changes only reach the cart when you press Save
+    if (existingLine?.inCart && !editingId) {
       updateCartItemQuantity(
         lineId,
         safeQuantity
@@ -828,72 +1149,101 @@ setFanOrderLines((prev) =>
   }
 
   function removeFanLine(lineId: string) {
+    const line = fanOrderLines.find((l) => l.id === lineId);
+
     setFanOrderLines((prev) =>
-      prev.filter((line) => line.id !== lineId)
+      prev.filter((l) => l.id !== lineId)
     );
 
-    removeCartItem(lineId);
+    if (!line?.inCart) return;
+
+    if (editingId) {
+      // Taken out of the cart when you press Save
+      setRemovedIds((prev) => [...prev, lineId]);
+    } else {
+      removeCartItem(lineId);
+    }
   }
 
-  function addFanToCart() {
-    if (!fanOrderLines.length) return;
+  async function addFanToCart() {
+    if (!fanOrderLines.length || addingToCart) return;
 
-    const currentCart = getCart();
+    setAddingToCart(true);
 
-    fanOrderLines.forEach((line) => {
-        const tasselLabel = findTassel(line.tasselColor).label;
-
-      const lineSize = SIZES.find(
-        (s) => s.id === line.size
-      )!;
-
-      const existing = currentCart.find(
-        (item) => item.id === line.id
+    try {
+      // Wait for any design pictures that are still being made
+      const pictures = await Promise.all(
+        fanOrderLines.map(async (line) => {
+          if (line.renderedDesignUrls) return line.renderedDesignUrls;
+          if (!line.designKey) return undefined;
+          return (await captureCache.current.get(line.designKey)) ?? undefined;
+        })
       );
 
-      if (existing) {
-        updateCartItemQuantity(
-          line.id,
-          line.quantity
+      const pictureById = new Map(
+        fanOrderLines.map((line, i) => [line.id, pictures[i]])
+      );
+
+      const currentCart = getCart();
+
+      fanOrderLines.forEach((line) => {
+        const tasselLabel = findTassel(line.tasselColor).label;
+
+        const lineSize = SIZES.find(
+          (s) => s.id === line.size
+        )!;
+
+        const existing = currentCart.find(
+          (item) => item.id === line.id
         );
-        return;
-      }
 
-      addToCart({
-        id: line.id,
-        productId: "fan",
-        productName: "Fan",
-        price: lineSize.price,
-        quantity: line.quantity,
-        scent: null,
-        color: `${lineSize.label} · ${tasselLabel} Tassel`,
-        image: lineSize.img,
-        productRefId: 30,
-        customization: {
-          type: "customized-fan",
-          size: line.size,
-          tasselLabel,
-          tasselColor: line.tasselColor,
-          layersBySide: line.layersBySide,
-          renderedDesignUrls:
-            line.renderedDesignUrls,
-        },
+        if (existing) {
+          updateCartItemQuantity(
+            line.id,
+            line.quantity
+          );
+          return;
+        }
+
+        addToCart({
+          id: line.id,
+          productId: "fan",
+          productName: "Fan",
+          price: lineSize.price,
+          quantity: line.quantity,
+          scent: null,
+          color: `${lineSize.label} · ${tasselLabel} Tassel`,
+          image: lineSize.img,
+          productRefId: 30,
+          customization: {
+            type: "customized-fan",
+            size: line.size,
+            tasselLabel,
+            tasselColor: line.tasselColor,
+            layersBySide: line.layersBySide,
+            renderedDesignUrls: pictureById.get(line.id),
+          },
+        });
       });
-    });
 
-    setFanOrderLines((prev) =>
-      prev.map((line) => ({
-        ...line,
-        inCart: true,
-      }))
-    );
+      setFanOrderLines((prev) =>
+        prev.map((line) => ({
+          ...line,
+          inCart: true,
+          renderedDesignUrls:
+            pictureById.get(line.id) ?? line.renderedDesignUrls,
+        }))
+      );
 
-    cartSnapshotRef.current =
-      JSON.stringify(getCart());
+      cartSnapshotRef.current =
+        JSON.stringify(getCart());
 
-    window.dispatchEvent(
-      new Event("openCart")
-    );
+      window.dispatchEvent(
+        new Event("openCart")
+      );
+    } finally {
+      setAddingToCart(false);
+    }
   }
 
   const totalQuantity = fanOrderLines.reduce(
@@ -916,6 +1266,8 @@ setFanOrderLines((prev) =>
     layers.find(
       (l) => l.id === selectedId
     ) ?? null;
+
+  const closeBlocked = pendingCaptures > 0 || saving;
 
   /* -------------------------------------------------------------- */
   /* BACKGROUND SHAPE STYLE                                        */
@@ -1304,6 +1656,20 @@ setFanOrderLines((prev) =>
             .map((layer) =>
               renderLayer(layer, true)
             )}
+
+          {photoUploading && (
+            <div
+              className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center"
+              style={{ backgroundColor: "rgba(255,244,230,0.6)" }}
+            >
+              <span
+                className="rounded-full px-4 py-2 text-xs font-semibold"
+                style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
+              >
+                Uploading your image…
+              </span>
+            </div>
+          )}
         </div>
 
         {selectedLayer && (
@@ -1984,7 +2350,7 @@ setFanOrderLines((prev) =>
                           <br />
 
                           <span className="text-[11px]">
-                            JPG, PNG up to 8MB —
+                            JPG, PNG up to 20MB —
                             pinch to zoom and
                             drag once it&apos;s
                             added.
@@ -2056,7 +2422,7 @@ setFanOrderLines((prev) =>
               </div>
             )}
 
-            {uploading && (
+            {photoUploading && (
               <p
                 className="mb-3 text-xs"
                 style={{ color: ACCENT }}
@@ -2078,16 +2444,22 @@ setFanOrderLines((prev) =>
         <div className="flex items-center gap-4 mt-2">
           <button
             type="button"
-            onClick={() =>
-              setShowPreview(true)
-            }
-            className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
+            onClick={() => {
+              if (photoUploading) return;
+              openPreview();
+            }}
+            disabled={photoUploading}
+            className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               backgroundColor: ACCENT,
               color: "#FFF4E6",
             }}
           >
-            Preview my fan
+            {photoUploading
+              ? "Uploading image…"
+              : editingId
+              ? "Review my changes"
+              : "Preview my fan"}
           </button>
 
           <span
@@ -2118,8 +2490,9 @@ setFanOrderLines((prev) =>
           <button
             type="button"
             onClick={closePreview}
+            disabled={closeBlocked}
             aria-label="Close preview"
-            className="fixed right-4 top-4 z-[10000] flex h-12 w-12 items-center justify-center rounded-full transition-all duration-150 hover:scale-110 active:scale-90"
+            className="fixed right-4 top-4 z-[10000] flex h-12 w-12 items-center justify-center rounded-full transition-all duration-150 hover:scale-110 active:scale-90 disabled:opacity-40"
             style={{
               backgroundColor: "#FFFFFF",
               color: "#000000",
@@ -2150,6 +2523,16 @@ setFanOrderLines((prev) =>
               ×
             </span>
           </button>
+
+          {/* Shown while design pictures are being made in the background */}
+          {closeBlocked && (
+            <span
+              className="fixed left-4 top-6 z-[10000] rounded-full px-4 py-2 text-xs font-semibold"
+              style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
+            >
+              {saving ? "Saving…" : "Preparing your design…"}
+            </span>
+          )}
 
           {/* ====================================================== */}
           {/* PREVIEW CONTENT                                         */}
@@ -2201,6 +2584,16 @@ setFanOrderLines((prev) =>
             </div>
 
             <div className="flex w-full max-w-sm flex-col items-center gap-4">
+              {editingId && (
+                <p
+                  className="text-center text-xs"
+                  style={{ color: "rgba(0,0,0,0.55)" }}
+                >
+                  Editing your order — change the tassels and
+                  quantities below, then press Save changes.
+                </p>
+              )}
+
               <div className="flex w-full items-center gap-3">
                 <span
                   className="text-xs font-semibold uppercase tracking-[0.15em]"
@@ -2214,7 +2607,7 @@ setFanOrderLines((prev) =>
                 <span
                   className="h-7 w-7 flex-shrink-0 rounded-full"
                   style={{
-                                        backgroundColor: findTassel(selectedTassel).hex,
+                    backgroundColor: findTassel(selectedTassel).hex,
                     border:
                       "1.5px solid rgba(0,0,0,0.15)",
                   }}
@@ -2237,7 +2630,7 @@ setFanOrderLines((prev) =>
                     color: "#000000",
                   }}
                 >
-                  {TASSEL_COLORS.map(
+                  {tasselChoices.map(
                     (c) => (
                       <option
                         key={c.id}
@@ -2321,21 +2714,23 @@ setFanOrderLines((prev) =>
                 </div>
               </div>
 
-            <button
-  type="button"
-  onClick={addFanLineToOrder}
-  disabled={uploading}
-  className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5 disabled:opacity-40"
-  style={{ backgroundColor: "transparent", borderColor: ACCENT, color: ACCENT }}
->
-  {uploading ? "Preparing your design…" : "+ Add to Order"}
-</button>
+              <button
+                type="button"
+                onClick={
+                  editingId ? addTasselToEditedOrder : addFanLineToOrder
+                }
+                disabled={saving}
+                className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5 disabled:opacity-40"
+                style={{ backgroundColor: "transparent", borderColor: ACCENT, color: ACCENT }}
+              >
+                {editingId ? "+ Add this tassel" : "+ Add to Order"}
+              </button>
 
               {fanOrderLines.length > 0 && (
                 <div className="flex w-full flex-col gap-2">
                   {fanOrderLines.map(
                     (line) => {
-                                            const tassel = findTassel(line.tasselColor);
+                      const tassel = findTassel(line.tasselColor);
 
                       const lineSize =
                         SIZES.find(
@@ -2343,6 +2738,11 @@ setFanOrderLines((prev) =>
                             s.id ===
                             line.size
                         )!;
+
+                      const preparing =
+                        !!line.designKey &&
+                        !line.renderedDesignUrls &&
+                        pendingCaptures > 0;
 
                       return (
                         <div
@@ -2465,12 +2865,19 @@ setFanOrderLines((prev) =>
                           </div>
 
                           <div
-                            className="mt-1 text-right"
+                            className="mt-1 flex items-center justify-between"
                             style={{
                               colorScheme:
                                 "light",
                             }}
                           >
+                            <span
+                              className="text-[11px]"
+                              style={{ color: "rgba(0,0,0,0.45)" }}
+                            >
+                              {preparing ? "preparing your design…" : ""}
+                            </span>
+
                             <button
                               type="button"
                               onClick={() =>
@@ -2526,18 +2933,35 @@ setFanOrderLines((prev) =>
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={addFanToCart}
-                    className="mt-1 inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90"
-                    style={{
-                      backgroundColor:
-                        ACCENT,
-                      color: "#FFF4E6",
-                    }}
-                  >
-                    Add Order to Cart
-                  </button>
+                  {editingId ? (
+                    <button
+                      type="button"
+                      onClick={saveFanEdits}
+                      disabled={saving}
+                      className="mt-1 inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 disabled:opacity-60"
+                      style={{
+                        backgroundColor:
+                          ACCENT,
+                        color: "#FFF4E6",
+                      }}
+                    >
+                      {saving ? "Saving…" : "Save changes"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={addFanToCart}
+                      disabled={addingToCart}
+                      className="mt-1 inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 disabled:opacity-60"
+                      style={{
+                        backgroundColor:
+                          ACCENT,
+                        color: "#FFF4E6",
+                      }}
+                    >
+                      {addingToCart ? "Adding…" : "Add Order to Cart"}
+                    </button>
+                  )}
                 </div>
               )}
             </div>

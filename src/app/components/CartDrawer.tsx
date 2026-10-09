@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { editHref } from "@/lib/cartEdit";
 import { X, Minus, Plus } from "lucide-react";
 import {
   type CartItem,
@@ -12,6 +13,7 @@ import {
   removeCartItem,
   getCartItemThumbnails,
 } from "@/lib/cart";
+
 import { computeCartPromotions, type AppliedPromotion } from "@/lib/promotions";
 import { createPortal } from "react-dom";
 const ACCENT = "#8FAA82";
@@ -498,6 +500,16 @@ className="fixed right-0 top-0 z-[10002] flex h-full w-full max-w-sm flex-col sh
                   >
                     remove
                   </button>
+                  {editHref(item) && (
+  <Link
+    href={editHref(item)!}
+    onClick={() => window.dispatchEvent(new Event("closeCart"))}
+    className="ml-4 text-xs underline underline-offset-2"
+    style={{ color: "rgba(0,0,0,0.55)" }}
+  >
+    edit
+  </Link>
+)}
                 </div>
               </div>
             ))
