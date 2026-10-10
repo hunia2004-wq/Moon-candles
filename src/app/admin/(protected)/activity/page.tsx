@@ -36,8 +36,9 @@ const ACTIONS: Record<string, { icon: string; tint: string; verb: string }> = {
   "order.restored": { icon: "♻️", tint: "bg-emerald-100", verb: "restored" },
   "product.deleted_forever": { icon: "❌", tint: "bg-rose-100", verb: "permanently deleted" },
   "order.deleted_forever": { icon: "❌", tint: "bg-rose-100", verb: "permanently deleted" },
-  "scent.deleted_forever": { icon: "❌", tint: "bg-rose-100", verb: "permanently deleted the scent" },
+    "scent.deleted_forever": { icon: "❌", tint: "bg-rose-100", verb: "permanently deleted the scent" },
   "order.payment_changed": { icon: "💳", tint: "bg-emerald-100", verb: "updated the payment of" },
+  "expense.added": { icon: "🧾", tint: "bg-emerald-100", verb: "added" },
 };
 const FALLBACK = { icon: "✏️", tint: "bg-stone-100", verb: "updated" };
 
@@ -51,7 +52,8 @@ const STATUS_STYLES: Record<string, string> = {
   confirmed: "bg-teal-100 text-teal-800",
   in_production: "bg-orange-100 text-orange-800",
   paid: "bg-emerald-100 text-emerald-800",
-  unpaid: "bg-amber-100 text-amber-800",
+   unpaid: "bg-amber-100 text-amber-800",
+  refunded: "bg-stone-200 text-stone-800",
 };
 
 function Chip({ children, className = "bg-stone-100 text-stone-700" }: { children: React.ReactNode; className?: string }) {
@@ -150,15 +152,33 @@ function Details({ row }: { row: Row }) {
           <Chip className="bg-emerald-100 text-emerald-800">{d.to} LE</Chip>
         </div>
       );
-   case "order.payment_changed":
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-2">
-      <Chip>{d.from}</Chip>
-      <span className="text-stone-400">→</span>
-      <Chip className="bg-emerald-100 text-emerald-800">{d.to}</Chip>
-    </div>
-  );
-case "order.assigned": {
+    case "order.payment_changed":
+      return (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <StatusChip value={d.from} />
+          <span className="text-stone-400">→</span>
+          <StatusChip value={d.to} />
+        </div>
+      );
+case "expense.added":
+      return (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {d.amount != null && <Chip className="bg-rose-100 text-rose-800">−{d.amount} LE</Chip>}
+          {d.spent_on && <Chip>{d.spent_on}</Chip>}
+        </div>
+      );
+    case "expense.deleted": {
+      const s = (d.snapshot ?? {}) as { amount?: number; spent_on?: string };
+      return (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {s.amount != null && (
+            <Chip className="bg-stone-100 text-stone-500 line-through">{s.amount} LE</Chip>
+          )}
+          {s.spent_on && <Chip>{s.spent_on}</Chip>}
+        </div>
+      );
+    }
+    case "order.assigned": {
   const from = d.from as string | undefined;
   const to = d.assigned_to as string | undefined;
 
@@ -255,12 +275,23 @@ const TYPE_LABELS: Record<string, string> = {
   product: "Product",
   promotion: "Promotion",
   review: "Review",
-  customer: "Customer",
+ customer: "Customer",
+  expense: "Expense",
   scent: "Scent",
 };
 
 function typeLabel(t: string) {
   return TYPE_LABELS[t] ?? t.replace(/_/g, " ");
+}
+
+async function orderNumbers(table: "orders" | "custom_orders", ids: string[]) {
+  const names = new Map<string, string>();
+  if (ids.length === 0) return names;
+  const { data } = await supabaseAdmin.from(table).select("id, order_no, order_code").in("id", ids);
+  for (const o of data ?? []) {
+    names.set(o.id, o.order_code ?? (o.order_no != null ? `#${o.order_no}` : ""));
+  }
+  return names;
 }
 
 export default async function ActivityPage() {
@@ -274,7 +305,12 @@ export default async function ActivityPage() {
 
   if (error) return <p className="p-6 text-rose-700">Failed to load activity log.</p>;
 
-  const rows = (data ?? []) as Row[];
+   const rows = (data ?? []) as Row[];
+
+  const [orderNames, customNames] = await Promise.all([
+    orderNumbers("orders", Array.from(new Set(rows.filter((r) => r.entity_type === "order").map((r) => r.entity_id)))),
+    orderNumbers("custom_orders", Array.from(new Set(rows.filter((r) => r.entity_type === "custom_order").map((r) => r.entity_id)))),
+  ]);
 
   const groups = new Map<string, Row[]>();
   for (const row of rows) {
@@ -305,7 +341,15 @@ export default async function ActivityPage() {
             <ul className="space-y-3">
               {dayRows.map((row) => {
 const a = getAction(row.action);
-                const label = row.entity_label ?? `${row.entity_type} ${row.entity_id}`;
+                const orderName =
+                  row.entity_type === "order"
+                    ? orderNames.get(row.entity_id)
+                    : row.entity_type === "custom_order"
+                    ? customNames.get(row.entity_id)
+                    : undefined;
+                const label = orderName
+                  ? `${row.entity_type === "custom_order" ? "Custom order" : "Order"} ${orderName}`
+                  : row.entity_label ?? `${row.entity_type} ${row.entity_id}`;
                 return (
                   <li
                     key={row.id}

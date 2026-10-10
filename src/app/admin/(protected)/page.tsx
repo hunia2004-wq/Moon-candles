@@ -39,9 +39,13 @@ export default async function AdminDashboardPage() {
     })),
   ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  const revenue = allOrders
-    .filter((o) => o.status !== "cancelled")
-    .reduce((sum, o) => sum + Number(o.total ?? 0), 0);
+    const [paidOrdersRes, paidCustomRes] = await Promise.all([
+    supabase.from("orders").select("total, shipping_fee").is("deleted_at", null).eq("payment_status", "paid"),
+    supabase.from("custom_orders").select("price, shipping_fee").is("deleted_at", null).eq("payment_status", "paid"),
+  ]);
+  const revenue =
+    (paidOrdersRes.data ?? []).reduce((s, o) => s + Number(o.total ?? 0) - Number(o.shipping_fee ?? 0), 0) +
+    (paidCustomRes.data ?? []).reduce((s, o) => s + Number(o.price ?? 0) - Number(o.shipping_fee ?? 0), 0);
 
   const pendingCount = allOrders.filter((o) => o.status === "pending").length;
   const completedCount = allOrders.filter((o) => o.status === "completed").length;
@@ -85,7 +89,7 @@ export default async function AdminDashboardPage() {
           {revenue.toLocaleString()} <span className="text-xl font-semibold">LE</span>
         </p>
         <p className="mt-2 text-xs" style={{ color: "#FFF4E6", opacity: 0.85 }}>
-          Cancelled orders not counted
+                    Since day one · paid orders, after refunds
         </p>
       </div>
 

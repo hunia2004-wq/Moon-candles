@@ -17,7 +17,8 @@ import {
   History,
   User,
   Trash2,
-  FlaskConical,
+    FlaskConical,
+  Wallet,
 } from "lucide-react";
 
 const LINKS = [
@@ -27,7 +28,8 @@ const LINKS = [
   { label: "Products", href: "/admin/products" },
   { label: "Scents", href: "/admin/scents" },
   { label: "Customers", href: "/admin/customers" },
-  { label: "Promotions", href: "/admin/discounts" },
+    { label: "Promotions", href: "/admin/discounts" },
+  { label: "Payments", href: "/admin/payments" },
   { label: "Reviews", href: "/admin/reviews" },
   {label:"Activity Log", href:"/admin/activity"},
   { label: "Profile", href: "/admin/profile" }
@@ -41,7 +43,8 @@ const ICONS: Record<string, React.ComponentType<{ size?: number; strokeWidth?: n
   Products: Package,
   Scents: FlaskConical,
   Customers: Users,
-  Promotions: Tag,
+   Promotions: Tag,
+  Payments: Wallet,
   Reviews: Star,
   "Activity Log": History,
   Profile: User,
@@ -333,7 +336,7 @@ export default function AdminNav({ email }: { email: string; deletedCount?: numb
 
         <img src={LOGO_URL} alt="Moon Candles admin" className={LOGO_SIZE.adminMobile} />
 
-        <div className="flex items-center gap-2"><Link href="/admin/recently-deleted" aria-label="Recently deleted" className="relative flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: deletedCount > 0 ? "#EFE3C4" : "transparent", color: "rgba(0,0,0,0.6)" }}><Trash2 size={16} strokeWidth={1.8} />{deletedCount > 0 && (<span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold" style={{ backgroundColor: "#DE4B33", color: "#FFFFFF" }}>{deletedCount}</span>)}</Link>{totalNew > 0 ? (
+        <div className="flex items-center gap-2"><Link href="/admin/payments" aria-label="Payments" className="flex h-8 w-8 items-center justify-center rounded-full" style={{ color: "rgba(0,0,0,0.6)" }}><Wallet size={16} strokeWidth={1.8} /></Link><Link href="/admin/recently-deleted" aria-label="Recently deleted" className="relative flex h-8 w-8 items-center justify-center rounded-full" style={{ backgroundColor: deletedCount > 0 ? "#EFE3C4" : "transparent", color: "rgba(0,0,0,0.6)" }}><Trash2 size={16} strokeWidth={1.8} />{deletedCount > 0 && (<span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold" style={{ backgroundColor: "#DE4B33", color: "#FFFFFF" }}>{deletedCount}</span>)}</Link>{totalNew > 0 ? (
           <span
             className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
             style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
@@ -341,7 +344,7 @@ export default function AdminNav({ email }: { email: string; deletedCount?: numb
             {totalNew}
           </span>
         ) : (
-          <span className="w-6" />
+          <span className="-ml-2 w-0" />
         )}
       </div>
       </header>

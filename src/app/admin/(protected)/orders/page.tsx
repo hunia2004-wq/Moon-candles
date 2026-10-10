@@ -73,7 +73,8 @@ type Order = {
   payment_status: string | null;
   completed_at: string | null;
   assignee: string | null;
-  shipping_fee: number | null;
+   shipping_fee: number | null;
+  refunded_at: string | null;
 };
 
 export default function AdminOrdersPage() {
@@ -117,9 +118,11 @@ async function updateOrder(id: string, patch: Partial<Pick<Order, "status" | "pa
 
   const before = orders.find((o) => o.id === id);
 
-  const fullPatch: Partial<Pick<Order, "status" | "payment_status" | "completed_at">> = { ...patch };
+    const fullPatch: Partial<Pick<Order, "status" | "payment_status" | "completed_at" | "refunded_at">> = { ...patch };
 
-  if (patch.status === "completed") {
+  if (patch.payment_status === "refunded") {
+    fullPatch.refunded_at = new Date().toISOString();
+  } else if (patch.status === "completed") {
     fullPatch.payment_status = "paid";
     fullPatch.completed_at = new Date().toISOString();
   } else if (patch.payment_status === "paid") {
@@ -200,17 +203,17 @@ async function deleteOrder(id: string) {
   const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
 
   return orders.filter((o) => {
-    const isCancelled = o.status === "cancelled";
+       const isCancelled = o.status === "cancelled";
     const isCompleted = o.status === "completed";
     const isPaid = o.payment_status === "paid";
+    const isRefunded = o.payment_status === "refunded";
     const completedRecently =
-      isCompleted && o.completed_at && new Date(o.completed_at).getTime() >= oneWeekAgo;
+      isCompleted && !isRefunded && o.completed_at && new Date(o.completed_at).getTime() >= oneWeekAgo;
 
     if (view === "cancelled" && !isCancelled) return false;
     if (view === "completed" && !completedRecently) return false;
-    if (view === "history" && (isCancelled || !isPaid)) return false;
-    if (view === "active" && (isCancelled || isCompleted || isPaid)) return false;
-
+    if (view === "history" && (isCancelled || !(isPaid || isRefunded))) return false;
+    if (view === "active" && (isCancelled || isCompleted || isPaid || isRefunded)) return false;
     if (statusFilter !== "all" && o.status !== statusFilter) return false;
 
     if (!q) return true;
@@ -373,6 +376,8 @@ async function deleteOrder(id: string) {
             const isOpen = expandedId === order.id;
             const items = order.items ?? [];
             const itemCount = items.reduce((sum, it) => sum + (it.quantity ?? 1), 0);
+                        const paymentChoices: readonly string[] =
+              order.payment_status === "refunded" ? ["refunded"] : PAYMENT_OPTIONS;
 
             return (
               <div
@@ -600,8 +605,8 @@ async function deleteOrder(id: string) {
         <label className="flex flex-col gap-1 text-xs" style={{ color: MUTED }}>
           Status
           <select
-            value={order.status ?? "pending"}
-            disabled={savingId === order.id}
+                       value={order.status ?? "pending"}
+            disabled={savingId === order.id || order.payment_status === "refunded"}
             onChange={(e) => updateOrder(order.id, { status: e.target.value })}
             className="w-full rounded-lg px-2.5 py-2 text-sm outline-none capitalize"
             style={FIELD_STYLE}
@@ -617,13 +622,13 @@ async function deleteOrder(id: string) {
         <label className="flex flex-col gap-1 text-xs" style={{ color: MUTED }}>
           Payment
           <select
-            value={order.payment_status ?? "unpaid"}
-            disabled={savingId === order.id}
+                        value={order.payment_status ?? "unpaid"}
+            disabled={savingId === order.id || order.payment_status === "refunded"}
             onChange={(e) => updateOrder(order.id, { payment_status: e.target.value })}
             className="w-full rounded-lg px-2.5 py-2 text-sm outline-none capitalize"
             style={FIELD_STYLE}
           >
-            {PAYMENT_OPTIONS.map((p) => (
+                        {paymentChoices.map((p) => (
               <option key={p} value={p}>
                 {p}
               </option>
@@ -659,8 +664,24 @@ async function deleteOrder(id: string) {
         className="rounded-full px-4 py-2 text-xs font-semibold"
         style={{ backgroundColor: ACCENT, color: "#FFFFFF" }}
       >
-        Print packing slip
+              Print packing slip
       </button>
+
+      {order.payment_status === "paid" && (
+        <button
+          type="button"
+          onClick={() => {
+            if (confirm("Mark this order as refunded? It will be deducted from revenue.")) {
+              updateOrder(order.id, { payment_status: "refunded" });
+            }
+          }}
+          disabled={savingId === order.id}
+          className="rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-40"
+          style={{ border: "1px solid #7A6A58", color: "#7A6A58" }}
+        >
+          Refund order
+        </button>
+      )}
 
                 {order.status !== "completed" && (
             <button

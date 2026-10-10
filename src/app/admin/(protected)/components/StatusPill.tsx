@@ -8,6 +8,7 @@ const STATUS_COLORS: Record<string, string> = {
   // payment_status values reuse this component too
   unpaid: "#A34848",
   paid: "#3A6DB0",
+  refunded: "#7A6A58",
 };
 
 export default function StatusPill({ status }: { status: string | null }) {
