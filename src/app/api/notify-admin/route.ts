@@ -179,17 +179,23 @@ async function sendAdminEmail(subject: string, html: string) {
 }
 function buildCustomerEmail(r: any): { subject: string; html: string } {
   const items = (Array.isArray(r.items) ? r.items : []) as Item[];
+
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:4px 12px 4px 0;color:#666;font-size:13px;vertical-align:top;">${label}</td><td style="padding:4px 0;font-size:14px;">${value}</td></tr>`;
+
   return {
-    subject: `Your Moon Candles order ${r.order_code ?? ""}`,
+    subject: `Your Moon Candles order ${r.order_code ?? ""} · ${r.total} LE`,
     html: `
     <div style="font-family:Georgia,serif;max-width:480px;margin:0 auto;padding:24px;background:#fff;color:#000;">
-      <h2 style="margin:0 0 8px;font-size:22px;color:#47684b;">Thank you, ${e(r.customer_name ?? "")}!</h2>
-      <p style="margin:0 0 16px;font-size:14px;">We received your order <strong>${e(r.order_code ?? "")}</strong> and will contact you soon to confirm delivery.</p>
-      <p style="margin:0 0 4px;font-size:13px;color:#666;">Items</p>
-      <p style="margin:0 0 16px;font-size:14px;">${items.map(itemText).join("<br />") || "—"}</p>
-      <p style="margin:0 0 4px;font-size:13px;color:#666;">Deliver to</p>
-      <p style="margin:0 0 16px;font-size:14px;">${e(r.governorate)} — ${e(r.address)}</p>
-      <p style="margin:0;font-size:18px;"><strong>${e(r.total)} LE</strong> <span style="font-weight:normal;font-size:13px;color:#666;">(shipping ${e(r.shipping_fee ?? 0)} LE) · Cash on delivery</span></p>
+      <h2 style="margin:0 0 16px;font-size:22px;color:#47684b;">Order ${e(r.order_code ?? "")} confirmed</h2>
+      <p style="margin:0 0 16px;font-size:14px;">Thank you, ${e(r.customer_name ?? "")}! We received your order and will contact you soon to confirm delivery.</p>
+      <table style="border-collapse:collapse;">${[
+        row("Customer", `${e(r.customer_name)} · ${e(r.customer_phone)}`),
+        row("Deliver to", `${e(r.governorate)} — ${e(r.address)}`),
+        row("Items", items.map(itemText).join("<br />") || "—"),
+        row("Payment", "Cash on delivery"),
+      ].join("")}</table>
+      <p style="margin:20px 0 0;font-size:18px;"><strong>${e(r.total)} LE <span style="font-weight:normal;font-size:13px;color:#666;">(shipping ${e(r.shipping_fee ?? 0)} LE)</span></strong></p>
     </div>`,
   };
 }
