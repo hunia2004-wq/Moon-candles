@@ -208,12 +208,13 @@ async function sendCustomerEmail(r: any) {
 
   const { subject, html } = buildCustomerEmail(r);
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const { error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM ?? "Moon Candles <onboarding@resend.dev>",
-    to,
-    subject,
-    html,
-  });
+ const { error } = await resend.emails.send({
+  from: process.env.EMAIL_FROM ?? "Moon Candles <onboarding@resend.dev>",
+  to,
+  replyTo: "themooncandleshopp@gmail.com",
+  subject,
+  html,
+});
 
   if (error) throw new Error(error.message);
 }
