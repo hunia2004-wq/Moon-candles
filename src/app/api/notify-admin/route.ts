@@ -177,7 +177,40 @@ async function sendAdminEmail(subject: string, html: string) {
 
   if (error) throw new Error(error.message);
 }
+function buildCustomerEmail(r: any): { subject: string; html: string } {
+  const items = (Array.isArray(r.items) ? r.items : []) as Item[];
+  return {
+    subject: `Your Moon Candles order ${r.order_code ?? ""}`,
+    html: `
+    <div style="font-family:Georgia,serif;max-width:480px;margin:0 auto;padding:24px;background:#fff;color:#000;">
+      <h2 style="margin:0 0 8px;font-size:22px;color:#47684b;">Thank you, ${e(r.customer_name ?? "")}!</h2>
+      <p style="margin:0 0 16px;font-size:14px;">We received your order <strong>${e(r.order_code ?? "")}</strong> and will contact you soon to confirm delivery.</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#666;">Items</p>
+      <p style="margin:0 0 16px;font-size:14px;">${items.map(itemText).join("<br />") || "—"}</p>
+      <p style="margin:0 0 4px;font-size:13px;color:#666;">Deliver to</p>
+      <p style="margin:0 0 16px;font-size:14px;">${e(r.governorate)} — ${e(r.address)}</p>
+      <p style="margin:0;font-size:18px;"><strong>${e(r.total)} LE</strong> <span style="font-weight:normal;font-size:13px;color:#666;">(shipping ${e(r.shipping_fee ?? 0)} LE) · Cash on delivery</span></p>
+    </div>`,
+  };
+}
 
+async function sendCustomerEmail(r: any) {
+  const to = typeof r.customer_email === "string" ? r.customer_email.trim() : "";
+
+  // No email entered or Resend not set up: skip quietly
+  if (!to || !process.env.RESEND_API_KEY) return;
+
+  const { subject, html } = buildCustomerEmail(r);
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const { error } = await resend.emails.send({
+    from: process.env.EMAIL_FROM ?? "Moon Candles <onboarding@resend.dev>",
+    to,
+    subject,
+    html,
+  });
+
+  if (error) throw new Error(error.message);
+}
 /* ---------------- Route ---------------- */
 
 export async function POST(req: Request) {
@@ -203,11 +236,14 @@ export async function POST(req: Request) {
   }
 
   // One channel failing never blocks the others
-  const [tg, mail, pushed] = await Promise.allSettled([
-    sendTelegram(telegram),
-    sendAdminEmail(email.subject, email.html),
-    push ? sendPush(push.title, push.body, push.url) : Promise.resolve(),
-  ]);
+ const [tg, mail, pushed, customerMail] = await Promise.allSettled([
+  sendTelegram(telegram),
+  sendAdminEmail(email.subject, email.html),
+  push ? sendPush(push.title, push.body, push.url) : Promise.resolve(),
+  body.table === "orders" ? sendCustomerEmail(body.record) : Promise.resolve(),
+]);
+
+if (customerMail.status === "rejected") console.error("Customer email failed:", customerMail.reason);
 
   if (tg.status === "rejected") console.error("Telegram notification failed:", tg.reason);
   if (mail.status === "rejected") console.error("Admin email failed:", mail.reason);
