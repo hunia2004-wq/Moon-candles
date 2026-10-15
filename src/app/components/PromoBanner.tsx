@@ -39,7 +39,6 @@ export default function PromoBanner() {
     load();
   }, []);
 
-  // Fades out, switches to the target promotion, fades back in
   function goTo(target: number) {
     if (promos.length < 2) return;
 
@@ -54,8 +53,6 @@ export default function PromoBanner() {
     }, 250);
   }
 
-  // Auto-rotate. Depends on `index`, so any change (manual or automatic)
-  // restarts the timer.
   useEffect(() => {
     if (promos.length < 2) return;
 
@@ -91,7 +88,7 @@ export default function PromoBanner() {
   return (
     <div
       className="relative w-full px-10 py-2.5 text-center"
-      style={{ backgroundColor: "#47684b" }}
+     style={{ backgroundColor: "#cdba9a" }}
     >
       {hasMultiple && (
         <button
@@ -110,7 +107,7 @@ export default function PromoBanner() {
         onClick={handleClick}
         disabled={!promo.link_url}
         className="inline-flex max-w-full items-center justify-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] transition-opacity duration-300 disabled:cursor-default md:text-xs"
-        style={{ color: "#FFF4E6", opacity: visible ? 1 : 0 }}
+        style={{ color: "#000000", opacity: visible ? 1 : 0 }}
       >
         <span aria-hidden="true">✦</span>
         <span className="truncate">{promo.title}</span>
