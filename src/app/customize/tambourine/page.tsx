@@ -31,7 +31,10 @@ import {
   nextPaint,
   type DesignScene,
 } from "@/lib/captureDesign";
-
+import { shrinkImage } from "@/lib/shrinkImage";
+import { replaceCartItem } from "@/lib/cartEdit";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: ["400"] });
 const dancingScript = Dancing_Script({ subsets: ["latin"], weight: ["700"] });
 const sacramento = Sacramento({ subsets: ["latin"], weight: ["400"] });
@@ -186,11 +189,21 @@ type TambourineOrderLine = {
   inCart: boolean;
   renderedDesignUrl?: string;
   layers: Layer[];
-    createdAt: number;
+  // Points at the picture that is still being prepared in the background
+  designKey?: string;
+  createdAt: number;
 };
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// Gives up after `ms` so a stuck connection can never freeze the page.
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
 }
 
 function tambourineLineId(
@@ -340,7 +353,7 @@ function FontPicker({
 export default function CustomizeTambourinePage() {
   const [size, setSize] =
     useState<SizeId>("small");
-
+  const router = useRouter();
   const [ribbonColor, setRibbonColor] =
     useState<RibbonColorId>(
       RIBBON_COLORS[0].id
@@ -390,8 +403,12 @@ export default function CustomizeTambourinePage() {
       }));
 
       setRibbonChoices(loaded);
+      // While editing, keep the ribbon that was loaded from the cart
       setRibbonColor((prev) =>
-        loaded.some((c) => c.id === prev) ? prev : loaded[0].id
+        new URLSearchParams(window.location.search).get("edit") ||
+        loaded.some((c) => c.id === prev)
+          ? prev
+          : loaded[0].id
       );
     }
 
@@ -408,11 +425,22 @@ export default function CustomizeTambourinePage() {
   const [showPreview, setShowPreview] =
     useState(false);
 
+  // How many design pictures are being prepared in the background right now.
+  // The ref copy is for the browser back-button handler, which is only set up
+  // once and would otherwise see an old number.
+  const [pendingCaptures, setPendingCaptures] = useState(0);
+  const pendingRef = useRef(0);
+
   // Pressing the preview button pushes a history entry, so the
   // browser/device back button closes the preview first instead of
   // immediately leaving the customize page entirely.
   useEffect(() => {
     function handlePopState() {
+      // Don't close the preview while a design picture is still being made
+      if (pendingRef.current > 0) {
+        window.history.pushState({ tambourinePreview: true }, "");
+        return;
+      }
       setShowPreview(false);
     }
 
@@ -439,8 +467,13 @@ export default function CustomizeTambourinePage() {
   const [orderLines, setOrderLines] =
     useState<TambourineOrderLine[]>([]);
 
-  const [uploading, setUploading] =
-    useState(false);
+  // True while a customer photo is uploading and loading
+  const [photoUploading, setPhotoUploading] = useState(false);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [removedIds, setRemovedIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [addingToCart, setAddingToCart] = useState(false);
 
   const stageRef =
     useRef<HTMLDivElement>(null);
@@ -452,6 +485,19 @@ export default function CustomizeTambourinePage() {
 
   const cartSnapshotRef =
     useRef<string>("");
+
+  const originalLayersJson = useRef("");
+  const originalSize = useRef<SizeId>("small");
+  const originalRenderedUrl = useRef<string | undefined>(undefined);
+
+  // One picture per design (size + layers). Adding the same design in
+  // another ribbon color reuses it instead of making it all over again.
+  const captureCache = useRef<Map<string, Promise<string | undefined>>>(
+    new Map()
+  );
+
+  // Pictures are made one design at a time
+  const captureQueue = useRef<Promise<unknown>>(Promise.resolve());
 
   const gestures = useLayerGestures(
     layers,
@@ -467,6 +513,72 @@ export default function CustomizeTambourinePage() {
       l.type === "fill" ||
       l.type === "pattern"
   );
+
+  /* -------------------------------------------------------------- */
+  /* EDIT MODE: LOAD FROM CART                                      */
+  /* -------------------------------------------------------------- */
+
+  // Opened from a cart item's "edit" link: load that design and every
+  // cart line that shares it (same design, same size), so the ribbon
+  // colors and quantities chosen before show up again.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("edit");
+    if (!id) return;
+
+    const cart: any[] = getCart();
+    const item = cart.find((i) => i.id === id);
+    const c = item?.customization;
+    if (!item || c?.type !== "customized-tambourine") return;
+
+    const loadedLayers: Layer[] = Array.isArray(c.layers) ? c.layers : [];
+    const layersJson = JSON.stringify(loadedLayers);
+    const loadedSize: SizeId = c.size === "large" ? "large" : "small";
+
+    const siblings = cart.filter(
+      (i) =>
+        i.customization?.type === "customized-tambourine" &&
+        i.customization.size === c.size &&
+        JSON.stringify(
+          Array.isArray(i.customization.layers) ? i.customization.layers : []
+        ) === layersJson
+    );
+
+    originalLayersJson.current = layersJson;
+    originalSize.current = loadedSize;
+    originalRenderedUrl.current = c.renderedDesignUrl;
+
+    setEditingId(id);
+    setSize(loadedSize);
+    if (c.ribbonColor) setRibbonColor(c.ribbonColor);
+    setLayers(loadedLayers);
+    nextZ.current = loadedLayers.reduce((m, l) => Math.max(m, l.z), 0) + 1;
+    setDesignMode(loadedLayers.length ? "build" : null);
+
+    setOrderLines(
+      siblings.map((s) => ({
+        id: s.id,
+        size: loadedSize,
+        ribbonColor: s.customization.ribbonColor,
+        quantity: s.quantity,
+        inCart: true,
+        layers: loadedLayers,
+        renderedDesignUrl: s.customization.renderedDesignUrl,
+        createdAt: Date.now(),
+      }))
+    );
+  }, []);
+
+  // If the size is changed while editing, every ribbon line follows it
+  useEffect(() => {
+    if (!editingId) return;
+    setOrderLines((prev) =>
+      prev.map((l) => (l.size === size ? l : { ...l, size }))
+    );
+  }, [size, editingId]);
+
+  /* -------------------------------------------------------------- */
+  /* CART SYNC                                                      */
+  /* -------------------------------------------------------------- */
 
   useEffect(() => {
     function syncOrderWithCart() {
@@ -512,9 +624,19 @@ export default function CustomizeTambourinePage() {
               return null;
             }
 
+            const customization = cartItem.customization;
+
+            if (
+              !customization ||
+              customization.type !== "customized-tambourine"
+            ) {
+              return null;
+            }
+
             return {
               ...line,
               quantity: cartItem.quantity,
+              layers: customization.layers ?? line.layers,
             };
           })
           .filter(
@@ -649,20 +771,25 @@ export default function CustomizeTambourinePage() {
     }
 
     if (file.size > 8 * 1024 * 1024) {
-      alert(
-        "Please choose an image under 8MB."
-      );
+      alert("Please choose an image under 8MB.");
       return;
     }
 
-    setUploading(true);
+    setPhotoUploading(true);
 
     try {
-      const url =
-        await uploadCustomerImage(
-          file,
-          "tambourine"
-        );
+      // Phone photos are shrunk first, which makes the upload much quicker
+      const smaller = await shrinkImage(file);
+      const url = await uploadCustomerImage(smaller, "tambourine");
+
+      // Wait until the picture has loaded, so the button stays locked
+      // until the design is really there
+      await new Promise<void>((resolve) => {
+        const probe = new Image();
+        probe.onload = () => resolve();
+        probe.onerror = () => resolve();
+        probe.src = url;
+      });
 
       const id = makeId();
 
@@ -687,7 +814,7 @@ export default function CustomizeTambourinePage() {
         "Couldn't upload your image. Please check your connection and try again."
       );
     } finally {
-      setUploading(false);
+      setPhotoUploading(false);
     }
   }
 
@@ -695,6 +822,8 @@ export default function CustomizeTambourinePage() {
     id: string,
     patch: Partial<Layer>
   ) {
+    gestures.pushHistory();
+
     setLayers((prev) =>
       prev.map((l) =>
         l.id === id
@@ -791,109 +920,280 @@ export default function CustomizeTambourinePage() {
       (l) => l.id === selectedId
     ) ?? null;
 
-  async function addTambourineLineToOrder() {
-    const hasAnyContent =
-      layers.length > 0;
+  /* -------------------------------------------------------------- */
+  /* DESIGN PICTURES (made in the background)                       */
+  /* -------------------------------------------------------------- */
 
-    const baseId =
-      tambourineLineId(
-        size,
-        ribbonColor
+  // Starts making the finished design picture for what is on the stage
+  // right now. The same design is only made once; asking again for it
+  // (another ribbon color, say) returns the same picture straight away.
+  function startDesignCapture(): Promise<string | undefined> {
+    const stage = stageRef.current;
+
+    if (!stage || layers.length === 0) {
+      return Promise.resolve(undefined);
+    }
+
+    const key = `${size}|${JSON.stringify(layers)}`;
+    const cached = captureCache.current.get(key);
+    if (cached) return cached;
+
+    const layersSnapshot = structuredClone(layers);
+    const sizeSnapshot = selectedSize;
+
+    const targetWidth = Math.round(
+      ((sizeSnapshot.cm / 2.54) * 300) /
+        (sizeSnapshot.drumDiameterPct / 100)
+    );
+
+    // Counted straight away, so the preview can't be closed while this waits its turn
+    pendingRef.current += 1;
+    setPendingCaptures((n) => n + 1);
+
+    const task = captureQueue.current.then(async () => {
+      let url: string | null | undefined;
+
+      try {
+        setSelectedId(null);
+
+        await nextPaint();
+
+        const scene: DesignScene = {
+          baseImageUrl: sizeSnapshot.img,
+          layers: layersSnapshot,
+          shape: {
+            kind: "circle",
+            xPct: sizeSnapshot.drumPos.x,
+            yPct: sizeSnapshot.drumPos.y,
+            diameterPct: sizeSnapshot.drumDiameterPct,
+          },
+        };
+
+        url = await withTimeout(
+          captureAndUploadDesign(stage, "tambourine", targetWidth, scene),
+          30000
+        );
+
+        if (!url) {
+          // One automatic retry, since a first attempt can fail on a slow phone.
+          url = await withTimeout(
+            captureAndUploadDesign(stage, "tambourine", targetWidth, scene),
+            30000
+          );
+        }
+      } finally {
+        pendingRef.current -= 1;
+        setPendingCaptures((n) => n - 1);
+      }
+
+      // Forget a failed attempt so the next try starts fresh
+      if (!url) captureCache.current.delete(key);
+
+      return url ?? undefined;
+    });
+
+    captureQueue.current = task.catch(() => undefined);
+    captureCache.current.set(key, task);
+    return task;
+  }
+
+  /* -------------------------------------------------------------- */
+  /* EDIT MODE                                                       */
+  /* -------------------------------------------------------------- */
+
+  // Edit mode: add a ribbon color, or add to the quantity if it's already there
+  function addRibbonToEditedOrder() {
+    const existing = orderLines.find(
+      (l) => l.ribbonColor === ribbonColor
+    );
+
+    if (existing) {
+      updateTambourineLineQuantity(
+        existing.id,
+        existing.quantity + orderQuantity
       );
+    } else {
+      const baseId = tambourineLineId(size, ribbonColor);
+
+      const lineId =
+        layers.length > 0
+          ? `${baseId}-d${Date.now().toString(36)}`
+          : baseId;
+
+      setOrderLines((prev) => [
+        ...prev,
+        {
+          id: lineId,
+          size,
+          ribbonColor,
+          quantity: orderQuantity,
+          inCart: false,
+          layers: structuredClone(layers),
+          renderedDesignUrl: undefined,
+          createdAt: Date.now(),
+        },
+      ]);
+    }
+
+    setOrderQuantity(1);
+  }
+
+  // Edit mode: apply the design and every ribbon line to the cart
+  async function saveTambourineEdits() {
+    if (!editingId || saving) return;
+
+    if (orderLines.length === 0) {
+      alert("Add at least one ribbon color first.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const layersJson = JSON.stringify(layers);
+
+      const designChanged =
+        layersJson !== originalLayersJson.current ||
+        size !== originalSize.current;
+
+      let renderedDesignUrl: string | undefined =
+        originalRenderedUrl.current;
+
+      if (layers.length === 0) {
+        renderedDesignUrl = undefined;
+      } else if (designChanged) {
+        const url = await startDesignCapture();
+
+        if (!url) {
+          alert(
+            "We couldn't prepare your design. Please check your connection and try again."
+          );
+          return;
+        }
+
+        renderedDesignUrl = url;
+      }
+
+      // Ribbon lines removed while editing leave the cart now
+      removedIds.forEach((id) => removeCartItem(id));
+
+      const currentCart = getCart();
+
+      orderLines.forEach((line) => {
+        const ribbonLabel = findRibbon(line.ribbonColor).label;
+
+        const item = {
+          id: line.id,
+          productId: "custom-tambourine",
+          productName: "Tambourine",
+          price: selectedSize.price,
+          quantity: line.quantity,
+          scent: null,
+          color: `${selectedSize.label} · ${ribbonLabel} Ribbon`,
+          image: selectedSize.img,
+          productRefId: 31,
+          customization: {
+            type: "customized-tambourine" as const,
+            size,
+            sizeCm: selectedSize.cm,
+            ribbonColor: line.ribbonColor,
+            layers,
+            renderedDesignUrl,
+          },
+        };
+
+        if (currentCart.some((i) => i.id === line.id)) {
+          replaceCartItem(line.id, item);
+        } else {
+          addToCart(item, { open: false });
+        }
+      });
+
+      originalLayersJson.current = layersJson;
+      originalSize.current = size;
+      originalRenderedUrl.current = renderedDesignUrl;
+
+      setRemovedIds([]);
+
+      setOrderLines((prev) =>
+        prev.map((l) => ({
+          ...l,
+          size,
+          inCart: true,
+          layers: structuredClone(layers),
+          renderedDesignUrl,
+        }))
+      );
+
+            cartSnapshotRef.current = JSON.stringify(getCart());
+
+      window.dispatchEvent(new Event("openCart"));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /* -------------------------------------------------------------- */
+  /* NEW ORDER                                                       */
+  /* -------------------------------------------------------------- */
+
+  // The line is added straight away. Its design picture is made in the
+  // background and is waited for only when the order goes to the cart.
+  function addTambourineLineToOrder() {
+    const hasAnyContent = layers.length > 0;
+
+    const baseId = tambourineLineId(size, ribbonColor);
 
     const lineId = hasAnyContent
       ? `${baseId}-d${Date.now().toString(36)}`
       : baseId;
 
-    const designSnapshot =
-      structuredClone(layers);
+    const designSnapshot = structuredClone(layers);
 
-    let renderedDesignUrl:
-      | string
-      | undefined;
+    const designKey = hasAnyContent
+      ? `${size}|${JSON.stringify(layers)}`
+      : undefined;
 
-    if (
-      hasAnyContent &&
-      stageRef.current
-    ) {
-      setUploading(true);
-      setSelectedId(null);
+    if (hasAnyContent) {
+      startDesignCapture().then((url) => {
+        if (!url) return;
 
-      await nextPaint();
-
-      const targetWidth = Math.round(
-        ((selectedSize.cm / 2.54) *
-          300) /
-          (selectedSize.drumDiameterPct /
-            100)
-      );
-
-      const scene: DesignScene = {
-        baseImageUrl:
-          selectedSize.img,
-        layers,
-        shape: {
-          kind: "circle",
-          xPct:
-            selectedSize.drumPos.x,
-          yPct:
-            selectedSize.drumPos.y,
-          diameterPct:
-            selectedSize.drumDiameterPct,
-        },
-      };
-
-      const url =
-        await captureAndUploadDesign(
-          stageRef.current,
-          "tambourine",
-          targetWidth,
-          scene
+        setOrderLines((prev) =>
+          prev.map((l) =>
+            l.id === lineId ? { ...l, renderedDesignUrl: url } : l
+          )
         );
-
-      setUploading(false);
-
-      if (url) {
-        renderedDesignUrl = url;
-      }
+      });
     }
 
     setOrderLines((prev) => {
-      const existingIndex =
-        prev.findIndex(
-          (line) =>
-            line.id === lineId
-        );
+      const existingIndex = prev.findIndex((line) => line.id === lineId);
 
       if (existingIndex !== -1) {
         const updated = [...prev];
 
         updated[existingIndex] = {
-          ...updated[
-            existingIndex
-          ],
-          quantity:
-            updated[existingIndex]
-              .quantity +
-            orderQuantity,
+          ...updated[existingIndex],
+          quantity: updated[existingIndex].quantity + orderQuantity,
         };
 
         return updated;
       }
 
-  return [
-  ...prev,
-  {
-    id: lineId,
-    size,
-    ribbonColor,
-    quantity: orderQuantity,
-    inCart: false,
-    layers: designSnapshot,
-    renderedDesignUrl,
-    createdAt: Date.now(),
-  },
-];
+      return [
+        ...prev,
+        {
+          id: lineId,
+          size,
+          ribbonColor,
+          quantity: orderQuantity,
+          inCart: false,
+          layers: designSnapshot,
+          renderedDesignUrl: undefined,
+          designKey,
+          createdAt: Date.now(),
+        },
+      ];
     });
 
     setOrderQuantity(1);
@@ -904,94 +1204,112 @@ export default function CustomizeTambourinePage() {
     newQuantity: number
   ) {
     if (newQuantity <= 0) {
-      removeTambourineLine(
-        lineId
-      );
+      removeTambourineLine(lineId);
       return;
     }
 
-    const safeQuantity = Math.max(
-      1,
-      newQuantity
-    );
+    const safeQuantity = Math.max(1, newQuantity);
 
-    const existingLine =
-      orderLines.find(
-        (l) => l.id === lineId
-      );
+    const existingLine = orderLines.find((l) => l.id === lineId);
 
     setOrderLines((prev) =>
       prev.map((line) =>
-        line.id === lineId
-          ? {
-              ...line,
-              quantity:
-                safeQuantity,
-            }
-          : line
+        line.id === lineId ? { ...line, quantity: safeQuantity } : line
       )
     );
 
-    if (existingLine?.inCart) {
-      updateCartItemQuantity(
-        lineId,
-        safeQuantity
+    // While editing, changes only reach the cart when you press Save
+    if (existingLine?.inCart && !editingId) {
+      updateCartItemQuantity(lineId, safeQuantity);
+    }
+  }
+
+  function removeTambourineLine(lineId: string) {
+    const line = orderLines.find((l) => l.id === lineId);
+
+    setOrderLines((prev) => prev.filter((l) => l.id !== lineId));
+
+    if (!line?.inCart) return;
+
+    if (editingId) {
+      // Taken out of the cart when you press Save
+      setRemovedIds((prev) => [...prev, lineId]);
+    } else {
+      removeCartItem(lineId);
+    }
+  }
+
+  async function addTambourineOrderToCart() {
+    if (!orderLines.length || addingToCart) return;
+
+    setAddingToCart(true);
+
+    try {
+      // Wait for any design pictures that are still being made
+      const pictures = await Promise.all(
+        orderLines.map(async (line) => {
+          if (line.renderedDesignUrl) return line.renderedDesignUrl;
+          if (!line.designKey) return undefined;
+          return (
+            (await captureCache.current.get(line.designKey)) ?? undefined
+          );
+        })
       );
-    }
-  }
-function removeTambourineLine(lineId: string) {
-  const line = orderLines.find((l) => l.id === lineId);
 
-  setOrderLines((prev) => prev.filter((l) => l.id !== lineId));
+      const pictureById = new Map(
+        orderLines.map((line, i) => [line.id, pictures[i]])
+      );
 
-  if (line?.inCart) {
-    removeCartItem(lineId);
-  }
-}
+      const currentCart = getCart();
 
-function addTambourineOrderToCart() {
-  if (!orderLines.length) return;
+      orderLines.forEach((line) => {
+        const lineSize = SIZES.find((s) => s.id === line.size)!;
+        const existing = currentCart.find((item) => item.id === line.id);
 
-  const currentCart = getCart();
+        if (existing) {
+          // Set to the quantity shown in the preview, don't add on top.
+          updateCartItemQuantity(line.id, line.quantity);
+          return;
+        }
 
-  orderLines.forEach((line) => {
-    const lineSize = SIZES.find((s) => s.id === line.size)!;
-    const existing = currentCart.find((item) => item.id === line.id);
-
-    if (existing) {
-      // Set to the quantity shown in the preview, don't add on top.
-      updateCartItemQuantity(line.id, line.quantity);
-      return;
-    }
-
-    addToCart({
-      id: line.id,
-      productId: "custom-tambourine",
-      productName: "Tambourine",
-      price: lineSize.price,
-      quantity: line.quantity,
-      scent: null,
+        addToCart({
+          id: line.id,
+          productId: "custom-tambourine",
+          productName: "Tambourine",
+          price: lineSize.price,
+          quantity: line.quantity,
+          scent: null,
           color: `${lineSize.label} · ${findRibbon(line.ribbonColor).label} Ribbon`,
-      image: lineSize.img,
-      productRefId: 31,
-      customization: {
-        type: "customized-tambourine",
-        size: line.size,
-        sizeCm: lineSize.cm,
-        ribbonColor: line.ribbonColor,
-        layers: line.layers,
-        renderedDesignUrl: line.renderedDesignUrl,
-      },
-    });
-  });
+          image: lineSize.img,
+          productRefId: 31,
+          customization: {
+            type: "customized-tambourine",
+            size: line.size,
+            sizeCm: lineSize.cm,
+            ribbonColor: line.ribbonColor,
+            layers: line.layers,
+            renderedDesignUrl: pictureById.get(line.id),
+          },
+        });
+      });
 
-  // Keep the lines visible for the rest of this order.
-  setOrderLines((prev) => prev.map((line) => ({ ...line, inCart: true })));
+      // Keep the lines visible for the rest of this order.
+      setOrderLines((prev) =>
+        prev.map((line) => ({
+          ...line,
+          inCart: true,
+          renderedDesignUrl:
+            pictureById.get(line.id) ?? line.renderedDesignUrl,
+        }))
+      );
 
-  cartSnapshotRef.current = JSON.stringify(getCart());
+      cartSnapshotRef.current = JSON.stringify(getCart());
 
-  window.dispatchEvent(new Event("openCart"));
-}
+      window.dispatchEvent(new Event("openCart"));
+    } finally {
+      setAddingToCart(false);
+    }
+  }
 
   const totalQuantity =
     orderLines.reduce(
@@ -1010,6 +1328,8 @@ function addTambourineOrderToCart() {
           line.quantity,
       0
     );
+
+  const closeBlocked = pendingCaptures > 0 || saving;
 
   function bgShapeStyle(
     shape: TextLayer["bgShape"],
@@ -1335,6 +1655,19 @@ function addTambourineOrderToCart() {
       className="w-full min-h-screen"
     >
       <div className="flex flex-col items-center px-6 py-8">
+              <button
+        type="button"
+        onClick={() => router.back()}
+        aria-label="Go back"
+        className="group fixed left-6 top-40 z-50 flex items-center gap-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-60 md:left-10 md:top-44"
+        style={{ color: "#000000" }}
+      >
+        <ArrowLeft
+          size={20}
+          strokeWidth={1.8}
+          className="transition-transform duration-200 group-hover:-translate-x-1"
+        />
+      </button>
         <div className="relative flex w-full max-w-[220px] md:max-w-[320px] items-center justify-center">
           <div
             ref={stageRef}
@@ -1374,6 +1707,19 @@ function addTambourineOrderToCart() {
                   true
                 )
               )}
+                          {photoUploading && (
+              <div
+                className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center"
+                style={{ backgroundColor: "rgba(255,244,230,0.6)" }}
+              >
+                <span
+                  className="rounded-full px-4 py-2 text-xs font-semibold"
+                  style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
+                >
+                  Uploading your image…
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -2047,7 +2393,7 @@ function addTambourineOrderToCart() {
                   </p>
                 )}
 
-                {uploading && (
+                {photoUploading && (
                   <p
                     className="mb-3 text-xs"
                     style={{
@@ -2234,16 +2580,24 @@ function addTambourineOrderToCart() {
         )}
 
         <div className="flex items-center gap-4 mt-8">
-                    <button
+                              <button
             type="button"
-            onClick={openPreview}
-            className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75"
+            onClick={() => {
+              if (photoUploading) return;
+              openPreview();
+            }}
+            disabled={photoUploading}
+            className="flex-1 md:flex-none inline-flex items-center justify-center gap-2 px-8 py-3 rounded-full text-sm md:text-base font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 active:brightness-75 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               backgroundColor: ACCENT,
               color: "#FFF4E6",
             }}
           >
-            Preview my tambourine
+            {photoUploading
+              ? "Uploading image…"
+              : editingId
+              ? "Review my changes"
+              : "Preview my tambourine"}
           </button>
 
           <span
@@ -2269,8 +2623,9 @@ function addTambourineOrderToCart() {
    <button
   type="button"
   onClick={closePreview}
+  disabled={closeBlocked}
   aria-label="Close preview"
-  className="fixed right-4 top-4 z-[10000] flex h-12 w-12 items-center justify-center rounded-full transition-all duration-150 hover:scale-110 active:scale-90"
+  className="fixed right-4 top-4 z-[10000] flex h-12 w-12 items-center justify-center rounded-full transition-all duration-150 hover:scale-110 active:scale-90 disabled:opacity-40"
   style={{
     backgroundColor: "#FFFFFF",
     color: "#000000",
@@ -2300,6 +2655,16 @@ function addTambourineOrderToCart() {
 
 
 
+    {/* Shown while design pictures are being made in the background */}
+    {closeBlocked && (
+      <span
+        className="fixed left-4 top-6 z-[10000] rounded-full px-4 py-2 text-xs font-semibold"
+        style={{ backgroundColor: ACCENT, color: "#FFF4E6" }}
+      >
+        {saving ? "Saving…" : "Preparing your design…"}
+      </span>
+    )}
+
     {/* PREVIEW CONTENT */}
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 px-6 py-16">
       <div className="relative flex w-full max-w-[220px] md:max-w-[320px] items-center justify-center">
@@ -2328,6 +2693,16 @@ function addTambourineOrderToCart() {
       </div>
 
       <div className="flex w-full max-w-sm flex-col items-center gap-4">
+        {editingId && (
+          <p
+            className="text-center text-xs"
+            style={{ color: "rgba(0,0,0,0.55)" }}
+          >
+            Editing your order — change the ribbons and quantities
+            below, then press Save changes.
+          </p>
+        )}
+
         <div className="flex w-full items-center gap-3">
           <span
             className="text-xs font-semibold uppercase tracking-[0.15em]"
@@ -2436,8 +2811,8 @@ function addTambourineOrderToCart() {
 
        <button
   type="button"
-  onClick={addTambourineLineToOrder}
-  disabled={uploading}
+  onClick={editingId ? addRibbonToEditedOrder : addTambourineLineToOrder}
+  disabled={saving}
   className="w-full rounded-full border-2 px-8 py-3 text-sm font-bold uppercase tracking-[0.1em] transition-all duration-150 hover:-translate-y-0.5 disabled:opacity-40"
   style={{
     backgroundColor: "transparent",
@@ -2445,7 +2820,7 @@ function addTambourineOrderToCart() {
     color: ACCENT,
   }}
 >
-  {uploading ? "Preparing your design…" : "+ Add to Order"}
+  {editingId ? "+ Add this ribbon" : "+ Add to Order"}
 </button>
 
         {orderLines.length > 0 && (
@@ -2457,6 +2832,11 @@ function addTambourineOrderToCart() {
                 )!;
 
                            const ribbon = findRibbon(line.ribbonColor);
+
+              const preparing =
+                !!line.designKey &&
+                !line.renderedDesignUrl &&
+                pendingCaptures > 0;
 
               return (
                 <div
@@ -2548,7 +2928,14 @@ function addTambourineOrderToCart() {
                     </div>
                   </div>
 
-                  <div className="mt-1 text-right">
+                  <div className="mt-1 flex items-center justify-between">
+                    <span
+                      className="text-[11px]"
+                      style={{ color: "rgba(0,0,0,0.45)" }}
+                    >
+                      {preparing ? "preparing your design…" : ""}
+                    </span>
+
                     <button
                       type="button"
                       onClick={() =>
@@ -2595,17 +2982,33 @@ function addTambourineOrderToCart() {
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={addTambourineOrderToCart}
-              className="mt-1 inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90"
-              style={{
-                backgroundColor: ACCENT,
-                color: "#FFF4E6",
-              }}
-            >
-              Add Order to Cart
-            </button>
+            {editingId ? (
+              <button
+                type="button"
+                onClick={saveTambourineEdits}
+                disabled={saving}
+                className="mt-1 inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 disabled:opacity-60"
+                style={{
+                  backgroundColor: ACCENT,
+                  color: "#FFF4E6",
+                }}
+              >
+                {saving ? "Saving…" : "Save changes"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={addTambourineOrderToCart}
+                disabled={addingToCart}
+                className="mt-1 inline-flex items-center justify-center gap-2 rounded-full px-10 py-3 text-sm font-semibold transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:brightness-90 disabled:opacity-60"
+                style={{
+                  backgroundColor: ACCENT,
+                  color: "#FFF4E6",
+                }}
+              >
+                {addingToCart ? "Adding…" : "Add Order to Cart"}
+              </button>
+            )}
           </div>
         )}
       </div>

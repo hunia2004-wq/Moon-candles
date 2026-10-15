@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, X, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-
+import { createPortal } from "react-dom";
 type MenuProduct = {
   name: string;
   category: string;
@@ -50,7 +50,7 @@ useEffect(() => {
         <Menu size={24} />
       </button>
 
-      {open && (
+           {open && createPortal(
         <div className="fixed inset-0 z-[999] flex">
           {/* Panel — comes first now, so it renders on the left */}
           <div
@@ -179,12 +179,13 @@ useEffect(() => {
           </div>
 
           {/* Backdrop — now after the panel, filling the remaining space to its right */}
-          <div
+                       <div
             className="flex-1 bg-black/30"
             onClick={closeAll}
             aria-hidden="true"
           />
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

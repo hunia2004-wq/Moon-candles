@@ -25,7 +25,8 @@ import {
 } from "@/lib/captureDesign";
 import { shrinkImage } from "@/lib/shrinkImage";
 import { replaceCartItem } from "@/lib/cartEdit";
-
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: "400" });
 const dancing = Dancing_Script({ subsets: ["latin"] });
 const playfair = Playfair_Display({ subsets: ["latin"] });
@@ -300,6 +301,7 @@ export default function CustomizeFanPage() {
   const [designMode, setDesignMode] = useState<"upload" | "build" | null>(
     null
   );
+    const router = useRouter();
 
   const [layersBySide, setLayersBySide] = useState<LayersBySide>({
     front: defaultLayersForSide(),
@@ -1055,7 +1057,7 @@ export default function CustomizeFanPage() {
 
       cartSnapshotRef.current = JSON.stringify(getCart());
 
-      closePreview();
+      
       window.dispatchEvent(new Event("openCart"));
     } finally {
       setSaving(false);
@@ -1603,6 +1605,19 @@ export default function CustomizeFanPage() {
       className="w-full min-h-screen"
     >
       <div className="flex flex-col items-center px-6 py-8">
+              <button
+        type="button"
+        onClick={() => router.back()}
+        aria-label="Go back"
+        className="group fixed left-6 top-40 z-50 flex items-center gap-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-60 md:left-10 md:top-44"
+        style={{ color: "#000000" }}
+      >
+        <ArrowLeft
+          size={20}
+          strokeWidth={1.8}
+          className="transition-transform duration-200 group-hover:-translate-x-1"
+        />
+      </button>
         <div className="flex gap-2 mb-4">
           {(["front", "back"] as SideId[]).map(
             (id) => (

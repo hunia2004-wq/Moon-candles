@@ -11,7 +11,8 @@ import LabelPlaceholder from "../components/LabelPlaceholder";
 import { addToCart, getCart } from "@/lib/cart";
 import { replaceCartItem } from "@/lib/cartEdit";
 import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
-
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 const SIZES = [
   {
     id: "small",
@@ -92,7 +93,7 @@ export default function CustomizeCandlePage() {
   const [uploading, setUploading] = useState(false);
   const [rendering, setRendering] = useState(false);
   const [added, setAdded] = useState(false);
-
+  const router = useRouter();
   // Set when the page was opened from a cart item's "edit" link
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingQty, setEditingQty] = useState(1);
@@ -271,6 +272,19 @@ export default function CustomizeCandlePage() {
 
   return (
     <div className="min-h-screen w-full" style={{ backgroundColor: "#FFF4E6" }}>
+            <button
+        type="button"
+        onClick={() => router.back()}
+        aria-label="Go back"
+        className="group fixed left-6 top-40 z-50 flex items-center gap-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-60 md:left-10 md:top-44"
+        style={{ color: "#000000" }}
+      >
+        <ArrowLeft
+          size={20}
+          strokeWidth={1.8}
+          className="transition-transform duration-200 group-hover:-translate-x-1"
+        />
+      </button>
       {/* TOP: LIVE CANDLE PREVIEW */}
       <div
         ref={previewRef}
