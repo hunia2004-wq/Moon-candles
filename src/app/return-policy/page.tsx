@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Caveat } from "next/font/google";
 import EmailButton from "../components/EmailButton";
 import { PackageCheck, PackageX } from "lucide-react";
+import { pageMeta } from '@/lib/seo'
 const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 
 export const metadata = {

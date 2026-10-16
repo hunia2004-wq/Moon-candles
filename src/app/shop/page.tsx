@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import ShopGrid from "../components/ShopGrid";
 import HandmadeNote from "../components/HandmadeNote";
-
+import { pageMeta } from '@/lib/seo'
 export const dynamic = "force-dynamic";
 const STRIPE_COUNT = 21;
 
@@ -20,7 +20,7 @@ const TITLES: Record<
     accent: "#6E86C7",
   },
 };
-
+export const metadata = pageMeta('Shop Candles', 'Browse handmade scented candles in every scent, made to order.', '/shop')
 export default async function Shop({
   searchParams,
 }: {

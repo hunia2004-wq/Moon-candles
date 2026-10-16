@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import ShopGrid from "../components/ShopGrid";
-
+import { pageMeta } from '@/lib/seo'
 const STRIPE_COUNT = 21;
 
 // Keep this in sync with GIVEAWAY_ITEMS in HamburgerMenu.tsx
@@ -14,7 +14,7 @@ const GIVEAWAY_NAMES = [
   "Pocket Hearts",
   "Rustic Warmth",
 ];
-
+export const metadata = pageMeta('Giveaways', 'Enter The Moon Candle Shop giveaways and win candles.', '/giveaways')
 export default async function Giveaways() {
   const supabase = await createClient();
   const { data: products, error } = await supabase

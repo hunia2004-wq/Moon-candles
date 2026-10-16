@@ -4,7 +4,7 @@ import "./globals.css";
 import SiteChrome from "./components/SiteChrome";
 import { ActiveCandleProvider } from "./components/ActiveCandleContext";
 
-
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/seo'
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -15,10 +15,18 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Moon Candles",
-  description: "Handmade candles from Moon Candles",
-};
+export const metadata = {
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} | Handmade & Custom Candles`,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    siteName: SITE_NAME,
+    type: 'website',
+  },
+}
 
 export default function RootLayout({
   children,
