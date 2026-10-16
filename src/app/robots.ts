@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/admin', '/api', '/cart', '/checkout'],
     },
-    sitemap: 'https://themooncandleshop.com/sitemap.xml',
+sitemap: 'https://www.themooncandlesshop.com/sitemap.xml',
   }
 }
