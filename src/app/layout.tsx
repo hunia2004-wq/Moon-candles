@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} | Handmade & Custom Candles`,
+default: `${SITE_NAME} | Handmade Candles, Custom Photo Candles & Giveaways`,
     template: `%s | ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,

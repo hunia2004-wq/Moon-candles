@@ -20,7 +20,7 @@ const TITLES: Record<
     accent: "#6E86C7",
   },
 };
-export const metadata = pageMeta('Shop Candles', 'Browse handmade scented candles in every scent, made to order.', '/shop')
+export const metadata = pageMeta('Handmade Candles', 'Shop handmade scented candles in every scent, made to order, or design your own custom photo candle.', '/shop')
 export default async function Shop({
   searchParams,
 }: {

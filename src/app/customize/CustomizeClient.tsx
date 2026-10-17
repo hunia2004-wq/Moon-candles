@@ -275,7 +275,7 @@ export default function CustomizeCandlePage() {
         type="button"
         onClick={() => router.back()}
         aria-label="Go back"
-        className="group fixed left-6 top-40 z-50 flex items-center gap-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-60 md:left-10 md:top-44"
+        className="group fixed left-6 top-24 z-50 flex items-center gap-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-60 md:left-10 md:top-28"
         style={{ color: "#000000" }}
       >
         <ArrowLeft
