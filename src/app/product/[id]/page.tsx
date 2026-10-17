@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import ProductDetailView from "@/app/components/ProductDetailView";
 import BloomWandBuilder from "@/app/components/BloomWandBuilder";
 import { productMeta } from "@/lib/seo";
+import { getProductById } from "@/lib/products";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +12,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const { data } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", id)
-    .eq("is_active", true)
-    .single();
-
-  return productMeta(data, `/product/${id}`);
+  const product = await getProductById(id);
+  return productMeta(product, `/product/${id}`);
 }
 
 export default async function ProductDetail({
@@ -30,16 +22,9 @@ export default async function ProductDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
+  const product = await getProductById(id);
 
-  const { data: product, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("id", id)
-    .eq("is_active", true)
-    .single();
-
-  if (error || !product) {
+  if (!product) {
     notFound();
   }
 

@@ -50,7 +50,10 @@ function firstImage(product: any): string | undefined {
     (Array.isArray(c?.images) ? c.images[0] : undefined)
   return typeof fromColor === 'string' ? fromColor : undefined
 }
-
+function shareImage(url?: string) {
+  if (!url) return undefined
+  return `${SITE_URL}/_next/image?url=${encodeURIComponent(url)}&w=640&q=75`
+}
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function productMeta(product: any, path: string) {
   return pageMeta(
@@ -59,6 +62,6 @@ export function productMeta(product: any, path: string) {
       ? shorten(product.description)
       : 'Handmade candle from The Moon Candle Shop.',
     path,
-    product ? firstImage(product) : undefined
+      product ? shareImage(firstImage(product)) : undefined
   )
 }

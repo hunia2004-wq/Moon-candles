@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import ProductDetailView from "@/app/components/ProductDetailView";
 import BloomWandBuilder from "@/app/components/BloomWandBuilder";
 import { productMeta } from "@/lib/seo";
+import { getProductByName } from "@/lib/products";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +12,8 @@ export async function generateMetadata({
   params: Promise<{ name: string }>;
 }) {
   const { name } = await params;
-  const supabase = await createClient();
-
-  const { data } = await supabase
-    .from("products")
-    .select("*")
-    .eq("name", decodeURIComponent(name))
-    .eq("is_active", true)
-    .single();
-
-  return productMeta(data, data ? `/product/${data.id}` : "/shop");
+  const product = await getProductByName(decodeURIComponent(name));
+  return productMeta(product, product ? `/product/${product.id}` : "/shop");
 }
 
 export default async function ProductByName({
@@ -30,17 +22,9 @@ export default async function ProductByName({
   params: Promise<{ name: string }>;
 }) {
   const { name } = await params;
-  const decodedName = decodeURIComponent(name);
-  const supabase = await createClient();
+  const product = await getProductByName(decodeURIComponent(name));
 
-  const { data: product, error } = await supabase
-    .from("products")
-    .select("*")
-    .eq("name", decodedName)
-    .eq("is_active", true)
-    .single();
-
-  if (error || !product) {
+  if (!product) {
     notFound();
   }
 
