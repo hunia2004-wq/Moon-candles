@@ -16,7 +16,7 @@ export async function generateMetadata({
 
   const { data } = await supabase
     .from("products")
-    .select("name, description")
+        .select("*")
     .eq("id", id)
     .eq("is_active", true)
     .single();
@@ -28,7 +28,13 @@ export async function generateMetadata({
         ? data.description.slice(0, data.description.lastIndexOf(" ", 155)) + "…"
         : data.description
       : "Handmade candle from The Moon Candle Shop.",
-    `/product/${id}`
+    `/product/${id}`,
+    (() => {
+      const first = Array.isArray(data?.images) ? data.images[0] : undefined;
+      return typeof first === "string"
+        ? first
+        : first?.url ?? data?.image_url ?? data?.image ?? undefined;
+    })()
   );
 }
 
