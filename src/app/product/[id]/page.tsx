@@ -29,11 +29,19 @@ export async function generateMetadata({
         : data.description
       : "Handmade candle from The Moon Candle Shop.",
     `/product/${id}`,
-    (() => {
-      const first = Array.isArray(data?.images) ? data.images[0] : undefined;
-      return typeof first === "string"
-        ? first
-        : first?.url ?? data?.image_url ?? data?.image ?? undefined;
+       (() => {
+      const fromUrls = Array.isArray(data?.image_urls)
+        ? data.image_urls.find((u: unknown) => typeof u === "string" && u)
+        : undefined;
+      if (fromUrls) return fromUrls as string;
+
+      const c = Array.isArray(data?.colors) ? data.colors[0] : undefined;
+      const fromColor =
+        c?.image_url ??
+        c?.image ??
+        (Array.isArray(c?.image_urls) ? c.image_urls[0] : undefined) ??
+        (Array.isArray(c?.images) ? c.images[0] : undefined);
+      return typeof fromColor === "string" ? fromColor : undefined;
     })()
   );
 }
