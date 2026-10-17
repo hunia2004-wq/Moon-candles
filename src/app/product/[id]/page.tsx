@@ -23,8 +23,11 @@ export async function generateMetadata({
 
   return pageMeta(
     data?.name ?? "Handmade Candle",
-    data?.description?.slice(0, 155) ??
-      "Handmade candle from The Moon Candle Shop.",
+        data?.description
+      ? data.description.length > 155
+        ? data.description.slice(0, data.description.lastIndexOf(" ", 155)) + "…"
+        : data.description
+      : "Handmade candle from The Moon Candle Shop.",
     `/product/${id}`
   );
 }
