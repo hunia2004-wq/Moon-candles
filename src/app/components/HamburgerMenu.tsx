@@ -6,6 +6,7 @@ import { Menu, X, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { createPortal } from "react-dom";
 type MenuProduct = {
+   id: number | string;
   name: string;
   category: string;
 };
@@ -22,7 +23,7 @@ useEffect(() => {
     const supabase = createClient();
     const { data } = await supabase
       .from("products")
-      .select("name, category")
+            .select("id, name, category")
       .eq("is_active", true)
       .order("name");
 
@@ -117,8 +118,8 @@ useEffect(() => {
                     </Link>
                     {candleItems.map((item) => (
                       <Link
-                        key={item.name}
-                        href={`/product/by-name/${encodeURIComponent(item.name)}`}
+                        key={item.id}
+                        href={`/product/${item.id}`}
                         onClick={closeAll}
                         className="py-1.5"
                         style={{ color: "#000000" }}
@@ -138,8 +139,8 @@ useEffect(() => {
                     </Link>
                     {giveawayItems.map((item) => (
                       <Link
-                        key={item.name}
-                        href={`/product/by-name/${encodeURIComponent(item.name)}`}
+                        key={item.id}
+                        href={`/product/${item.id}`}
                         onClick={closeAll}
                         className="py-1.5"
                         style={{ color: "#000000" }}
