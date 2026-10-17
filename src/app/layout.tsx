@@ -4,7 +4,7 @@ import "./globals.css";
 import SiteChrome from "./components/SiteChrome";
 import { ActiveCandleProvider } from "./components/ActiveCandleContext";
 
-import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from '@/lib/seo'
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION, DEFAULT_OG_IMAGE } from '@/lib/seo'
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -22,9 +22,10 @@ default: `${SITE_NAME} | Handmade Candles, Custom Photo Candles & Giveaways`,
     template: `%s | ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,
-  openGraph: {
+   openGraph: {
     siteName: SITE_NAME,
     type: 'website',
+    images: [{ url: DEFAULT_OG_IMAGE }],
   },
 }
 
