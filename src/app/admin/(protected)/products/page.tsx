@@ -80,13 +80,13 @@ export default async function AdminProductsPage() {
 
   const all = (products ?? []) as Product[];
 
-  const giveaways = all.filter((p) =>
-    GIVEAWAY_NAMES.some((name) => name.toLowerCase() === p.name.toLowerCase())
-  );
+ const isGiveaway = (p: Product) =>
+  p.category === "giveaway" ||
+  p.category === "customizable" ||
+  GIVEAWAY_NAMES.some((name) => name.toLowerCase() === p.name.toLowerCase());
 
-  const regular = all.filter(
-    (p) => !GIVEAWAY_NAMES.some((name) => name.toLowerCase() === p.name.toLowerCase())
-  );
+const giveaways = all.filter(isGiveaway);
+const regular = all.filter((p) => !isGiveaway(p));
 
   return (
     <div className="mx-auto max-w-3xl">

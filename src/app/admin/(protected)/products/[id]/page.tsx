@@ -132,7 +132,7 @@ export default function EditProductPage() {
   const [price, setPrice] = useState("");
   const [sizeMl, setSizeMl] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
-  const [category, setCategory] = useState<"candle" | "giveaway">("candle");
+const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">("candle");
     const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
       const [showOrderCounter, setShowOrderCounter] = useState(false);
    const isScentOnlyProduct = SCENT_ONLY_PRODUCTS.some(
@@ -181,7 +181,7 @@ export default function EditProductPage() {
       setPrice(String(p.price ?? ""));
       setSizeMl(p.size_ml != null ? String(p.size_ml) : "");
       setIsFeatured(!!p.is_featured);
-      setCategory((p.category as "candle" | "giveaway") ?? "candle");
+      setCategory((p.category as "candle" | "giveaway" | "customizable") ?? "candle");
       setScents(p.scents ?? []);
       setOptionGroups(draftsFromGroups(p.option_groups));
             setShowOrderCounter(!!p.show_order_counter);
@@ -762,12 +762,13 @@ export default function EditProductPage() {
           </label>
           <select
             value={category}
-            onChange={(e) => setCategory(e.target.value as "candle" | "giveaway")}
+            onChange={(e) => setCategory(e.target.value as "candle" | "giveaway" | "customizable")}
             className="w-full rounded-xl px-4 py-3 text-sm outline-none"
             style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
           >
             <option value="candle">Candle</option>
             <option value="giveaway">Giveaway</option>
+            {category === "customizable" && <option value="customizable">Customizable (builder)</option>}
           </select>
         </div>
 
