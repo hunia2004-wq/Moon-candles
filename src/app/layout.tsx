@@ -15,19 +15,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
+export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-default: `${SITE_NAME} | Handmade Candles, Custom Photo Candles & Giveaways`,
+    default: `${SITE_NAME} | Handmade & Custom Photo Candles in Egypt`,
     template: `%s | ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,
-   openGraph: {
+  alternates: { canonical: "/" },
+  openGraph: {
     siteName: SITE_NAME,
-    type: 'website',
+    type: "website",
+    locale: "en_EG",
     images: [{ url: DEFAULT_OG_IMAGE }],
   },
-}
+  twitter: {
+    card: "summary_large_image",
+    images: [DEFAULT_OG_IMAGE],
+  },
+};
 
 export default function RootLayout({
   children,

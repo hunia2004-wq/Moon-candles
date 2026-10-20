@@ -14,7 +14,7 @@ const GIVEAWAY_NAMES = [
   "Pocket Hearts",
   "Rustic Warmth",
 ];
-export const metadata = pageMeta('Candle Giveaways', 'Enter The Moon Candle Shop candle giveaways for a chance to win handmade candles.', '/giveaways')
+export const metadata = pageMeta('Candle Giveaways in Egypt', 'Enter The Moon Candle Shop candle giveaways for a chance to win handmade candles in Egypt.', '/giveaways')
 export default async function Giveaways() {
   const supabase = await createClient();
   const { data: products, error } = await supabase

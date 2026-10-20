@@ -1,7 +1,7 @@
 export const SITE_URL = 'https://www.themooncandlesshop.com'
 export const SITE_NAME = 'The Moon Candle Shop'
 export const SITE_DESCRIPTION =
-  'Handmade candles, custom photo candles with your own message, and candle giveaways. Design a personalized candle gift at The Moon Candle Shop.'
+  'Handmade candles in Egypt. Design custom photo candles with your own message, shop candle gifts and join our candle giveaways at The Moon Candle Shop.'
 export const DEFAULT_OG_IMAGE =
   'https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/moon%20logo/logo2.png'
 
@@ -60,7 +60,7 @@ export function productMeta(product: any, path: string) {
     product?.name ?? 'Handmade Candle',
     product?.description
       ? shorten(product.description)
-      : 'Handmade candle from The Moon Candle Shop.',
+      : 'Handmade candle by The Moon Candle Shop in Egypt.',
     path,
     product ? firstImage(product) : undefined
   )
