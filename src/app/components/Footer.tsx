@@ -1,76 +1,131 @@
 "use client";
 
-import { useState } from "react";
+import { LOGO_URL, LOGO_SIZE } from "@/lib/brand";
+import Link from "next/link";
 
-export default function EmailButton({ email }: { email: string }) {
-  const [copied, setCopied] = useState(false);
-  const [showOptions, setShowOptions] = useState(false);
+// Same page background used across the site (see OurCollection's PAGE_BG,
+// the home page's outer div, etc.) — the footer now blends into the page
+// instead of being its own colored block.
+const PAGE_BG = "#efe3c4";
+const LINE_GREEN = "#000000"; // the stripe green used elsewhere on the site
+const ICON_COLOR = "#000000"; // deep green, matches other text/buttons
+const ICON_HOVER = "#000000"; // darker shade of the same green — not the accent
 
-  async function handleClick() {
-    // copy the email first, so the customer always has it
-    try {
-      await navigator.clipboard?.writeText(email);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      // clipboard can be blocked; the options below still work
-    }
-    // let the customer pick an app instead of forcing a mail app that
-    // may not be installed (that is what made the old button do nothing)
-    setShowOptions(true);
-  }
+const LOGO_IMG =
+  LOGO_URL;
 
-  const gmailHref = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}`;
-  const mailtoHref = `mailto:${email}`;
+const SOCIALS = [
+  {
+    id: "instagram",
+    label: "Instagram",
+    href: "https://www.instagram.com/the_moon_candlesshop?igsi=dHdsajd0djRqdXVv",
+    icon: InstagramIcon,
+  },
+  {
+    id: "facebook",
+    label: "Facebook",
+    href: "https://www.facebook.com/share/1DZQaYrnfd/?mibextid=wwXIfr",
+    icon: FacebookIcon,
+  },
+  {
+    id: "tiktok",
+    label: "TikTok",
+    href: "https://www.tiktok.com/@themooncandlesshop1?_r=1&_t=ZS-993PlWya8bV",
+    icon: TikTokIcon,
+  },
+] as const;
 
-  const optionClass =
-    "rounded-full border px-4 py-2 text-xs font-medium uppercase tracking-[0.08em] transition-transform duration-300 hover:-translate-y-0.5";
-
+export default function Footer() {
   return (
-    <div className="flex w-full flex-col items-center gap-3 sm:w-auto">
-      <button
-        type="button"
-        onClick={handleClick}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-xs font-medium uppercase tracking-[0.08em] transition-transform duration-300 hover:-translate-y-1 sm:w-auto md:text-[13px]"
-        style={{ backgroundColor: "#47684b", color: "#FFF4E6" }}
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
+    <footer
+      className="w-full"
+      style={{
+        backgroundColor: PAGE_BG,
+        borderTop: `1px solid ${LINE_GREEN}`,
+        padding: "28px 6%",
+      }}
+    >
+      <div className="relative mx-auto flex min-h-12 w-full max-w-4xl items-center justify-end">
+        {/*
+          The logo PNG has a lot of transparent padding, so the link is a
+          fixed 48px box with overflow-hidden. That keeps the logo the same
+          size but stops the invisible padding from growing the footer or
+          covering (and stealing taps from) buttons above it.
+        */}
+        <Link
+          href="/"
+          aria-label="Moon Candles home"
+          className={`absolute left-1/2 flex -translate-x-1/2 items-center justify-center overflow-hidden select-none ${LOGO_SIZE.footerBox}`}
         >
-          <rect x="3" y="5" width="18" height="14" rx="2" />
-          <path d="M3 7l9 6 9-6" />
-        </svg>
-        {copied ? "Email copied ✓" : "Email us"}
-      </button>
+          <img
+            src={LOGO_IMG}
+            alt="Moon Candles"
+            className={LOGO_SIZE.footerImg}
+          />
+        </Link>
 
-      {showOptions && (
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <a
-            href={gmailHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={optionClass}
-            style={{ borderColor: "#FFF4E6", color: "#FFF4E6" }}
-          >
-            Open Gmail
-          </a>
-          <a
-            href={mailtoHref}
-            className={optionClass}
-            style={{ borderColor: "#FFF4E6", color: "#FFF4E6" }}
-          >
-            Other mail app
-          </a>
+        {/* Icons — uniform outline style, no badge/background. */}
+        <div className="flex items-center gap-1 md:gap-2">
+          {SOCIALS.map((s) => (
+            <a
+              key={s.id}
+              href={s.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={s.label}
+              className="flex h-8 w-8 md:h-9 md:w-9 items-center justify-center transition-all duration-200 hover:scale-110"
+              style={{ color: ICON_COLOR }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = ICON_HOVER)}
+              onMouseLeave={(e) => (e.currentTarget.style.color = ICON_COLOR)}
+            >
+              <s.icon />
+            </a>
+          ))}
         </div>
-      )}
-    </div>
+      </div>
+    </footer>
+  );
+}
+
+// All three are outline icons with the same stroke weight, so they match.
+function Outline({ children }: { children: React.ReactNode }) {
+  return (
+    <svg
+      className="h-6 w-6 md:h-7 md:w-7"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </svg>
+  );
+}
+
+function InstagramIcon() {
+  return (
+    <Outline>
+      <rect x="4" y="4" width="16" height="16" rx="4" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M16.5 7.5v.01" />
+    </Outline>
+  );
+}
+
+function FacebookIcon() {
+  return (
+    <Outline>
+      <path d="M7 10v4h3v7h4v-7h3l1-4h-4V8a1 1 0 0 1 1-1h3V3h-3a5 5 0 0 0-5 5v2H7" />
+    </Outline>
+  );
+}
+
+function TikTokIcon() {
+  return (
+    <Outline>
+      <path d="M21 7.917v4.034a9.948 9.948 0 0 1-5-1.951v4.5a6.5 6.5 0 1 1-8-6.326v4.326a2.5 2.5 0 1 0 4 2v-11.5h4.083a6.005 6.005 0 0 0 4.917 4.917z" />
+    </Outline>
   );
 }
