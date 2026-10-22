@@ -156,10 +156,11 @@ export async function computeCartPromotions(items: CartItem[]): Promise<Promotio
   break;
 }
 
-      case "tiered_quantity_percent_off": {
+           case "tiered_quantity_percent_off": {
   if (promo.discount_value && promo.tiered_min_qty) {
     const groupSize = promo.tiered_min_qty;
-    const sorted = [...matchingUnits].sort((a, b) => b.price - a.price);
+    // cheapest first, so the discount lands on the lowest-priced items
+    const sorted = [...matchingUnits].sort((a, b) => a.price - b.price);
     const fullGroups = Math.floor(sorted.length / groupSize);
     const discountedCount = fullGroups * groupSize;
     for (let i = 0; i < discountedCount; i++) {
