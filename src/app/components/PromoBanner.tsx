@@ -103,7 +103,13 @@ export default function PromoBanner() {
           from { transform: translateX(0); }
           to { transform: translateX(-50%); }
         }
-        .promo-wrap:hover .promo-track { animation-play-state: paused; }
+.promo-wrap:hover .promo-track { animation-play-state: paused; }
+              @media (prefers-reduced-motion: reduce) {
+          .promo-wrap { overflow-x: auto !important; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+          .promo-wrap::-webkit-scrollbar { display: none; }
+          .promo-track { animation: none !important; }
+          .promo-dup { display: none; }
+        }
        
       `}</style>
 
@@ -116,12 +122,12 @@ export default function PromoBanner() {
             : "none",
         }}
       >
-        <div ref={copyRef} className="flex flex-shrink-0 items-center gap-10 pr-10">
+<div ref={copyRef} className="flex flex-shrink-0 items-center gap-10 px-5">
           {renderItems(false)}
         </div>
 
         {scrolls && (
-          <div className="flex flex-shrink-0 items-center gap-10 pr-10">
+        <div className="promo-dup flex flex-shrink-0 items-center gap-10 px-5">
             {renderItems(true)}
           </div>
         )}
