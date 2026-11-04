@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Promo = {
@@ -15,9 +14,10 @@ type Promo = {
 export default function PromoBanner() {
   const router = useRouter();
   const [promos, setPromos] = useState<Promo[]>([]);
-  const [index, setIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
-  const fadeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [scrolls, setScrolls] = useState(false);
+  const [duration, setDuration] = useState(20);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const copyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     async function load() {
@@ -39,117 +39,95 @@ export default function PromoBanner() {
     load();
   }, []);
 
-  function goTo(target: number) {
-    if (promos.length < 2) return;
-
-    const next = (target + promos.length) % promos.length;
-
-    if (fadeTimeout.current) clearTimeout(fadeTimeout.current);
-
-    setVisible(false);
-    fadeTimeout.current = setTimeout(() => {
-      setIndex(next);
-      setVisible(true);
-    }, 250);
-  }
-
+  // Scroll only when the text is wider than the screen
   useEffect(() => {
-    if (promos.length < 2) return;
+    function measure() {
+      const wrap = wrapRef.current;
+      const copy = copyRef.current;
+      if (!wrap || !copy) return;
+      setScrolls(copy.offsetWidth > wrap.clientWidth);
+      setDuration(Math.max(12, copy.offsetWidth / 45)); // about 45px per second
+    }
 
-    const timer = setTimeout(() => {
-      goTo(index + 1);
-    }, 4500);
+    measure();
 
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [promos.length, index]);
+    const observer = new ResizeObserver(measure);
+    if (wrapRef.current) observer.observe(wrapRef.current);
+    if (copyRef.current) observer.observe(copyRef.current);
 
-  useEffect(() => {
-    return () => {
-      if (fadeTimeout.current) clearTimeout(fadeTimeout.current);
-    };
-  }, []);
+    return () => observer.disconnect();
+  }, [promos]);
 
   if (promos.length === 0) return null;
 
-  const current = index % promos.length;
-  const promo = promos[current];
-  const hasMultiple = promos.length > 1;
-
-  function handleClick() {
-    if (!promo.link_url) return;
-    if (promo.link_url.startsWith("http")) {
-      window.location.href = promo.link_url;
+  function go(link: string | null) {
+    if (!link) return;
+    if (link.startsWith("http")) {
+      window.location.href = link;
     } else {
-      router.push(promo.link_url);
+      router.push(link);
     }
+  }
+
+  function renderItems(hidden: boolean) {
+    return promos.map((promo) => (
+      <button
+        key={`${hidden ? "b" : "a"}-${promo.id}`}
+        type="button"
+        onClick={() => go(promo.link_url)}
+        disabled={!promo.link_url}
+        tabIndex={hidden ? -1 : 0}
+        aria-hidden={hidden}
+        className="inline-flex flex-shrink-0 items-center gap-2 whitespace-nowrap text-[11px] font-medium uppercase tracking-[0.14em] disabled:cursor-default md:text-xs"
+        style={{ color: "#000000" }}
+      >
+        <span aria-hidden="true">✦</span>
+        <span>{promo.title}</span>
+        {promo.subtitle && <span className="opacity-75">— {promo.subtitle}</span>}
+        {promo.link_url && (
+          <span className="underline underline-offset-4">Shop now</span>
+        )}
+        <span aria-hidden="true">✦</span>
+      </button>
+    ));
   }
 
   return (
     <div
-      className="relative w-full px-10 py-2.5 text-center"
-     style={{ backgroundColor: "#cdba9a" }}
+      ref={wrapRef}
+      className="promo-wrap relative w-full overflow-hidden py-2.5"
+      style={{ backgroundColor: "#cdba9a" }}
     >
-      {hasMultiple && (
-        <button
-          type="button"
-          onClick={() => goTo(current - 1)}
-          aria-label="Previous promotion"
-          className="absolute left-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-opacity hover:opacity-70 active:opacity-50"
-          style={{ color: "#FFF4E6" }}
-        >
-          <ChevronLeft size={16} strokeWidth={2} />
-        </button>
-      )}
+      <style>{`
+        @keyframes promo-marquee {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
+        .promo-wrap:hover .promo-track { animation-play-state: paused; }
+        @media (prefers-reduced-motion: reduce) {
+          .promo-track { animation: none !important; }
+        }
+      `}</style>
 
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={!promo.link_url}
-        className="inline-flex max-w-full items-center justify-center gap-2 text-[11px] font-medium uppercase tracking-[0.14em] transition-opacity duration-300 disabled:cursor-default md:text-xs"
-        style={{ color: "#000000", opacity: visible ? 1 : 0 }}
+      <div
+        className="promo-track flex w-max min-w-full"
+        style={{
+          justifyContent: scrolls ? "flex-start" : "center",
+          animation: scrolls
+            ? `promo-marquee ${duration}s linear infinite`
+            : "none",
+        }}
       >
-        <span aria-hidden="true">✦</span>
-        <span className="truncate">{promo.title}</span>
-        {promo.subtitle && (
-          <span className="hidden truncate opacity-75 sm:inline">
-            — {promo.subtitle}
-          </span>
-        )}
-        {promo.link_url && (
-          <span className="flex-shrink-0 underline underline-offset-4">
-            Shop now
-          </span>
-        )}
-        <span aria-hidden="true">✦</span>
-      </button>
-
-      {hasMultiple && (
-        <button
-          type="button"
-          onClick={() => goTo(current + 1)}
-          aria-label="Next promotion"
-          className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition-opacity hover:opacity-70 active:opacity-50"
-          style={{ color: "#FFF4E6" }}
-        >
-          <ChevronRight size={16} strokeWidth={2} />
-        </button>
-      )}
-
-      {hasMultiple && (
-        <div className="mt-1.5 flex justify-center gap-1.5">
-          {promos.map((p, i) => (
-            <span
-              key={p.id}
-              className="h-1 w-1 rounded-full"
-              style={{
-                backgroundColor: "#FFF4E6",
-                opacity: i === current ? 1 : 0.35,
-              }}
-            />
-          ))}
+        <div ref={copyRef} className="flex flex-shrink-0 items-center gap-10 pr-10">
+          {renderItems(false)}
         </div>
-      )}
+
+        {scrolls && (
+          <div className="flex flex-shrink-0 items-center gap-10 pr-10">
+            {renderItems(true)}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
