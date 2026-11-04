@@ -104,9 +104,7 @@ export default function PromoBanner() {
           to { transform: translateX(-50%); }
         }
         .promo-wrap:hover .promo-track { animation-play-state: paused; }
-        @media (prefers-reduced-motion: reduce) {
-          .promo-track { animation: none !important; }
-        }
+       
       `}</style>
 
       <div
