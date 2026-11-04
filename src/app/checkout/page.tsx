@@ -72,6 +72,10 @@ type FormState = {
   city: string;
   country: string;
   address: string;
+  street: string;
+  area: string;
+  building: string;
+  floor: string;
   notes: string;
 };
 
@@ -82,6 +86,10 @@ const EMPTY_FORM: FormState = {
   city: "",
   country: "Egypt",
   address: "",
+  street: "",
+  area: "",
+  building: "",
+  floor: "",
   notes: "",
 };
 
@@ -95,7 +103,10 @@ const FIELD_ORDER: (keyof FormState)[] = [
   "email",               // add this
   "city",
   "country",
-  "address",
+  "street",
+  "area",
+  "building",
+  "floor",
 ];
 
 // Accepts Egyptian mobile numbers like 01012345678, +201012345678,
@@ -261,11 +272,17 @@ if (!emailTrimmed) {
       nextErrors.country = "Country is required.";
     }
 
-    if (!form.address.trim()) {
-      nextErrors.address = "Please enter your delivery address.";
-    } else if (form.address.trim().length < 8) {
-      nextErrors.address =
-        "Please enter your full address (street, building, apartment).";
+    if (form.street.trim().length < 3 || !/\p{L}/u.test(form.street)) {
+      nextErrors.street = "Please enter your street name.";
+    }
+    if (form.area.trim().length < 3 || !/\p{L}/u.test(form.area)) {
+      nextErrors.area = "Please enter your area or neighborhood.";
+    }
+    if (!form.building.trim()) {
+      nextErrors.building = "Please enter your building number or name.";
+    }
+    if (!form.floor.trim()) {
+      nextErrors.floor = "Please enter your floor and apartment number.";
     }
 
     return nextErrors;
@@ -302,12 +319,17 @@ async function handleSubmit(e: React.FormEvent) {
   return;
 }
 setPlacing(true);
+  const finalForm = {
+    ...form,
+    address: `Street: ${form.street.trim()}, Area: ${form.area.trim()}, Building: ${form.building.trim()}, Floor/Apt: ${form.floor.trim()}`,
+  };
+
   const order: PlacedOrder = {
     items,
     subtotal,
     shippingFee,
     total: grandTotal,
-    customer: form,
+    customer: finalForm,
     orderNumber: `MC-${Date.now().toString().slice(-6)}`,
     createdAt: new Date().toISOString(),
   };
@@ -318,7 +340,7 @@ const { data: orderCode, error } = await supabase.rpc("place_order", {
   p_customer_phone: form.phone,
   p_customer_email: form.email,
   p_governorate: form.city,
-  p_address: `${form.address}${form.notes ? ` — Note: ${form.notes}` : ""}`,
+  p_address: `${finalForm.address}${form.notes ? ` — Note: ${form.notes}` : ""}`,
   p_items: items,
   p_promo_discount: promoDiscount,
   p_shipping_fee: shippingFee,
@@ -950,15 +972,43 @@ fetch("/api/send-order-confirmation", {
                 </div>
               </div>
 
-              <Field
-                id="field-address"
-                label="Address"
+                       <Field
+                id="field-street"
+                label="Street"
                 required
-                value={form.address}
-                onChange={(v) => updateField("address", v)}
-                error={errors.address}
-                placeholder="Street, building, apartment"
+                value={form.street}
+                onChange={(v) => updateField("street", v)}
+                error={errors.street}
+                placeholder="e.g. Street 66 / El Tahrir St."
               />
+              <Field
+                id="field-area"
+                label="Area / Neighborhood"
+                required
+                value={form.area}
+                onChange={(v) => updateField("area", v)}
+                error={errors.area}
+                placeholder="e.g. Smouha, Maadi, Sheikh Zayed"
+              />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <Field
+                  id="field-building"
+                  label="Building No. / Name"
+                  required
+                  value={form.building}
+                  onChange={(v) => updateField("building", v)}
+                  error={errors.building}
+                />
+                <Field
+                  id="field-floor"
+                  label="Floor / Apartment"
+                  required
+                  value={form.floor}
+                  onChange={(v) => updateField("floor", v)}
+                  error={errors.floor}
+                  placeholder="e.g. 3rd floor, apt 7"
+                />
+              </div>
 
               <div>
                 <label
