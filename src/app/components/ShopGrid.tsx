@@ -38,7 +38,163 @@ type ActiveDiscount = {
   type: string | null;
   value: number | null;
 };
+const CUSTOM_SIZES = [
+  {
+    id: "small",
+    label: "150 ML",
+    price: 450,
+    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/reference%20image%20150.png",
+  },
+  {
+    id: "large",
+    label: "380 ML",
+    price: 680,
+    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/reference%20image%20380.png",
+  },
+] as const;
 
+function CustomCandleCard({ accent }: { accent: string }) {
+  const [sizeId, setSizeId] = useState<"small" | "large">("large");
+  const current = CUSTOM_SIZES.find((s) => s.id === sizeId)!;
+  const href = `/customize?size=${sizeId}`;
+
+  return (
+    <div
+      className="flex flex-col overflow-hidden rounded-2xl transition-all duration-150 hover:shadow-lg"
+      style={{ backgroundColor: "#FFFFFF", boxShadow: "0 4px 16px rgba(70,85,61,0.1)" }}
+    >
+      <Link href={href} className="block">
+        <div className="relative flex aspect-square items-center justify-center overflow-hidden p-4">
+          <div className="h-full w-full">
+            <AutoCenteredImage
+              key={current.id}
+              src={current.img}
+              alt={`Custom photo candle ${current.label}`}
+              className="h-full w-full object-contain"
+            />
+          </div>
+        </div>
+      </Link>
+
+      <div
+        className="flex flex-1 flex-col gap-2 px-4 py-3 justify-center"
+        style={{ backgroundColor: "#efe3c4" }}
+      >
+        <Link href={href}>
+          <p
+            className="text-sm font-semibold uppercase tracking-wide md:text-base"
+            style={{ color: "#000000" }}
+          >
+            Custom Candle
+          </p>
+        </Link>
+
+        <div className="flex gap-2">
+          {CUSTOM_SIZES.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setSizeId(s.id)}
+              className="rounded-full px-3 py-1 text-[11px] font-semibold transition-colors"
+              style={{
+                color: sizeId === s.id ? "#FFFFFF" : "#000000",
+                backgroundColor: sizeId === s.id ? accent : "transparent",
+                border: `1.5px solid ${sizeId === s.id ? accent : "rgba(0,0,0,0.2)"}`,
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        <p className="text-sm font-medium" style={{ color: accent }}>
+          {current.price} EGP
+        </p>
+      </div>
+    </div>
+  );
+}
+const PLAIN_SIZES = [
+  {
+    id: "small",
+    label: "150 ML",
+    price: 400,
+    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/150ml.png?v=2",
+  },
+  {
+    id: "large",
+    label: "380 ML",
+    price: 620,
+    img: "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/380ml.png",
+  },
+] as const;
+function PlainCandleCard({
+  product,
+  accent,
+}: {
+  product: Product;
+  accent: string;
+}) {
+  const [sizeId, setSizeId] = useState<"small" | "large">("small");
+  const current = PLAIN_SIZES.find((s) => s.id === sizeId)!;
+  const href = `/product/${product.id}`;
+
+  return (
+    <div
+      className="flex flex-col overflow-hidden rounded-2xl transition-all duration-150 hover:shadow-lg"
+      style={{ backgroundColor: "#FFFFFF", boxShadow: "0 4px 16px rgba(70,85,61,0.1)" }}
+    >
+      <Link href={href} className="block">
+        <div className="relative flex aspect-square items-center justify-center overflow-hidden p-4">
+          <div className="h-full w-full">
+            <AutoCenteredImage
+              key={current.id}
+              src={current.img}
+              alt={`${product.name} ${current.label}`}
+              className="h-full w-full object-contain"
+            />
+          </div>
+        </div>
+      </Link>
+
+      <div
+        className="flex flex-1 flex-col gap-2 px-4 py-3 justify-center"
+        style={{ backgroundColor: "#efe3c4" }}
+      >
+        <Link href={href}>
+          <p
+            className="text-sm font-semibold uppercase tracking-wide md:text-base"
+            style={{ color: "#000000" }}
+          >
+            {product.name}
+          </p>
+        </Link>
+
+        <div className="flex gap-2">
+          {PLAIN_SIZES.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => setSizeId(s.id)}
+              className="rounded-full px-3 py-1 text-[11px] font-semibold transition-colors"
+              style={{
+                color: sizeId === s.id ? "#FFFFFF" : "#000000",
+                backgroundColor: sizeId === s.id ? accent : "transparent",
+                border: `1.5px solid ${sizeId === s.id ? accent : "rgba(0,0,0,0.2)"}`,
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+               <p className="text-sm font-medium" style={{ color: accent }}>
+          {current.price} EGP
+        </p>
+      </div>
+    </div>
+  );
+}
 export default function ShopGrid({ products, accent = "#657A55" }: { products: Product[]; accent?: string }) {
   const searchParams = useSearchParams();
   const targetProduct = searchParams.get("product");
@@ -96,7 +252,8 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
 
     setDiscountsByProduct(map);
   }
-
+  const showCustomCard = !category || category === "candles";
+   
  const filteredProducts = products.filter((product) => {
   if (product.category === "customizable") return false; // add this line
   if (!category) return true;
@@ -105,7 +262,7 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
   return true;
 });
 
-  if (filteredProducts.length === 0) {
+    if (filteredProducts.length === 0 && !showCustomCard) {
     return <p style={{ color: "#000000" }}>No products available yet.</p>;
   }
 
@@ -119,6 +276,15 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
         const isTarget = product.name === targetProduct;
         const soldOut = !!(product as Product & { out_of_stock?: boolean | null }).out_of_stock;
         const priceOverride = getPriceRange(product);
+                       if (product.id === 21) {
+          return (
+            <PlainCandleCard
+              key={product.id}
+              product={product}
+              accent={accent}
+            />
+          );
+        }
         const discount = discountsByProduct[product.id];
         let discountedPrice: number | null = null;
         if (discount && !priceOverride) {
@@ -215,8 +381,10 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
               )}
             </div>
           </Link>
-        );
+               );
       })}
+
+           {showCustomCard && <CustomCandleCard accent={accent} />}
     </div>
   );
 }

@@ -134,6 +134,10 @@ export default function CustomizeCandlePage() {
 
     loadScents();
   }, []);
+    useEffect(() => {
+    const s = new URLSearchParams(window.location.search).get("size");
+    if (s === "small" || s === "large") setSize(s);
+  }, []);
 
   // Opened from a cart item's "edit" link: fill the form with its choices
   useEffect(() => {
