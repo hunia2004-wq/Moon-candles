@@ -259,18 +259,28 @@ export async function captureAndUploadDesign(
 /* CANDLE STICKER                                                      */
 /* ------------------------------------------------------------------ */
 
+export type LabelTextBox = {
+  text: string;
+  x: number; // % of plate width
+  y: number; // % of plate height
+  w: number; // % of plate width
+  pad?: number; // % of plate width, defaults to 3 (older callers)
+  align: "left" | "center" | "right";
+  size: number; // % of plate width
+  fontFamily: string;
+};
+
 export type LabelInput = {
   templateUrl: string;
   templateWidth: number;   // 736
   templateHeight: number;  // 238
   photoUrl: string;
-  message: string;
-  fontFamily: string;
+  textBoxes: LabelTextBox[];
   outputWidthPx?: number;  // default 2208 (3x the template)
 };
 
 // Same boxes as LabelPlate, as fractions of the plate.
-const LABEL_TEXT_BOX = { left: 0.03, top: 0.08, width: 0.58, height: 0.72 };
+
 const LABEL_PHOTO_BOX = { left: 0.658, top: 0.1, width: 0.27, height: 0.83 };
 
 function wrapLabelText(
@@ -364,40 +374,34 @@ export async function captureAndUploadLabel(input: LabelInput): Promise<string |
     ctx.drawImage(photoBitmap, px + (pw - drawW) / 2, py + (ph - drawH) / 2, drawW, drawH);
     ctx.restore();
 
-    // 3. Message text, in the customer's font.
-    const message = input.message.trim();
+       // 3. Every text box: same position, size, font and alignment as on screen.
 
-    if (message) {
-      const boxX = outW * LABEL_TEXT_BOX.left;
-      const boxY = outH * LABEL_TEXT_BOX.top;
-      const boxW = outW * LABEL_TEXT_BOX.width;
-      const boxH = outH * LABEL_TEXT_BOX.height;
 
-      let fontPx = outW * 0.09;          // 9cqw on screen
-      const minPx = fontPx * 0.55;
+       for (const t of input.textBoxes) {
+      if (!t.text.trim()) continue;
 
-      await document.fonts.load(`${fontPx}px ${input.fontFamily}`, message);
-      await document.fonts.ready;
+      const pad = outW * ((t.pad ?? 3) / 100);
 
-      let lines: string[] = [];
+      const fontPx = outW * (t.size / 100);
 
-      // Shrink a little if a long message would not fit the box.
-      for (;;) {
-        ctx.font = `${fontPx}px ${input.fontFamily}`;
-        lines = wrapLabelText(ctx, message, boxW);
-        if (lines.length * fontPx * 1.15 <= boxH || fontPx <= minPx) break;
-        fontPx *= 0.95;
-      }
+      await document.fonts.load(`${fontPx}px ${t.fontFamily}`, t.text);
+      ctx.font = `${fontPx}px ${t.fontFamily}`;
 
+      const boxX = outW * (t.x / 100) + pad;
+      const boxY = outH * (t.y / 100) + pad;
+      const boxW = outW * (t.w / 100) - pad * 2;
+
+      const lines = wrapLabelText(ctx, t.text, boxW);
       const lineHeight = fontPx * 1.15;
-      const totalH = lines.length * lineHeight;
+      const anchorX =
+        t.align === "left" ? boxX : t.align === "center" ? boxX + boxW / 2 : boxX + boxW;
 
       ctx.fillStyle = "#000000";
-      ctx.textAlign = "left";
+      ctx.textAlign = t.align;
       ctx.textBaseline = "middle";
 
       lines.forEach((l, i) => {
-        ctx.fillText(l, boxX, boxY + (boxH - totalH) / 2 + i * lineHeight + lineHeight / 2);
+        ctx.fillText(l, anchorX, boxY + i * lineHeight + lineHeight / 2);
       });
     }
 

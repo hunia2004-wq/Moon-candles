@@ -1,34 +1,37 @@
 "use client";
 
-import { LabelPlate } from "./CandleLabelWrap";
+import { LabelPlate, TextToolbar, type TextBox } from "./CandleLabelWrap";
 
 type Props = {
-  message: string;
-  onMessageChange: (v: string) => void;
+  boxes: TextBox[];
+  onBoxesChange: (b: TextBox[]) => void;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
   photoUrl: string | null;
   onPhotoClick: () => void;
-  maxLen: number;
-  fontFamily?: string;
 };
 
 export default function LabelPlaceholder({
-  message,
-  onMessageChange,
+  boxes,
+  onBoxesChange,
+  selectedId,
+  onSelect,
   photoUrl,
   onPhotoClick,
-  maxLen,
-  fontFamily = "inherit",
 }: Props) {
   return (
-    <div className="w-full max-w-md" style={{ aspectRatio: "3.1 / 1" }}>
-      <LabelPlate
-        message={message}
-        onMessageChange={onMessageChange}
-        photoUrl={photoUrl}
-        onPhotoClick={onPhotoClick}
-        fontFamily={fontFamily}
-        maxLen={maxLen}
-      />
-    </div>
+    <>
+      <div className="w-full max-w-md" style={{ aspectRatio: "3.1 / 1" }}>
+        <LabelPlate
+          boxes={boxes}
+          onBoxesChange={onBoxesChange}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          photoUrl={photoUrl}
+          onPhotoClick={onPhotoClick}
+        />
+      </div>
+      <TextToolbar boxes={boxes} onBoxesChange={onBoxesChange} selectedId={selectedId} />
+    </>
   );
 }

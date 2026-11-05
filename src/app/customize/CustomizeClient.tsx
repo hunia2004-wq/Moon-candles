@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import CandleLabelWrap, {
   LABEL_FONTS,
   PLACEHOLDER_IMG_URL,
+  makeTextBox,
+  boxPad,
+  type TextBox,
 } from "../components/CandleLabelWrap";
 import { captureAndUploadLabel } from "@/lib/captureDesign";
 import LabelPlaceholder from "../components/LabelPlaceholder";
@@ -13,6 +16,7 @@ import { replaceCartItem } from "@/lib/cartEdit";
 import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+
 const SIZES = [
   {
     id: "small",
@@ -34,7 +38,6 @@ const SIZES = [
   },
 ] as const;
 
-const MAX_MESSAGE_LEN = 50;
 const MAX_PHOTO_MB = 20;
 
 type SizeId = (typeof SIZES)[number]["id"];
@@ -82,13 +85,14 @@ async function shrinkImage(file: File, maxSide = 1600, quality = 0.85): Promise<
     return file;
   }
 }
+
 export default function CustomizeCandlePage() {
   const [size, setSize] = useState<SizeId>("small");
   const [scent, setScent] = useState<string>("");
   const [scents, setScents] = useState<string[]>([]);
-  const [message, setMessage] = useState("");
+  const [textBoxes, setTextBoxes] = useState<TextBox[]>(() => [makeTextBox()]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [fontId, setFontId] = useState<string>(LABEL_FONTS[0].id);
   const [uploading, setUploading] = useState(false);
   const [rendering, setRendering] = useState(false);
   const [added, setAdded] = useState(false);
@@ -143,15 +147,24 @@ export default function CustomizeCandlePage() {
     setEditingId(id);
     setEditingQty(Number(item.quantity ?? 1));
     setSize(c.size === "large" ? "large" : "small");
-    setMessage(c.message ?? "");
     setPhotoUrl(c.photoUrl ?? null);
-    setFontId(c.fontId ?? LABEL_FONTS[0].id);
     setScent(item.scent ?? "");
+    setTextBoxes(
+      Array.isArray(c.textBoxes) && c.textBoxes.length
+        ? c.textBoxes
+        : [
+            makeTextBox({
+              text: c.message ?? "",
+              fontId: c.fontId ?? LABEL_FONTS[0].id,
+              ...(c.textLayout ?? {}),
+            }),
+          ]
+    );
   }, []);
 
   useEffect(() => {
     setAdded(false);
-  }, [size, scent, message, photoUrl, fontId]);
+  }, [size, scent, textBoxes, photoUrl]);
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -200,17 +213,28 @@ export default function CustomizeCandlePage() {
     setRendering(true);
 
     try {
-      const fontFamily =
-        LABEL_FONTS.find((f) => f.id === fontId)?.family ??
-        LABEL_FONTS[0].family;
+      const message = textBoxes
+        .map((b) => b.text.trim())
+        .filter(Boolean)
+        .join("\n");
 
       const input = {
         templateUrl: PLACEHOLDER_IMG_URL,
         templateWidth: 736,
         templateHeight: 238,
         photoUrl,
-        message,
-        fontFamily,
+        textBoxes: textBoxes
+          .filter((b) => b.text.trim())
+                    .map((b) => ({
+            text: b.text,
+            x: b.x,
+            y: b.y,
+            w: b.w,
+            pad: boxPad(b),
+            align: b.align,
+            size: b.size,
+            fontFamily: (LABEL_FONTS.find((f) => f.id === b.fontId) ?? LABEL_FONTS[0]).family,
+          })),
       };
 
       // One automatic retry, since a first attempt can fail on a slow phone.
@@ -231,7 +255,7 @@ export default function CustomizeCandlePage() {
 
       const item = {
         id: saving ? editingId! : `custom-candle-${Date.now()}`,
-       productId: 43,
+        productId: 43,
         productName: "Custom Candle",
         price: selectedSize.price,
         quantity: saving ? editingQty : 1,
@@ -243,7 +267,8 @@ export default function CustomizeCandlePage() {
           size,
           message,
           photoUrl,
-          fontId,
+          fontId: textBoxes[0]?.fontId ?? LABEL_FONTS[0].id,
+          textBoxes,
           renderedDesignUrl,
         },
       };
@@ -271,7 +296,7 @@ export default function CustomizeCandlePage() {
 
   return (
     <div className="min-h-screen w-full" style={{ backgroundColor: "#FFF4E6" }}>
-            <button
+      <button
         type="button"
         onClick={() => router.back()}
         aria-label="Go back"
@@ -284,6 +309,7 @@ export default function CustomizeCandlePage() {
           className="transition-transform duration-200 group-hover:-translate-x-1"
         />
       </button>
+
       {/* TOP: LIVE CANDLE PREVIEW */}
       <div
         ref={previewRef}
@@ -293,12 +319,11 @@ export default function CustomizeCandlePage() {
           size={selectedSize}
           candleImg={selectedSize.img}
           photoUrl={photoUrl}
-          message={message}
-          onMessageChange={setMessage}
           onPhotoZoneClick={() => fileInputRef.current?.click()}
-          fontId={fontId}
-          onFontChange={setFontId}
-          maxLen={MAX_MESSAGE_LEN}
+          boxes={textBoxes}
+          onBoxesChange={setTextBoxes}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
         />
 
         {uploading && <UploadingOverlay />}
@@ -518,12 +543,12 @@ export default function CustomizeCandlePage() {
             {/* LABEL */}
             <div className="relative mt-5 w-full">
               <LabelPlaceholder
-                message={message}
-                onMessageChange={setMessage}
+                boxes={textBoxes}
+                onBoxesChange={setTextBoxes}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
                 photoUrl={photoUrl}
                 onPhotoClick={() => fileInputRef.current?.click()}
-                maxLen={MAX_MESSAGE_LEN}
-                fontFamily={LABEL_FONTS.find((f) => f.id === fontId)?.family}
               />
 
               {uploading && <UploadingOverlay />}
