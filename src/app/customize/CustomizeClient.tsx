@@ -231,7 +231,7 @@ export default function CustomizeCandlePage() {
 
       const item = {
         id: saving ? editingId! : `custom-candle-${Date.now()}`,
-        productId: "custom-candle",
+       productId: 43,
         productName: "Custom Candle",
         price: selectedSize.price,
         quantity: saving ? editingQty : 1,
