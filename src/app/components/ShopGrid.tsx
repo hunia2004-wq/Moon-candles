@@ -117,6 +117,7 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
   product.colors?.[0]?.image_url ??
   product.colors?.[0]?.image_urls?.[0];
         const isTarget = product.name === targetProduct;
+        const soldOut = !!(product as Product & { out_of_stock?: boolean | null }).out_of_stock;
         const priceOverride = getPriceRange(product);
         const discount = discountsByProduct[product.id];
         let discountedPrice: number | null = null;
@@ -159,20 +160,34 @@ export default function ShopGrid({ products, accent = "#657A55" }: { products: P
           >
             <div className="relative flex aspect-square items-center justify-center overflow-hidden p-4">
               {cover && (
-                <AutoCenteredImage
-                  src={cover}
-                  alt={product.name}
-                  className="h-full w-full object-contain"
-                />
+                               <div className={`h-full w-full transition-opacity ${soldOut ? "opacity-50" : ""}`}>
+                  <AutoCenteredImage
+                    src={cover}
+                    alt={product.name}
+                    className="h-full w-full object-contain"
+                  />
+                </div>
               )}
                            {badgeLabel && (
                 <span
                   className="absolute top-2 left-2 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide"
                   style={{ backgroundColor: "#DE4B33", color: "#FFFFFF" }}
                 >
-                  {badgeLabel}
+                                  {badgeLabel}
                 </span>
               )}
+                 {soldOut && (
+  <span
+    className="absolute right-0 top-0 z-10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white shadow-sm"
+    style={{
+      backgroundColor: "#DE4B33",
+      borderRadius: "0 12px 0 12px",
+      boxShadow: "0 3px 10px rgba(222,75,51,0.2)",
+    }}
+  >
+    Sold Out
+  </span>
+)}
             </div>
            <div className="flex flex-1 flex-col gap-1 px-4 py-3 justify-center" style={{ backgroundColor: "#efe3c4" }}>
               <p

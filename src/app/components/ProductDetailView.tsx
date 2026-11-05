@@ -23,12 +23,21 @@ type OrderLine = {
 import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
 import HandmadeNote from "./HandmadeNote";
 import { shrinkImage } from "@/lib/shrinkImage";
+import { fetchScentStock, type ScentStockRules } from "@/lib/scentStock";
 type GalleryItem = {
   url: string;
   colorName: string | null;
   colorIndex: number;
 };
-
+// First scent that isn't marked sold out, so the page never opens on a
+// sold-out scent when another one is available.
+function firstAvailableScent(p: Product, extraSoldOut: string[] = []): string | null {
+  const soldOut = [
+    ...((p as Product & { sold_out_variants?: string[] | null }).sold_out_variants ?? []),
+    ...extraSoldOut,
+  ];
+  return p.scents?.find((s) => !soldOut.includes(s)) ?? p.scents?.[0] ?? null;
+}
 const GIVEAWAY_NAMES = [
   "Mini Candles",
   "Quack and Kiss",
@@ -372,8 +381,8 @@ export default function ProductDetailView({
   const [
     selectedScent,
     setSelectedScent,
-  ] = useState<string | null>(
-    product.scents?.[0] ?? null
+   ] = useState<string | null>(
+    firstAvailableScent(product)
   );
  const [
   selectedRibbon,
@@ -383,6 +392,11 @@ export default function ProductDetailView({
 );
 
 const [plainQuantity, setPlainQuantity] = useState(1);
+
+const [scentRules, setScentRules] = useState<ScentStockRules>({});
+useEffect(() => {
+  fetchScentStock().then(setScentRules);
+}, []);
 
 // Ribbon choices now come from the product's "Ribbon Color" option
 // group (edited in admin). Falls back to the built-in list if the
@@ -581,7 +595,36 @@ const selectedOptionNameRef = useRef<string | null>(null);
         selectedOptionIndex
       ]
     : undefined;
+  // ---- Out of stock (set in admin) ----
+  const stockInfo = product as Product & {
+    out_of_stock?: boolean | null;
+    sold_out_variants?: string[] | null;
+  };
+  const productOutOfStock = !!stockInfo.out_of_stock;
+   const soldOutScents: string[] = [
+    ...(stockInfo.sold_out_variants ?? []),
+    ...Object.keys(scentRules).filter((s) => {
+      const ids = scentRules[s];
+      return ids === null || ids.includes(Number(product.id));
+    }),
+  ];
 
+  // If the selected scent turns out to be sold out once the rules load,
+  // move to the first one that is available.
+  useEffect(() => {
+    if (selectedScent && soldOutScents.includes(selectedScent)) {
+      setSelectedScent(firstAvailableScent(product, soldOutScents));
+    }
+  }, [scentRules]);
+  const isColorSoldOut = (c: unknown) =>
+    !!(c as { sold_out?: boolean } | undefined)?.sold_out;
+  const selectedColorSoldOut = isColorSoldOut(selectedColor);
+  const scentApplies = !(hasOptions && selectedOption?.name === "Unscented");
+  const selectedScentSoldOut =
+    scentApplies && !!selectedScent && soldOutScents.includes(selectedScent);
+  const cannotBuy =
+    productOutOfStock || selectedColorSoldOut || selectedScentSoldOut;
+    const soldOutReason = cannotBuy ? "Sold out" : null;
   const displayPrice =
     selectedOption?.price ??
     selectedColor?.price ??
@@ -673,8 +716,8 @@ const selectedOptionNameRef = useRef<string | null>(null);
     setSelectedOptionIndex(0);
     setSelectedImageIndex(0);
 
-    setSelectedScent(
-      product.scents?.[0] ?? null
+       setSelectedScent(
+      firstAvailableScent(product)
     );
 
     setSelectedNoorWhite(false);
@@ -2159,7 +2202,7 @@ updatedCart.push({
    */
 
   function addRegularProductToCart() {
-  if (uploadingMonogram) return;
+  if (uploadingMonogram || cannotBuy) return;
   const baseColor =
     normalizedProductName === "plain candle" &&
     hasOptions &&
@@ -2691,7 +2734,20 @@ className="group fixed left-6 top-24 z-50 flex items-center gap-2 text-sm font-s
                 )}
               </div>
             </div>
-
+          {soldOutReason && (
+  <div className="mt-3 flex justify-center">
+    <span
+      className="inline-block px-5 py-2 text-[10px] font-semibold uppercase tracking-[0.15em]"
+      style={{
+        backgroundColor: "#DE4B33",
+        color: "#FFF4E6",
+        borderRadius: "4px",
+      }}
+    >
+      {soldOutReason}
+    </span>
+  </div>
+)}
             {/* ==================================================
                 GALLERY DOTS
                 ================================================== */}
@@ -2863,6 +2919,16 @@ className="group fixed left-6 top-24 z-50 flex items-center gap-2 text-sm font-s
                                   : "0 2px 8px rgba(0,0,0,0.12)",
                             }}
                           >
+                                                        {isColorSoldOut(color) && (
+                              <span
+                                aria-hidden
+                                className="pointer-events-none absolute inset-0 z-10"
+                                style={{
+                                  background:
+                                    "linear-gradient(135deg, transparent 46%, #DE4B33 46%, #DE4B33 54%, transparent 54%), rgba(255,244,230,0.55)",
+                                }}
+                              />
+                            )}
                             {swatchImg && (
                               <img
                                 src={
@@ -3075,36 +3141,28 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                           scent,
                           index
                         ) => {
-                          const selected =
+                                                   const selected =
                             scent ===
                             selectedScent;
+                          const scentSoldOut = soldOutScents.includes(scent);
 
                           return (
                             <button
                               key={`${scent}-${index}`}
                               type="button"
-                              onClick={() =>
-                                setSelectedScent(
-                                  scent
-                                )
-                              }
-                              className="rounded-xl border px-3 py-3 text-xs font-medium transition-all hover:-translate-y-0.5"
+                              disabled={scentSoldOut}
+                              onClick={() => setSelectedScent(scent)}
+                              className="rounded-xl border px-3 py-3 text-xs font-medium transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:hover:translate-y-0"
                               style={{
-                                backgroundColor:
-                                  selected
-                                    ? accent
-                                    : "transparent",
-                                color:
-                                  selected
-                                    ? "#FFF4E6"
-                                    : "#000000",
-                                borderColor:
-                                  accent,
+                                backgroundColor: selected ? accent : "transparent",
+                                color: selected ? "#FFF4E6" : "#000000",
+                                borderColor: accent,
+                                opacity: scentSoldOut ? 0.45 : 1,
+                                textDecoration: scentSoldOut ? "line-through" : "none",
                               }}
                             >
-                              {
-                                scent
-                              }
+                              {scent}
+                              {scentSoldOut ? " · sold out" : ""}
                             </button>
                           );
                         }
@@ -4074,8 +4132,8 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
          
       <button
         type="button"
-        onClick={addRegularProductToCart}
-        disabled={uploadingMonogram}
+              onClick={addRegularProductToCart}
+        disabled={uploadingMonogram || cannotBuy}
         className="mt-6 w-full rounded-full px-8 py-4 text-sm font-bold uppercase tracking-[0.12em] shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50"
         style={{ backgroundColor: accent, color: "#FFF4E6" }}
         onMouseEnter={(e) => {
@@ -4085,7 +4143,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
           e.currentTarget.style.backgroundColor = accent;
         }}
            >
-        {uploadingMonogram ? "Uploading image…" : "Add to Cart"}
+        {uploadingMonogram ? "Uploading image…" : cannotBuy ? "Sold out" : "Add to Cart"}
       </button>
   
                  {product.show_order_counter && orderLines.length > 0 && (

@@ -27,6 +27,15 @@ type ColorDraft = {
   price: string;
   images: ImageItem[];
   options: OptionDraft[];
+  soldOut: boolean;
+};
+
+// The `products` row also has out_of_stock and sold_out_variants columns, and each
+// color object can carry sold_out: true. They are added here so this file works
+// even if lib/supabase/types.ts doesn't list them yet.
+type ProductWithStock = Product & {
+  out_of_stock?: boolean | null;
+  sold_out_variants?: string[] | null;
 };
 
 function makeKey() {
@@ -135,6 +144,8 @@ export default function EditProductPage() {
 const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">("candle");
     const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
       const [showOrderCounter, setShowOrderCounter] = useState(false);
+  const [outOfStock, setOutOfStock] = useState(false);
+
    const isScentOnlyProduct = SCENT_ONLY_PRODUCTS.some(
     (n) => n.toLowerCase() === name.trim().toLowerCase()
   );
@@ -173,7 +184,7 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
         return;
       }
 
-      const p = product as Product;
+      const p = product as ProductWithStock;
 
       setName(p.name ?? "");
       setDescription(p.description ?? "");
@@ -185,6 +196,8 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
       setScents(p.scents ?? []);
       setOptionGroups(draftsFromGroups(p.option_groups));
             setShowOrderCounter(!!p.show_order_counter);
+      setOutOfStock(!!p.out_of_stock);
+
       const productHasColors = (p.colors?.length ?? 0) > 0;
       setHasColors(productHasColors);
 
@@ -195,6 +208,7 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
           hex: c.hex ?? "#CCCCCC",
           price: c.price != null ? String(c.price) : "",
           images: imagesFromColorOrOption(c),
+          soldOut: !!(c as { sold_out?: boolean }).sold_out,
           options: (c.options ?? []).map((o) => ({
             key: makeKey(),
             name: o.name ?? "",
@@ -240,6 +254,8 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
     setScents(scents.filter((s) => s !== scent));
   }
 
+ 
+
     const [bulkOptionPrices, setBulkOptionPrices] = useState<Record<string, string>>({});
 
   // Every distinct option name currently used across all colors (e.g.
@@ -270,7 +286,10 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
 
 
   function addColor() {
-    setColors([...colors, { key: makeKey(), name: "", hex: "#CCCCCC", price: "", images: [], options: [] }]);
+    setColors([
+      ...colors,
+      { key: makeKey(), name: "", hex: "#CCCCCC", price: "", images: [], options: [], soldOut: false },
+    ]);
   }
 
   function updateColor(key: string, patch: Partial<ColorDraft>) {
@@ -379,12 +398,14 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
             ...(color.price ? { price: Number(color.price) } : {}),
             ...(colorImageUrls.length ? { image_urls: colorImageUrls } : {}),
             ...(optionsPayload.length ? { options: optionsPayload } : {}),
+            ...(color.soldOut ? { sold_out: true } : {}),
           });
         }
       } else {
         imageUrls = await resolveImages(plainImages);
       }
 
+      
       const supabase = createClient();
 
       const { error: updateError } = await supabase
@@ -401,6 +422,8 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
                     image_urls: imageUrls,
           option_groups: groupsFromDrafts(optionGroups),
                     show_order_counter: showOrderCounter,
+          out_of_stock: outOfStock,
+       
         })
         .eq("id", productId);
 
@@ -433,6 +456,8 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
             is_featured: !!original.is_featured,
             scents: original.scents ?? [],
             show_order_counter: !!original.show_order_counter,
+            out_of_stock: !!original.out_of_stock,
+            
           },
           {
             name: name.trim(),
@@ -442,6 +467,8 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
             is_featured: isFeatured,
             scents,
             show_order_counter: showOrderCounter,
+            out_of_stock: outOfStock,
+         
           }
         );
         if (!sameJson(original.colors ?? [], colorsPayload)) changes.colors = { from: "previous", to: "updated" };
@@ -752,6 +779,10 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
                 ))}
             </div>
           )}
+
+                  
+                
+                
         </div>
 
         </Card>
@@ -781,6 +812,24 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
           />
           <span className="text-sm font-medium" style={{ color: "#000000" }}>
             Featured product
+          </span>
+        </label>
+        <label className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            checked={outOfStock}
+            onChange={(e) => setOutOfStock(e.target.checked)}
+            className="mt-0.5 h-5 w-5"
+          />
+          <span className="text-sm font-medium" style={{ color: "#000000" }}>
+            Out of stock
+            <span
+              className="block text-xs font-normal"
+              style={{ color: "rgba(0,0,0,0.55)" }}
+            >
+              The product stays on the website with a &quot;Sold out&quot; label and
+              customers can&apos;t add it to the cart.
+            </span>
           </span>
         </label>
                 <label className="flex items-start gap-3">
@@ -876,7 +925,7 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
                   key={color.key}
                   className="rounded-2xl p-4"
                   style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFDF8" }}
-                >                  <div className="mb-3 flex items-center gap-3">
+                >                <div className="mb-3 flex flex-wrap items-center gap-3">
                     {!isScentOnlyProduct && (
                       <input
                         type="color"
@@ -912,7 +961,7 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
                         value={color.name}
                         onChange={(e) => updateColor(color.key, { name: e.target.value })}
                         placeholder="Color name (e.g. White)"
-                        className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+                                                className="min-w-[140px] flex-1 rounded-xl px-3 py-2 text-sm outline-none"
                         style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                       />
                     )}
@@ -922,7 +971,7 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
                       onChange={(e) => updateColor(color.key, { price: e.target.value })}
                       placeholder="Price (optional)"
                       inputMode="numeric"
-                      className="w-28 rounded-xl px-3 py-2 text-sm outline-none"
+                                            className="min-w-[110px] flex-1 rounded-xl px-3 py-2 text-sm outline-none sm:w-28 sm:flex-none"
                       style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                     />
                     <button
@@ -932,6 +981,21 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
                       style={{ color: "#DE4B33" }}
                     >
                       remove
+                    </button>
+                  </div>
+
+                  <div className="mb-3">
+                    <button
+                      type="button"
+                      onClick={() => updateColor(color.key, { soldOut: !color.soldOut })}
+                      className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
+                      style={{
+                        backgroundColor: color.soldOut ? "#DE4B33" : "transparent",
+                        color: color.soldOut ? "#FFF4E6" : "#000000",
+                        border: "1.5px solid #DE4B33",
+                      }}
+                    >
+                      {color.soldOut ? "Sold out · tap to put back in stock" : "Mark this color sold out"}
                     </button>
                   </div>
 
@@ -983,7 +1047,7 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
                     <div className="flex flex-col gap-3">
                                            {color.options.map((option) => (
                         <div key={option.key} className="rounded-xl p-3" style={{ backgroundColor: "#EFE3C4" }}>
-                          <div className="mb-2 flex items-center gap-2">
+                         <div className="mb-2 flex flex-wrap items-center gap-2">
                             {isColorScentOptionProduct ? (
                               <div className="flex flex-1 gap-2">
                                 {(["Unscented", "Scented"] as const).map((label) => {
@@ -1010,7 +1074,7 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
                                 value={option.name}
                                 onChange={(e) => updateOption(color.key, option.key, { name: e.target.value })}
                                 placeholder="Option name (e.g. Small)"
-                                className="flex-1 rounded-lg px-3 py-2 text-sm outline-none"
+                                className="min-w-[140px] flex-1 rounded-lg px-3 py-2 text-sm outline-none"
                                 style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                               />
                             )}
@@ -1019,7 +1083,7 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
                               onChange={(e) => updateOption(color.key, option.key, { price: e.target.value })}
                               placeholder="Price (optional)"
                               inputMode="numeric"
-                              className="w-28 rounded-lg px-3 py-2 text-sm outline-none"
+                              className="min-w-[110px] flex-1 rounded-lg px-3 py-2 text-sm outline-none sm:w-28 sm:flex-none"
                               style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                             />
                             <button
