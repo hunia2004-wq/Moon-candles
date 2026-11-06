@@ -1,22 +1,140 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+
+// Shared by every card on the page, so each picture is processed only once.
+const resolved = new Map<string, string>();
+const pending = new Map<string, Promise<string>>();
+
+const SCAN_SIZE = 160; // pictures are scanned at this size, not full resolution
+const OUT_SIZE = 640; // largest size of the cropped picture
+
+function centerImage(src: string, paddingRatio: number): Promise<string> {
+  const key = `${src}|${paddingRatio}`;
+
+  const done = resolved.get(key);
+  if (done) return Promise.resolve(done);
+
+  const running = pending.get(key);
+  if (running) return running;
+
+  const job = new Promise<string>((resolve) => {
+    const finish = (value: string) => {
+      resolved.set(key, value);
+      pending.delete(key);
+      resolve(value);
+    };
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.decoding = "async";
+    img.src = src;
+
+    img.onerror = () => finish(src);
+
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        if (!w || !h) return finish(src);
+
+        // 1. Scan a small copy to find the product's bounding box.
+        const scale = Math.min(1, SCAN_SIZE / Math.max(w, h));
+        const sw = Math.max(1, Math.round(w * scale));
+        const sh = Math.max(1, Math.round(h * scale));
+
+        const scan = document.createElement("canvas");
+        scan.width = sw;
+        scan.height = sh;
+        const sctx = scan.getContext("2d", { willReadFrequently: true });
+        if (!sctx) return finish(src);
+
+        sctx.drawImage(img, 0, 0, sw, sh);
+        const { data } = sctx.getImageData(0, 0, sw, sh);
+
+        let top = sh;
+        let bottom = -1;
+        let left = sw;
+        let right = -1;
+
+        for (let y = 0; y < sh; y++) {
+          for (let x = 0; x < sw; x++) {
+            if (data[(y * sw + x) * 4 + 3] > 10) {
+              if (x < left) left = x;
+              if (x > right) right = x;
+              if (y < top) top = y;
+              if (y > bottom) bottom = y;
+            }
+          }
+        }
+
+        // Nothing transparent to trim (e.g. a photo): use the picture as it is.
+        if (right < left || bottom < top) return finish(src);
+
+        // 2. Bounding box in real picture pixels.
+        const bl = Math.max(0, left / scale);
+        const br = Math.min(w, (right + 1) / scale);
+        const bt = Math.max(0, top / scale);
+        const bb = Math.min(h, (bottom + 1) / scale);
+
+        const cx = (bl + br) / 2;
+        const cy = (bt + bb) / 2;
+        const side = Math.max(br - bl, bb - bt) * (1 + paddingRatio);
+
+        // 3. Square crop centered on the box. The part of the square that falls
+        // outside the picture stays empty, and the picture is drawn at its true
+        // proportions (no stretching in Safari).
+        const sx = cx - side / 2;
+        const sy = cy - side / 2;
+
+        const outSize = Math.max(1, Math.round(Math.min(side, OUT_SIZE)));
+        const k = outSize / side;
+
+        const ix0 = Math.max(sx, 0);
+        const iy0 = Math.max(sy, 0);
+        const ix1 = Math.min(sx + side, w);
+        const iy1 = Math.min(sy + side, h);
+
+        const out = document.createElement("canvas");
+        out.width = outSize;
+        out.height = outSize;
+        const octx = out.getContext("2d");
+        if (!octx) return finish(src);
+
+        octx.drawImage(
+          img,
+          ix0,
+          iy0,
+          ix1 - ix0,
+          iy1 - iy0,
+          (ix0 - sx) * k,
+          (iy0 - sy) * k,
+          (ix1 - ix0) * k,
+          (iy1 - iy0) * k
+        );
+
+        finish(out.toDataURL("image/png"));
+      } catch {
+        // Storage CORS can block reading pixels: show the original instead.
+        finish(src);
+      }
+    };
+  });
+
+  pending.set(key, job);
+  return job;
+}
 
 /**
- * Renders an image auto-cropped to its non-transparent content, so a PNG
- * with uneven transparent padding on one side still appears visually
- * centered — instead of relying on manual per-image offset guessing.
- *
- * Falls back to rendering the original image normally (object-contain)
- * while cropping is in progress, or if the image has no transparency
- * to trim (e.g. a  JPG with a white background).
+ * Renders an image cropped to its visible content and centered exactly on
+ * the product's bounding box, so every product sits in the middle of its card.
  */
 export default function AutoCenteredImage({
   src,
   alt,
   className,
   style,
-  paddingRatio = 0.35,
+  paddingRatio = 0.3,
 }: {
   src: string;
   alt: string;
@@ -24,139 +142,39 @@ export default function AutoCenteredImage({
   style?: React.CSSProperties;
   paddingRatio?: number;
 }) {
-  const [croppedSrc, setCroppedSrc] = useState<string | null>(null);
-  const cache = useRef<Map<string, string>>(new Map());
+  const key = `${src}|${paddingRatio}`;
+  const [croppedSrc, setCroppedSrc] = useState<string | null>(() => resolved.get(key) ?? null);
 
   useEffect(() => {
     let cancelled = false;
 
-    const cached = cache.current.get(src);
-    if (cached) {
-      setCroppedSrc(cached);
+    const hit = resolved.get(key);
+    if (hit) {
+      setCroppedSrc(hit);
       return;
     }
 
     setCroppedSrc(null);
-
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = src;
-
-    img.onload = () => {
-      if (cancelled) return;
-
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        ctx.drawImage(img, 0, 0);
-        const { data } = ctx.getImageData(0, 0, img.width, img.height);
-
-        let top = img.height;
-        let bottom = 0;
-        let left = img.width;
-        let right = 0;
-        let hasAlpha = false;
-
-        // Track both the bounding box AND a weighted centroid (center of
-        // visual mass). A simple bounding-box center treats a big empty
-        // lid and a small dense jar as equally "important," which still
-        // looks lopsided even when perfectly boxed. Weighting by alpha
-        // (and how opaque/solid each pixel is) centers on where the
-        // actual visual weight sits instead.
-        let sumX = 0;
-        let sumY = 0;
-        let totalWeight = 0;
-
-        for (let y = 0; y < img.height; y += 2) {
-          for (let x = 0; x < img.width; x += 2) {
-            const i = (y * img.width + x) * 4;
-            const alpha = data[i + 3];
-            if (alpha > 10) {
-              hasAlpha = true;
-              if (x < left) left = x;
-              if (x > right) right = x;
-              if (y < top) top = y;
-              if (y > bottom) bottom = y;
-
-              // Weight by alpha so faint/antialiased edge pixels count
-              // less than solid, fully-opaque ones.
-              const weight = alpha / 255;
-              sumX += x * weight;
-              sumY += y * weight;
-              totalWeight += weight;
-            }
-          }
-        }
-
-        // No meaningful transparency found (e.g. a JPG or fully opaque
-        // PNG) — nothing to trim, fall back to the original image.
-        if (!hasAlpha || right <= left || bottom <= top || totalWeight === 0) {
-          cache.current.set(src, src);
-          if (!cancelled) setCroppedSrc(src);
-          return;
-        }
-
-        const centroidX = sumX / totalWeight;
-        const centroidY = sumY / totalWeight;
-
-        const contentWidth = right - left;
-        const contentHeight = bottom - top;
-
-        // The crop must still fully cover the bounding box even though
-        // we're centering on the centroid, not the box center — so size
-        // it to the farthest edge from the centroid in either direction.
-        const halfSpan = Math.max(
-          centroidX - left,
-          right - centroidX,
-          centroidY - top,
-          bottom - centroidY
-        );
-
-        const padding = halfSpan * paddingRatio;
-        const half = halfSpan + padding;
-        const size = half * 2;
-
-        const cropX = centroidX - half;
-        const cropY = centroidY - half;
-
-        const outCanvas = document.createElement("canvas");
-        outCanvas.width = size;
-        outCanvas.height = size;
-        const outCtx = outCanvas.getContext("2d");
-        if (!outCtx) return;
-
-        outCtx.drawImage(img, cropX, cropY, size, size, 0, 0, size, size);
-
-        const result = outCanvas.toDataURL("image/png");
-        cache.current.set(src, result);
-        if (!cancelled) setCroppedSrc(result);
-      } catch {
-        // Cross-origin canvas read can fail depending on storage CORS
-        // config — fall back to the original image rather than breaking.
-        cache.current.set(src, src);
-        if (!cancelled) setCroppedSrc(src);
-      }
-    };
-
-    img.onerror = () => {
-      if (!cancelled) setCroppedSrc(src);
-    };
+    centerImage(src, paddingRatio).then((result) => {
+      if (!cancelled) setCroppedSrc(result);
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [src]);
+  }, [src, paddingRatio, key]);
 
- return (
-  <img
-    src={croppedSrc ?? src}
-    alt={alt}
-    className={className}
-    style={{ opacity: croppedSrc ? 1 : 0.4, transition: "opacity 0.15s", ...style }}
-  />
-);
+  return (
+    <img
+      src={croppedSrc ?? src}
+      alt={alt}
+      className={className}
+      style={{
+        objectFit: "contain",
+        opacity: croppedSrc ? 1 : 0.4,
+        transition: "opacity 0.15s",
+        ...style,
+      }}
+    />
+  );
 }

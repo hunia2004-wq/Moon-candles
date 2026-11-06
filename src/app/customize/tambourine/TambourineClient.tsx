@@ -1658,7 +1658,7 @@ export default function CustomizeTambourinePage() {
         type="button"
         onClick={() => router.back()}
         aria-label="Go back"
-        className="group fixed left-6 top-24 z-50 flex items-center gap-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-60 md:left-10 md:top-28"
+className="group fixed left-6 top-[calc(var(--header-h,80px)+12px)] z-50 flex items-center gap-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-60 md:left-10"
         style={{ color: "#000000" }}
       >
         <ArrowLeft

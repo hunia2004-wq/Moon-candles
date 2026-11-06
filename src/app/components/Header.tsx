@@ -1,7 +1,7 @@
 "use client";
 
 import { LOGO_URL, LOGO_SIZE } from "@/lib/brand";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ShoppingCart } from "lucide-react";
 import HamburgerMenu from "./HamburgerMenu";
@@ -11,6 +11,20 @@ import { getCart, cartCount } from "@/lib/cart";
 
 export default function Header() {
   const [count, setCount] = useState(0);
+  const chromeRef = useRef<HTMLDivElement>(null);
+
+  // Publishes the real height of banner + header as --header-h, so
+  // anything fixed below the header (like the back arrow) can follow it.
+  useEffect(() => {
+    const el = chromeRef.current;
+    if (!el) return;
+    const update = () =>
+      document.documentElement.style.setProperty("--header-h", `${el.offsetHeight}px`);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     setCount(cartCount(getCart()));
@@ -35,7 +49,7 @@ export default function Header() {
   }, []);
 
   return (
-    <div className="sticky top-0 z-50">
+    <div ref={chromeRef} className="sticky top-0 z-50">
       <ConditionalPromoBanner />
 
       <header

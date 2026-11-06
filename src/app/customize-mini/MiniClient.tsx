@@ -11,6 +11,8 @@ import {
   type CartItem,
 } from "@/lib/cart";
 import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 const MINI_CANDLES_PRODUCT_ID = "mini-candles";
 const MINI_CANDLES_PRODUCT_NAME = "Mini Candles";
 const MINI_IMG =
@@ -98,6 +100,7 @@ function buildCommittedCombosFromCart(cart: CartItem[]): ColorCombo[] {
   return result;
 }
 export default function CustomizeMiniPage() {
+  const router = useRouter();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
@@ -500,6 +503,19 @@ function addComboOrderToCart() {
 
   return (
     <div style={{ backgroundColor: "#FFF4E6" }} className="w-full min-h-screen">
+      <button
+        type="button"
+        onClick={() => router.back()}
+        aria-label="Go back"
+        className="group fixed left-6 z-50 flex items-center gap-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-60 md:left-10"
+        style={{ color: "#000000", top: "calc(var(--header-h, 80px) + 12px)" }}
+      >
+        <ArrowLeft
+          size={20}
+          strokeWidth={1.8}
+          className="transition-transform duration-200 group-hover:-translate-x-1"
+        />
+      </button>
       <div className="px-6 md:px-12 py-10 md:py-16 flex flex-col max-w-2xl mx-auto">
         <p
           className="uppercase tracking-[0.25em] text-xs md:text-sm mb-3"
