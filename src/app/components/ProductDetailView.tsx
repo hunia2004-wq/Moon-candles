@@ -284,8 +284,7 @@ export default function ProductDetailView({
     ) ||
     // Any other product with 2+ plain colors (no sizes/options)
     // behaves the same way, so new products work automatically.
-    ((product.colors?.length ?? 0) >= 2 &&
-      product.colors.every((c) => !c.options?.length) &&
+      ((product.colors?.length ?? 0) >= 2 &&
       !isTwoColorProduct &&
       !isQuackAndKiss &&
       !PLAIN_SELLABLE_GIVEAWAY_NAMES.some(
