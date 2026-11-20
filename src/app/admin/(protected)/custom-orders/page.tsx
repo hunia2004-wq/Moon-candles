@@ -298,7 +298,7 @@ export default function CustomOrdersPage() {
               ? `Tassel: ${c.tasselColor}`
               : null;
           } else if (
-            c?.type === "customized-candle"
+            c?.type === "-candle"
           ) {
             note = candleTextNote(c);
           } else if (

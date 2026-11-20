@@ -24,6 +24,7 @@ import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
 import HandmadeNote from "./HandmadeNote";
 import { shrinkImage } from "@/lib/shrinkImage";
 import { fetchScentStock, type ScentStockRules } from "@/lib/scentStock";
+import { createClient } from "@/lib/supabase/client";
 type GalleryItem = {
   url: string;
   colorName: string | null;
@@ -150,7 +151,25 @@ const QUACK_IMAGES = {
     "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/groom%20duck.png",
 };
 
+// Darker shade of a hex color, used for button hover.
+function darkenHex(hex: string, factor = 0.83): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  const ch = (v: number) =>
+    Math.max(0, Math.min(255, Math.round(v * factor)))
+      .toString(16)
+      .padStart(2, "0");
+  return `#${ch((n >> 16) & 255)}${ch((n >> 8) & 255)}${ch(n & 255)}`;
+}
 
+// Fallback only, used until the category's accent loads from the
+// database (categories.accent is the real source).
+const CATEGORY_ACCENTS: Record<string, { accent: string; dark: string }> = {
+  candle: { accent: "#D8A1AF", dark: "#B5798A" },
+  giveaway: { accent: "#6E86C7", dark: "#5A70B0" },
+   diffuser: { accent: "#8C8680", dark: "#6F6A65" },
+};
 export default function ProductDetailView({
   product,
   isMenuOpen = false,
@@ -301,14 +320,39 @@ export default function ProductDetailView({
   const hideGalleryArrows = NO_GALLERY_ARROWS_NAMES.some(
     (name) => name.toLowerCase() === normalizedProductName
   );
-  const accent = isGiveaway
-    ? "#6E86C7"
-    : "#D8A1AF";
+  // Giveaway-named products in the old candle/giveaway categories keep
+  // the giveaway color. Any other category (Gift, etc.) uses its own.
+  const legacyGiveaway =
+    isGiveaway &&
+    (!product.category ||
+      product.category === "candle" ||
+      product.category === "giveaway");
+  const paletteKey = legacyGiveaway ? "giveaway" : product.category ?? "candle";
 
-  const accentDark = isGiveaway
-    ? "#5A70B0"
-    : "#B5798A";
-<HandmadeNote accent={isGiveaway ? "#6E86C7" : "#D8A1AF"} />
+  const [categoryAccent, setCategoryAccent] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    createClient()
+      .from("categories")
+      .select("accent")
+      .eq("slug", paletteKey)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setCategoryAccent(data?.accent ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [paletteKey]);
+
+  const fallbackPalette =
+    CATEGORY_ACCENTS[paletteKey] ?? CATEGORY_ACCENTS.candle;
+
+  const accent = categoryAccent ?? fallbackPalette.accent;
+  const accentDark = categoryAccent
+    ? darkenHex(categoryAccent)
+    : fallbackPalette.dark;
   const customizeRoute =
     CUSTOMIZE_ROUTES[productName];
 
@@ -3040,7 +3084,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
               </div>
             )}
 
-                       {(productName === "Tambourine" || product.description) && (
+{product.description && (
   <p
         className="mt-6 max-w-lg text-sm leading-7"
     style={{
@@ -3048,9 +3092,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
         "rgba(0,0,0,0.62)",
     }}
   >
-    {productName === "Tambourine"
-      ? "A classic wooden tambourine with shiny silver jingles and a simple, timeless design. Perfect for weddings, celebrations, or as a decorative keepsake."
-      : product.description}
+     {product.description}
   </p>
 )}
 
@@ -3168,17 +3210,18 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                       )}
                     </div>
                   ) : (
-                    <span
-                      className="inline-block rounded-full px-4 py-2 text-xs font-semibold"
-                      style={{
-                        backgroundColor:
-                          "#EFE3C4",
-                        color:
-                          accent,
-                      }}
-                    >
-                      Unscented
-                    </span>
+                                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      <span
+                        className="rounded-xl border px-3 py-3 text-center text-xs font-medium"
+                        style={{
+                          backgroundColor: accent,
+                          color: "#FFF4E6",
+                          borderColor: accent,
+                        }}
+                      >
+                        Unscented
+                      </span>
+                    </div>
                   )}
                 </div>
               )}

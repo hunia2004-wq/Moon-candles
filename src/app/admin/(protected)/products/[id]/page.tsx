@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { logAdminActivity, diffFields, sameJson } from "@/lib/logAdminActivity";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -31,12 +31,17 @@ type ColorDraft = {
 };
 
 // The `products` row also has out_of_stock and sold_out_variants columns, and each
-// color object can carry sold_out: true. They are added here so this file works
-// even if lib/supabase/types.ts doesn't list them yet.
+// color object can carry sold_out: true. display_name is a new column (see
+// display_name.sql). They are added here so this file works even if
+// lib/supabase/types.ts doesn't list them yet.
 type ProductWithStock = Product & {
   out_of_stock?: boolean | null;
   sold_out_variants?: string[] | null;
+  display_name?: string | null;
+  sizes?: { id: string; label: string; price: number }[] | null;
 };
+
+type SizeDraft = { key: string; id: string; label: string; price: string };
 
 function makeKey() {
   return Math.random().toString(36).slice(2);
@@ -110,6 +115,44 @@ function ImageSlotPicker({
     </div>
   );
 }
+// The square next to a color's name: shows the color's first photo,
+// or the plain color if it has no photo yet. Tapping it opens the color picker.
+function ColorSquare({
+  hex,
+  image,
+  onChange,
+}: {
+  hex: string;
+  image?: ImageItem;
+  onChange: (hex: string) => void;
+}) {
+  const src = useMemo(
+    () => (!image ? null : image.kind === "existing" ? image.url : URL.createObjectURL(image.file)),
+    [image]
+  );
+  useEffect(
+    () => () => {
+      if (image?.kind === "new" && src) URL.revokeObjectURL(src);
+    },
+    [src, image]
+  );
+
+  return (
+    <label
+      title="Pick a color"
+      className="relative h-9 w-9 flex-shrink-0 cursor-pointer overflow-hidden rounded-lg"
+      style={{ backgroundColor: hex, border: "1px solid rgba(0,0,0,0.15)" }}
+    >
+      {src && <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+      <input
+        type="color"
+        value={hex}
+        onChange={(e) => onChange(e.target.value)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+    </label>
+  );
+}
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -137,16 +180,31 @@ export default function EditProductPage() {
   const [notFound, setNotFound] = useState(false);
 
   const [name, setName] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [sizeMl, setSizeMl] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
-const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">("candle");
-    const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
-      const [showOrderCounter, setShowOrderCounter] = useState(false);
+  const [category, setCategory] = useState<string>("candle");
+  const [categoryOptions, setCategoryOptions] = useState<
+    { slug: string; name: string; is_visible: boolean }[]
+  >([]);
+  const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
+  const [showOrderCounter, setShowOrderCounter] = useState(false);
   const [outOfStock, setOutOfStock] = useState(false);
+  const [sizes, setSizes] = useState<SizeDraft[]>([]);
 
-   const isScentOnlyProduct = SCENT_ONLY_PRODUCTS.some(
+  function addSize() {
+    setSizes((prev) => [...prev, { key: makeKey(), id: "", label: "", price: "" }]);
+  }
+  function updateSize(key: string, patch: Partial<SizeDraft>) {
+    setSizes((prev) => prev.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+  }
+  function removeSize(key: string) {
+    setSizes((prev) => prev.filter((s) => s.key !== key));
+  }
+
+  const isScentOnlyProduct = SCENT_ONLY_PRODUCTS.some(
     (n) => n.toLowerCase() === name.trim().toLowerCase()
   );
 
@@ -154,19 +212,45 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
     (n) => n.toLowerCase() === name.trim().toLowerCase()
   );
 
+  // The two builder products (Custom Candle, Tambourine Customized)
+  // The two builder products (Custom Candle, Tambourine Customized)
+  const isBuilder = category === "customizable";
+
+  // Custom Tambourine is row 31. The builder never reads its size or scents.
+  // Products that never use scents (their pages show no scent picker).
+  // Uses the saved name, so editing the Name field doesn't make cards jump around.
+ 
+
   const [scents, setScents] = useState<string[]>([]);
   const [scentInput, setScentInput] = useState("");
   const [existingScents, setExistingScents] = useState<string[]>([]);
   const [scentSearch, setScentSearch] = useState("");
+  const [isScented, setIsScented] = useState(true);
 
   const [hasColors, setHasColors] = useState(false);
   const [plainImages, setPlainImages] = useState<ImageItem[]>([]);
   const [colors, setColors] = useState<ColorDraft[]>([]);
+  const [bulkOptionPrices, setBulkOptionPrices] = useState<Record<string, string>>({});
 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [original, setOriginal] = useState<any>(null);
+   const savedName = (original?.name ?? "").trim().toLowerCase();
+   const hideScents = [
+    "bloom wand",
+    "fan",
+    "quack and kiss",
+    "tambourine",
+    "custom tambourine",
+  ].includes(savedName);
+  const hideSizeMl = [
+    "bloom wand",
+    "custom tambourine",
+    "tambourine",
+    "fan",
+    "custom candle",
+  ].includes(savedName);
 
   useEffect(() => {
     async function load() {
@@ -187,21 +271,31 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
       const p = product as ProductWithStock;
 
       setName(p.name ?? "");
+      setDisplayName(p.display_name ?? "");
       setDescription(p.description ?? "");
       setOriginal(p);
       setPrice(String(p.price ?? ""));
       setSizeMl(p.size_ml != null ? String(p.size_ml) : "");
       setIsFeatured(!!p.is_featured);
-      setCategory((p.category as "candle" | "giveaway" | "customizable") ?? "candle");
+      setCategory(p.category ?? "candle");
       setScents(p.scents ?? []);
+      setIsScented((p.scents?.length ?? 0) > 0);
       setOptionGroups(draftsFromGroups(p.option_groups));
-            setShowOrderCounter(!!p.show_order_counter);
-      setOutOfStock(!!p.out_of_stock);
+      setShowOrderCounter(!!p.show_order_counter);
+       setOutOfStock(!!p.out_of_stock);
+      setSizes(
+        (p.sizes ?? []).map((s) => ({
+          key: makeKey(),
+          id: s.id,
+          label: s.label,
+          price: String(s.price ?? ""),
+        }))
+      );
 
       const productHasColors = (p.colors?.length ?? 0) > 0;
       setHasColors(productHasColors);
 
-           if (productHasColors) {
+      if (productHasColors) {
         const loadedColors = (p.colors ?? []).map((c) => ({
           key: makeKey(),
           name: c.name ?? "",
@@ -242,6 +336,24 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
     load();
   }, [productId]);
 
+  useEffect(() => {
+    async function loadCategories() {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("categories")
+        .select("slug, name, is_visible")
+        .order("sort_order", { ascending: true });
+
+      if (error) {
+        console.error("Failed to load categories:", error.message);
+        return;
+      }
+      setCategoryOptions(data ?? []);
+    }
+
+    loadCategories();
+  }, []);
+
   function addScent() {
     const trimmed = scentInput.trim();
     if (trimmed && !scents.includes(trimmed)) {
@@ -254,10 +366,6 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
     setScents(scents.filter((s) => s !== scent));
   }
 
- 
-
-    const [bulkOptionPrices, setBulkOptionPrices] = useState<Record<string, string>>({});
-
   // Every distinct option name currently used across all colors (e.g.
   // "Unscented", "Scented"), so the bulk-price panel always reflects
   // whatever's actually in this product right now.
@@ -267,7 +375,7 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
     )
   );
 
-    function updateOptionPriceForAllColors(optionName: string, value: string) {
+  function updateOptionPriceForAllColors(optionName: string, value: string) {
     setBulkOptionPrices((prev) => ({ ...prev, [optionName]: value }));
 
     if (value === "" || !isNaN(Number(value))) {
@@ -283,7 +391,6 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
       );
     }
   }
-
 
   function addColor() {
     setColors([
@@ -361,8 +468,20 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
       return;
     }
 
-    if (!price || isNaN(Number(price))) {
+    // The builder product (category "customizable") is priced inside the builder,
+    // so its own price can stay empty.
+    const priceOptional =
+            category === "customizable" ||
+      sizes.length > 0 ||
+      (hasColors &&colors.some((c) => c.price !== "" || c.options.some((o) => o.price !== "")));
+
+    if (priceOptional ? price !== "" && isNaN(Number(price)) : !price || isNaN(Number(price))) {
       setError("Price must be a number.");
+      return;
+    }
+
+    if (sizes.some((s) => !s.label.trim() || s.price === "" || isNaN(Number(s.price)))) {
+      setError("Every size needs a name and a numeric price.");
       return;
     }
 
@@ -371,10 +490,12 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
       return;
     }
 
-    setSaving(true);
+     setSaving(true);
     setError(null);
 
     try {
+      // Unscented products save no scents at all
+      const finalScents = isScented ? scents : [];
       let imageUrls: string[] = [];
       let colorsPayload: any[] = [];
 
@@ -405,25 +526,35 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
         imageUrls = await resolveImages(plainImages);
       }
 
-      
+         const sizesPayload = sizes.map((s) => ({
+        id: s.id || s.label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        label: s.label.trim(),
+        price: Number(s.price),
+      }));
+
       const supabase = createClient();
 
       const { error: updateError } = await supabase
         .from("products")
         .update({
           name: name.trim(),
+          display_name: displayName.trim() || null,
           category,
           description: description.trim() || null,
-          price: Number(price),
+                  price: sizesPayload.length
+            ? Math.min(...sizesPayload.map((s) => s.price))
+            : price !== ""
+            ? Number(price)
+            : null,
+          sizes: sizesPayload,
           size_ml: sizeMl ? Number(sizeMl) : null,
-          is_featured: isFeatured,
-          scents,
+                is_featured: isFeatured,
+          scents: finalScents,
           colors: colorsPayload,
-                    image_urls: imageUrls,
+          image_urls: imageUrls,
           option_groups: groupsFromDrafts(optionGroups),
-                    show_order_counter: showOrderCounter,
+          show_order_counter: showOrderCounter,
           out_of_stock: outOfStock,
-       
         })
         .eq("id", productId);
 
@@ -431,7 +562,7 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
         throw new Error(updateError.message);
       }
 
-      await syncScentsToCatalog(scents);
+         await syncScentsToCatalog(finalScents);
 
       // Activity log
       if (original) {
@@ -450,6 +581,7 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
         const changes = diffFields(
           {
             name: original.name,
+            display_name: original.display_name ?? null,
             category: original.category,
             description: original.description ?? null,
             size_ml: original.size_ml ?? null,
@@ -457,23 +589,23 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
             scents: original.scents ?? [],
             show_order_counter: !!original.show_order_counter,
             out_of_stock: !!original.out_of_stock,
-            
           },
           {
             name: name.trim(),
+            display_name: displayName.trim() || null,
             category,
             description: description.trim() || null,
             size_ml: sizeMl ? Number(sizeMl) : null,
-            is_featured: isFeatured,
-            scents,
+                      is_featured: isFeatured,
+            scents: finalScents,
             show_order_counter: showOrderCounter,
             out_of_stock: outOfStock,
-         
           }
         );
         if (!sameJson(original.colors ?? [], colorsPayload)) changes.colors = { from: "previous", to: "updated" };
         if (!sameJson(original.image_urls ?? [], imageUrls)) changes.images = { from: "previous", to: "updated" };
         if (!sameJson(original.option_groups ?? [], groupsFromDrafts(optionGroups))) changes.option_groups = { from: "previous", to: "updated" };
+        if (!sameJson(original.sizes ?? [], sizesPayload)) changes.sizes = { from: "previous", to: "updated" };
         if (Object.keys(changes).length) {
           logAdminActivity({
             action: "product.updated",
@@ -563,580 +695,696 @@ const [category, setCategory] = useState<"candle" | "giveaway" | "customizable">
 
       <div className="flex flex-col gap-4">
         <Card title="Basics">
-        <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
-            Name
-          </label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-          />
-        </div>
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+              Name
+            </label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+            />
+                     </div>
 
-        <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
-            Description
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={4}
-            className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-          />
-        </div>
-
-               </Card>
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={4}
+              className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+            />
+          </div>
+        </Card>
         <Card title="Pricing">
-        <div className="flex flex-wrap gap-4">
-          {hasColors && distinctOptionNames.length > 0 ? (
-            distinctOptionNames.map((optionName) => (
-              <div key={optionName} className="flex-1" style={{ minWidth: "120px" }}>
+          <div className="flex flex-wrap gap-4">
+            {hasColors && distinctOptionNames.length === 0 && colors.some((c) => c.price !== "") ? (
+              colors.map((color) => (
+                <div key={color.key} className="flex-1" style={{ minWidth: "120px" }}>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+                    {color.name || "Size"} Price (EGP)
+                  </label>
+                  <input
+                    value={color.price}
+                    onChange={(e) => updateColor(color.key, { price: e.target.value })}
+                    inputMode="numeric"
+                    className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                    style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                  />
+                </div>
+              ))
+            ) : hasColors && distinctOptionNames.length > 0 ? (
+              distinctOptionNames.map((optionName) => (
+                <div key={optionName} className="flex-1" style={{ minWidth: "120px" }}>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+                    {optionName} Price (EGP)
+                  </label>
+                  <input
+                    value={bulkOptionPrices[optionName] ?? ""}
+                    onChange={(e) => updateOptionPriceForAllColors(optionName, e.target.value)}
+                    inputMode="numeric"
+                    className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                    style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                  />
+                </div>
+              ))
+                        ) : sizes.length > 0 ? null : (
+              <div className="flex-1">
                 <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
-                  {optionName} Price (EGP)
+                  Price (EGP)
                 </label>
                 <input
-                  value={bulkOptionPrices[optionName] ?? ""}
-                  onChange={(e) => updateOptionPriceForAllColors(optionName, e.target.value)}
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
                   inputMode="numeric"
                   className="w-full rounded-xl px-4 py-3 text-sm outline-none"
                   style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                 />
               </div>
-            ))
-          ) : (
-            <div className="flex-1">
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
-                Price (EGP)
-              </label>
-              <input
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                inputMode="numeric"
-                className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-                style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-              />
-            </div>
-          )}
-
-          <div className="flex-1" style={{ minWidth: "120px" }}>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
-              Size (ml) — optional
-            </label>
-            <input
-              value={sizeMl}
-              onChange={(e) => setSizeMl(e.target.value)}
-              inputMode="numeric"
-              className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-            />
-          </div>
-        </div>
-
-        </Card>
-        <Card title="Scents">
-        <div>
-
-          {existingScents.length > 0 && (() => {
-            const q = scentSearch.trim().toLowerCase();
-
-            const visible = [...existingScents]
-              .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }) || a.localeCompare(b))
-              .filter((sc) => !q || sc.toLowerCase().includes(q));
-
-            const allSelected = existingScents.every((sc) => scents.includes(sc));
-
-            const byName: Record<string, string[]> = {};
-            existingScents.forEach((sc) => {
-              const k = sc.trim().toLowerCase();
-              if (!byName[k]) byName[k] = [];
-              byName[k].push(sc);
-            });
-            const dupes = Object.values(byName).filter((v) => v.length > 1);
-
-            return (
-              <div className="mb-4">
+            )}
+            {!isBuilder && !hideSizeMl && (
+              <div className="flex-1" style={{ minWidth: "120px" }}>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+                  Size (ml) — optional
+                </label>
                 <input
-                  value={scentSearch}
-                  onChange={(e) => setScentSearch(e.target.value)}
-                  placeholder="Search scents"
-                  className="mb-3 w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                  value={sizeMl}
+                  onChange={(e) => setSizeMl(e.target.value)}
+                  inputMode="numeric"
+                  className="w-full rounded-xl px-4 py-3 text-sm outline-none"
                   style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                 />
-
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs" style={{ color: "rgba(0,0,0,0.55)" }}>
-                    {scents.length} selected
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (allSelected) {
-                        setScents(scents.filter((s) => !existingScents.includes(s)));
-                      } else {
-                        setScents([...new Set([...scents, ...existingScents])]);
-                      }
-                    }}
-                    className="text-xs font-semibold underline"
-                    style={{ color: "#DE4B33" }}
-                  >
-                    {allSelected ? "Clear all" : "Choose all"}
-                  </button>
-                </div>
-
-                {dupes.length > 0 && (
-                  <p
-                    className="mb-2 rounded-lg px-3 py-2 text-[11px] leading-4"
-                    style={{ backgroundColor: "#EFE3C4", color: "rgba(0,0,0,0.7)" }}
-                  >
-                    Listed twice with different capitalization:{" "}
-                    {dupes.map((v) => v.join(" / ")).join(", ")}
-                  </p>
-                )}
-
-                {visible.length === 0 ? (
-                  <p className="py-4 text-center text-sm" style={{ color: "rgba(0,0,0,0.5)" }}>
-                    No scents match your search.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    {visible.map((scent) => {
-                      const on = scents.includes(scent);
-                      return (
-                        <button
-                          key={scent}
-                          type="button"
-                          onClick={() => (on ? removeScent(scent) : setScents([...scents, scent]))}
-                          className="flex min-h-[44px] items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13px] transition-colors"
-                          style={{
-                            backgroundColor: on ? "#FDEEEA" : "#FFFFFF",
-                            border: on ? "1.5px solid #DE4B33" : "1.5px solid rgba(0,0,0,0.12)",
-                            color: "#000000",
-                            fontWeight: on ? 600 : 400,
-                          }}
-                        >
-                          <span
-                            className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-[10px] font-bold"
-                            style={{
-                              backgroundColor: on ? "#DE4B33" : "transparent",
-                              border: on ? "1.5px solid #DE4B33" : "1.5px solid rgba(0,0,0,0.25)",
-                              color: "#FFF4E6",
-                            }}
-                          >
-                            {on ? "✓" : ""}
-                          </span>
-                          <span className="min-w-0 flex-1 break-words leading-tight">{scent}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
-            );
-          })()}
-
-          <div className="flex gap-2">
-            <input
-              value={scentInput}
-              onChange={(e) => setScentInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addScent();
-                }
-              }}
-              placeholder="Add a new scent not listed above"
-              className="flex-1 rounded-xl px-4 py-3 text-sm outline-none"
-              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-            />
-            <button
-              type="button"
-              onClick={addScent}
-              className="rounded-xl px-4 py-3 text-sm font-semibold"
-              style={{ backgroundColor: "#EFE3C4", color: "#000000" }}
-            >
-              Add
-            </button>
+                       )}
           </div>
 
-          {scents.filter((s) => !existingScents.includes(s)).length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {scents
-                .filter((s) => !existingScents.includes(s))
-                .map((scent) => (
-                  <span
-                    key={scent}
-                    className="flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium"
-                    style={{ backgroundColor: "#EFE3C4", color: "#000000" }}
+          {sizes.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {sizes.map((s) => (
+                <div key={s.key} className="flex flex-wrap items-end gap-3">
+                  <div className="flex-1" style={{ minWidth: "140px" }}>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+                      Size
+                    </label>
+                    <input
+                      value={s.label}
+                      onChange={(e) => updateSize(s.key, { label: e.target.value })}
+                      placeholder="e.g. 17x25 CM"
+                      className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                    />
+                  </div>
+                  <div className="flex-1 sm:w-32 sm:flex-none" style={{ minWidth: "110px" }}>
+                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+                      Price (EGP)
+                    </label>
+                    <input
+                      value={s.price}
+                      onChange={(e) => updateSize(s.key, { price: e.target.value })}
+                      inputMode="numeric"
+                      className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeSize(s.key)}
+                    className="pb-3 text-xs font-semibold underline"
+                    style={{ color: "#DE4B33" }}
                   >
-                    {scent}
-                    <button type="button" onClick={() => removeScent(scent)} style={{ color: "#DE4B33" }}>
-                      ×
-                    </button>
-                  </span>
-                ))}
+                    remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addSize}
+                className="self-start rounded-full px-4 py-1.5 text-xs font-semibold"
+                style={{ backgroundColor: "#EFE3C4", color: "#000000" }}
+              >
+                + Add size
+              </button>
             </div>
+          ) : (
+            !hasColors && (
+              <button
+                type="button"
+                onClick={addSize}
+                className="self-start text-xs font-semibold underline"
+                style={{ color: "#DE4B33" }}
+              >
+                + Add sizes with their own prices
+              </button>
+            )
           )}
-
-                  
-                
-                
-        </div>
-
         </Card>
-        <Card title="Settings">
-        <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
-            Category
-          </label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value as "candle" | "giveaway" | "customizable")}
-            className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-            style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-          >
-            <option value="candle">Candle</option>
-            <option value="giveaway">Giveaway</option>
-            {category === "customizable" && <option value="customizable">Customizable (builder)</option>}
-          </select>
-        </div>
-
-        <label className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            checked={isFeatured}
-            onChange={(e) => setIsFeatured(e.target.checked)}
-            className="h-5 w-5"
-          />
-          <span className="text-sm font-medium" style={{ color: "#000000" }}>
-            Featured product
-          </span>
-        </label>
-        <label className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            checked={outOfStock}
-            onChange={(e) => setOutOfStock(e.target.checked)}
-            className="mt-0.5 h-5 w-5"
-          />
-          <span className="text-sm font-medium" style={{ color: "#000000" }}>
-            Out of stock
-            <span
-              className="block text-xs font-normal"
-              style={{ color: "rgba(0,0,0,0.55)" }}
-            >
-              The product stays on the website with a &quot;Sold out&quot; label and
-              customers can&apos;t add it to the cart.
-            </span>
-          </span>
-        </label>
-                <label className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            checked={showOrderCounter}
-            onChange={(e) => setShowOrderCounter(e.target.checked)}
-            className="mt-0.5 h-5 w-5"
-          />
-          <span className="text-sm font-medium" style={{ color: "#000000" }}>
-            Show "Your Order" counter on the product page
-            <span
-              className="block text-xs font-normal"
-              style={{ color: "rgba(0,0,0,0.55)" }}
-            >
-              For products ordered in bulk. Customers see a list of what
-              they added with + / − buttons under Add to Cart.
-            </span>
-          </span>
-        </label>
-
-        </Card>
-        <Card title="Photos & colors">
-        <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
-            Does this product have colors?
-          </label>
-
+                    {!hideScents && (
+               <Card title="Scents">
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => setHasColors(false)}
+              onClick={() => setIsScented(true)}
               className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold"
               style={{
-                backgroundColor: !hasColors ? "#DE4B33" : "transparent",
-                color: !hasColors ? "#FFF4E6" : "#000000",
+                backgroundColor: isScented ? "#DE4B33" : "transparent",
+                color: isScented ? "#FFF4E6" : "#000000",
                 borderColor: "#DE4B33",
               }}
             >
-              No — just photos
+              Scented
             </button>
-                        <button
+            <button
               type="button"
-              onClick={() => {
-                if (!hasColors && plainImages.length > 0) {
-                  const confirmed = window.confirm(
-                    "This product has photos that aren't attached to any color. Switching to colors means those photos won't be saved unless you add them to a color yourself. Continue?"
-                  );
-                  if (!confirmed) return;
-                }
-                setHasColors(true);
-              }}
+              onClick={() => setIsScented(false)}
               className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold"
               style={{
-                backgroundColor: hasColors ? "#DE4B33" : "transparent",
-                color: hasColors ? "#FFF4E6" : "#000000",
+                backgroundColor: !isScented ? "#DE4B33" : "transparent",
+                color: !isScented ? "#FFF4E6" : "#000000",
                 borderColor: "#DE4B33",
               }}
             >
-              Yes — has colors
+              Unscented
             </button>
           </div>
-        </div>
 
-        {!hasColors && (
-          <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
-              Product Photos
-            </label>
-            <ImageSlotPicker images={plainImages} onChange={setPlainImages} />
-          </div>
-        )}
+          <div className={isScented ? "" : "hidden"}>
+            {existingScents.length > 0 && (() => {
+              const q = scentSearch.trim().toLowerCase();
 
-             {hasColors && (
-          <div>
-                        <div className="mb-2 flex items-center justify-between">
-              <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
-                Colors
-              </label>
+              const visible = [...existingScents]
+                .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }) || a.localeCompare(b))
+                .filter((sc) => !q || sc.toLowerCase().includes(q));
+
+              const allSelected = existingScents.every((sc) => scents.includes(sc));
+
+              const byName: Record<string, string[]> = {};
+              existingScents.forEach((sc) => {
+                const k = sc.trim().toLowerCase();
+                if (!byName[k]) byName[k] = [];
+                byName[k].push(sc);
+              });
+              const dupes = Object.values(byName).filter((v) => v.length > 1);
+
+              return (
+                <div className="mb-4">
+                  <input
+                    value={scentSearch}
+                    onChange={(e) => setScentSearch(e.target.value)}
+                    placeholder="Search scents"
+                    className="mb-3 w-full rounded-xl px-4 py-2.5 text-sm outline-none"
+                    style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                  />
+
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs" style={{ color: "rgba(0,0,0,0.55)" }}>
+                      {scents.length} selected
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (allSelected) {
+                          setScents(scents.filter((s) => !existingScents.includes(s)));
+                        } else {
+                          setScents([...new Set([...scents, ...existingScents])]);
+                        }
+                      }}
+                      className="text-xs font-semibold underline"
+                      style={{ color: "#DE4B33" }}
+                    >
+                      {allSelected ? "Clear all" : "Choose all"}
+                    </button>
+                  </div>
+
+                  {dupes.length > 0 && (
+                    <p
+                      className="mb-2 rounded-lg px-3 py-2 text-[11px] leading-4"
+                      style={{ backgroundColor: "#EFE3C4", color: "rgba(0,0,0,0.7)" }}
+                    >
+                      Listed twice with different capitalization:{" "}
+                      {dupes.map((v) => v.join(" / ")).join(", ")}
+                    </p>
+                  )}
+
+                  {visible.length === 0 ? (
+                    <p className="py-4 text-center text-sm" style={{ color: "rgba(0,0,0,0.5)" }}>
+                      No scents match your search.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {visible.map((scent) => {
+                        const on = scents.includes(scent);
+                        return (
+                          <button
+                            key={scent}
+                            type="button"
+                            onClick={() => (on ? removeScent(scent) : setScents([...scents, scent]))}
+                            className="flex min-h-[44px] items-center gap-2.5 rounded-xl px-3 py-2 text-left text-[13px] transition-colors"
+                            style={{
+                              backgroundColor: on ? "#FDEEEA" : "#FFFFFF",
+                              border: on ? "1.5px solid #DE4B33" : "1.5px solid rgba(0,0,0,0.12)",
+                              color: "#000000",
+                              fontWeight: on ? 600 : 400,
+                            }}
+                          >
+                            <span
+                              className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-[10px] font-bold"
+                              style={{
+                                backgroundColor: on ? "#DE4B33" : "transparent",
+                                border: on ? "1.5px solid #DE4B33" : "1.5px solid rgba(0,0,0,0.25)",
+                                color: "#FFF4E6",
+                              }}
+                            >
+                              {on ? "✓" : ""}
+                            </span>
+                            <span className="min-w-0 flex-1 break-words leading-tight">{scent}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <div className="flex gap-2">
+              <input
+                value={scentInput}
+                onChange={(e) => setScentInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addScent();
+                  }
+                }}
+                placeholder="Add a new scent not listed above"
+                className="flex-1 rounded-xl px-4 py-3 text-sm outline-none"
+                style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+              />
               <button
                 type="button"
-                onClick={addColor}
-                className="rounded-full px-4 py-1.5 text-xs font-semibold"
+                onClick={addScent}
+                className="rounded-xl px-4 py-3 text-sm font-semibold"
                 style={{ backgroundColor: "#EFE3C4", color: "#000000" }}
               >
-                + Add Color
+                Add
               </button>
             </div>
 
-            <div className="flex flex-col gap-4">
-              {colors.map((color) => (
-                <div
-                  key={color.key}
-                  className="rounded-2xl p-4"
-                  style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFDF8" }}
-                >                <div className="mb-3 flex flex-wrap items-center gap-3">
-                    {!isScentOnlyProduct && (
-                      <input
-                        type="color"
-                        value={color.hex}
-                        onChange={(e) => updateColor(color.key, { hex: e.target.value })}
-                        className="h-9 w-9 flex-shrink-0 rounded-lg border-0"
-                      />
-                    )}
+            {scents.filter((s) => !existingScents.includes(s)).length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {scents
+                  .filter((s) => !existingScents.includes(s))
+                  .map((scent) => (
+                    <span
+                      key={scent}
+                      className="flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium"
+                      style={{ backgroundColor: "#EFE3C4", color: "#000000" }}
+                    >
+                      {scent}
+                      <button type="button" onClick={() => removeScent(scent)} style={{ color: "#DE4B33" }}>
+                        ×
+                      </button>
+                    </span>
+                  ))}
+              </div>
+                        )}
+          </div>
+        </Card>
+        )}
+        <Card title="Settings">
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+              Category
+            </label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+            >
+              {/* Until the list loads, show the product's current category so the select is never blank */}
+              {categoryOptions.length === 0 && <option value={category}>{category}</option>}
+              {category === "customizable" && (
+                <option value="customizable" disabled>
+                  Choose a category…
+                </option>
+              )}
+                          {categoryOptions
+                // Only real shop categories are listed here.
+                .filter((c) => c.slug !== "customizable")
+                .map((c) => (
+                  <option key={c.slug} value={c.slug}>
+                    {c.name}
+                    {!c.is_visible ? " (hidden on site)" : ""}
+                  </option>
+                ))}
+            </select>
+          </div>
 
-                    {isScentOnlyProduct ? (
-                      <div className="flex flex-1 gap-2">
-                        {(["Unscented", "Scented"] as const).map((label) => {
-                          const selected = color.name.trim().toLowerCase() === label.toLowerCase();
-                          return (
-                            <button
-                              key={label}
-                              type="button"
-                              onClick={() => updateColor(color.key, { name: label })}
-                              className="flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
-                              style={{
-                                backgroundColor: selected ? "#DE4B33" : "#FFFFFF",
-                                color: selected ? "#FFF4E6" : "#000000",
-                                borderColor: selected ? "#DE4B33" : "rgba(0,0,0,0.15)",
-                              }}
-                            >
-                              {label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : (
+                {!isBuilder && (
+            <label className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={isFeatured}
+                onChange={(e) => setIsFeatured(e.target.checked)}
+                className="h-5 w-5"
+              />
+              <span className="text-sm font-medium" style={{ color: "#000000" }}>
+                Featured product
+              </span>
+            </label>
+          )}
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={outOfStock}
+              onChange={(e) => setOutOfStock(e.target.checked)}
+              className="mt-0.5 h-5 w-5"
+            />
+            <span className="text-sm font-medium" style={{ color: "#000000" }}>
+              Out of stock
+              <span
+                className="block text-xs font-normal"
+                style={{ color: "rgba(0,0,0,0.55)" }}
+              >
+                The product stays on the website with a &quot;Sold out&quot; label and
+                customers can&apos;t add it to the cart.
+              </span>
+            </span>
+          </label>
+                 {!isBuilder && (
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              checked={showOrderCounter}
+              onChange={(e) => setShowOrderCounter(e.target.checked)}
+              className="mt-0.5 h-5 w-5"
+            />
+            <span className="text-sm font-medium" style={{ color: "#000000" }}>
+              Show "Your Order" counter on the product page
+              <span
+                className="block text-xs font-normal"
+                style={{ color: "rgba(0,0,0,0.55)" }}
+              >
+                              For products ordered in bulk. Customers see a list of what
+                they added with + / − buttons under Add to Cart.
+              </span>
+            </span>
+          </label>
+          )}
+        </Card>
+        <Card title="Photos & colors">
+          <div>
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+              Does this product have colors?
+            </label>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setHasColors(false)}
+                className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold"
+                style={{
+                  backgroundColor: !hasColors ? "#DE4B33" : "transparent",
+                  color: !hasColors ? "#FFF4E6" : "#000000",
+                  borderColor: "#DE4B33",
+                }}
+              >
+                No — just photos
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!hasColors && plainImages.length > 0) {
+                    const confirmed = window.confirm(
+                      "This product has photos that aren't attached to any color. Switching to colors means those photos won't be saved unless you add them to a color yourself. Continue?"
+                    );
+                    if (!confirmed) return;
+                  }
+                  setHasColors(true);
+                }}
+                className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold"
+                style={{
+                  backgroundColor: hasColors ? "#DE4B33" : "transparent",
+                  color: hasColors ? "#FFF4E6" : "#000000",
+                  borderColor: "#DE4B33",
+                }}
+              >
+                Yes — has colors
+              </button>
+            </div>
+          </div>
+
+          {!hasColors && (
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+                Product Photos
+              </label>
+              <ImageSlotPicker images={plainImages} onChange={setPlainImages} />
+            </div>
+          )}
+
+          {hasColors && (
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+                  Colors
+                </label>
+                <button
+                  type="button"
+                  onClick={addColor}
+                  className="rounded-full px-4 py-1.5 text-xs font-semibold"
+                  style={{ backgroundColor: "#EFE3C4", color: "#000000" }}
+                >
+                  + Add Color
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                {colors.map((color) => (
+                  <div
+                    key={color.key}
+                    className="rounded-2xl p-4"
+                    style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFDF8" }}
+                  >
+                    <div className="mb-3 flex flex-wrap items-center gap-3">
+                                           {!isScentOnlyProduct && (
+                       <ColorSquare
+  hex={color.hex}
+  image={
+    color.images[0] ??
+    color.options.flatMap((o) => o.images)[0]
+  }
+  onChange={(hex) => updateColor(color.key, { hex })}
+/>
+                      )}
+
+                      {isScentOnlyProduct ? (
+                        <div className="flex flex-1 gap-2">
+                          {(["Unscented", "Scented"] as const).map((label) => {
+                            const selected = color.name.trim().toLowerCase() === label.toLowerCase();
+                            return (
+                              <button
+                                key={label}
+                                type="button"
+                                onClick={() => updateColor(color.key, { name: label })}
+                                className="flex-1 rounded-xl border px-3 py-2 text-sm font-semibold transition-colors"
+                                style={{
+                                  backgroundColor: selected ? "#DE4B33" : "#FFFFFF",
+                                  color: selected ? "#FFF4E6" : "#000000",
+                                  borderColor: selected ? "#DE4B33" : "rgba(0,0,0,0.15)",
+                                }}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <input
+                          value={color.name}
+                          onChange={(e) => updateColor(color.key, { name: e.target.value })}
+                          placeholder="Color name (e.g. White)"
+                          className="min-w-[140px] flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+                          style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                        />
+                      )}
+
                       <input
-                        value={color.name}
-                        onChange={(e) => updateColor(color.key, { name: e.target.value })}
-                        placeholder="Color name (e.g. White)"
-                                                className="min-w-[140px] flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+                        value={color.price}
+                        onChange={(e) => updateColor(color.key, { price: e.target.value })}
+                        placeholder="Price (optional)"
+                        inputMode="numeric"
+                        className="min-w-[110px] flex-1 rounded-xl px-3 py-2 text-sm outline-none sm:w-28 sm:flex-none"
                         style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                       />
-                    )}
-
-                    <input
-                      value={color.price}
-                      onChange={(e) => updateColor(color.key, { price: e.target.value })}
-                      placeholder="Price (optional)"
-                      inputMode="numeric"
-                                            className="min-w-[110px] flex-1 rounded-xl px-3 py-2 text-sm outline-none sm:w-28 sm:flex-none"
-                      style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeColor(color.key)}
-                      className="flex-shrink-0 text-xs font-semibold underline"
-                      style={{ color: "#DE4B33" }}
-                    >
-                      remove
-                    </button>
-                  </div>
-
-                  <div className="mb-3">
-                    <button
-                      type="button"
-                      onClick={() => updateColor(color.key, { soldOut: !color.soldOut })}
-                      className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
-                      style={{
-                        backgroundColor: color.soldOut ? "#DE4B33" : "transparent",
-                        color: color.soldOut ? "#FFF4E6" : "#000000",
-                        border: "1.5px solid #DE4B33",
-                      }}
-                    >
-                      {color.soldOut ? "Sold out · tap to put back in stock" : "Mark this color sold out"}
-                    </button>
-                  </div>
-
-                  {isScentOnlyProduct && color.name.trim().toLowerCase() === "scented" && (
-                    <div
-                      className="mb-3 rounded-xl px-3 py-2.5"
-                      style={{ backgroundColor: "#EFE3C4" }}
-                    >
-                      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.55)" }}>
-                        Scent{scents.length !== 1 ? "s" : ""} for this variant
-                      </p>
-                      {scents.length > 0 ? (
-                        <p className="mt-1 text-sm font-semibold" style={{ color: "#000000" }}>
-                          {scents.join(", ")}
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-sm" style={{ color: "#DE4B33" }}>
-                          No scents selected yet — choose them in the Scents section below.
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  <div className="mb-3">
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.5)" }}>
-                      Photos for this color
-                    </p>
-                    <ImageSlotPicker
-                      images={color.images}
-                      onChange={(images) => updateColor(color.key, { images })}
-                    />
-                  </div>
-
-                  <div className="mt-3 border-t pt-3" style={{ borderColor: "rgba(0,0,0,0.1)" }}>
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.5)" }}>
-                        Options (e.g. size, style)
-                      </p>
                       <button
                         type="button"
-                        onClick={() => addOption(color.key)}
-                        className="rounded-full px-3 py-1 text-[11px] font-semibold"
-                        style={{ backgroundColor: "#EFE3C4", color: "#000000" }}
+                        onClick={() => removeColor(color.key)}
+                        className="flex-shrink-0 text-xs font-semibold underline"
+                        style={{ color: "#DE4B33" }}
                       >
-                        + Add Option
+                        remove
                       </button>
                     </div>
 
-                    <div className="flex flex-col gap-3">
-                                           {color.options.map((option) => (
-                        <div key={option.key} className="rounded-xl p-3" style={{ backgroundColor: "#EFE3C4" }}>
-                         <div className="mb-2 flex flex-wrap items-center gap-2">
-                            {isColorScentOptionProduct ? (
-                              <div className="flex flex-1 gap-2">
-                                {(["Unscented", "Scented"] as const).map((label) => {
-                                  const selected = option.name.trim().toLowerCase() === label.toLowerCase();
-                                  return (
-                                    <button
-                                      key={label}
-                                      type="button"
-                                      onClick={() => updateOption(color.key, option.key, { name: label })}
-                                      className="flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors"
-                                      style={{
-                                        backgroundColor: selected ? "#DE4B33" : "#FFFFFF",
-                                        color: selected ? "#FFF4E6" : "#000000",
-                                        borderColor: selected ? "#DE4B33" : "rgba(0,0,0,0.15)",
-                                      }}
-                                    >
-                                      {label}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            ) : (
+                    <div className="mb-3">
+                      <button
+                        type="button"
+                        onClick={() => updateColor(color.key, { soldOut: !color.soldOut })}
+                        className="rounded-full px-4 py-1.5 text-xs font-semibold transition-colors"
+                        style={{
+                          backgroundColor: color.soldOut ? "#DE4B33" : "transparent",
+                          color: color.soldOut ? "#FFF4E6" : "#000000",
+                          border: "1.5px solid #DE4B33",
+                        }}
+                      >
+                        {color.soldOut ? "Sold out · tap to put back in stock" : "Mark this color sold out"}
+                      </button>
+                    </div>
+
+                    {isScentOnlyProduct && color.name.trim().toLowerCase() === "scented" && (
+                      <div
+                        className="mb-3 rounded-xl px-3 py-2.5"
+                        style={{ backgroundColor: "#EFE3C4" }}
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.55)" }}>
+                          Scent{scents.length !== 1 ? "s" : ""} for this variant
+                        </p>
+                        {scents.length > 0 ? (
+                          <p className="mt-1 text-sm font-semibold" style={{ color: "#000000" }}>
+                            {scents.join(", ")}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-sm" style={{ color: "#DE4B33" }}>
+                            No scents selected yet — choose them in the Scents section below.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="mb-3">
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.5)" }}>
+                        Photos for this color
+                      </p>
+                      <ImageSlotPicker
+                        images={color.images}
+                        onChange={(images) => updateColor(color.key, { images })}
+                      />
+                    </div>
+
+                    <div className="mt-3 border-t pt-3" style={{ borderColor: "rgba(0,0,0,0.1)" }}>
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.5)" }}>
+                          Options (e.g. size, style)
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => addOption(color.key)}
+                          className="rounded-full px-3 py-1 text-[11px] font-semibold"
+                          style={{ backgroundColor: "#EFE3C4", color: "#000000" }}
+                        >
+                          + Add Option
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        {color.options.map((option) => (
+                          <div key={option.key} className="rounded-xl p-3" style={{ backgroundColor: "#EFE3C4" }}>
+                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                              {isColorScentOptionProduct ? (
+                                <div className="flex flex-1 gap-2">
+                                  {(["Unscented", "Scented"] as const).map((label) => {
+                                    const selected = option.name.trim().toLowerCase() === label.toLowerCase();
+                                    return (
+                                      <button
+                                        key={label}
+                                        type="button"
+                                        onClick={() => updateOption(color.key, option.key, { name: label })}
+                                        className="flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors"
+                                        style={{
+                                          backgroundColor: selected ? "#DE4B33" : "#FFFFFF",
+                                          color: selected ? "#FFF4E6" : "#000000",
+                                          borderColor: selected ? "#DE4B33" : "rgba(0,0,0,0.15)",
+                                        }}
+                                      >
+                                        {label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <input
+                                  value={option.name}
+                                  onChange={(e) => updateOption(color.key, option.key, { name: e.target.value })}
+                                  placeholder="Option name (e.g. Small)"
+                                  className="min-w-[140px] flex-1 rounded-lg px-3 py-2 text-sm outline-none"
+                                  style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
+                                />
+                              )}
                               <input
-                                value={option.name}
-                                onChange={(e) => updateOption(color.key, option.key, { name: e.target.value })}
-                                placeholder="Option name (e.g. Small)"
-                                className="min-w-[140px] flex-1 rounded-lg px-3 py-2 text-sm outline-none"
+                                value={option.price}
+                                onChange={(e) => updateOption(color.key, option.key, { price: e.target.value })}
+                                placeholder="Price (optional)"
+                                inputMode="numeric"
+                                className="min-w-[110px] flex-1 rounded-lg px-3 py-2 text-sm outline-none sm:w-28 sm:flex-none"
                                 style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
                               />
-                            )}
-                            <input
-                              value={option.price}
-                              onChange={(e) => updateOption(color.key, option.key, { price: e.target.value })}
-                              placeholder="Price (optional)"
-                              inputMode="numeric"
-                              className="min-w-[110px] flex-1 rounded-lg px-3 py-2 text-sm outline-none sm:w-28 sm:flex-none"
-                              style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeOption(color.key, option.key)}
-                              className="flex-shrink-0 text-xs font-semibold underline"
-                              style={{ color: "#DE4B33" }}
-                            >
-                              remove
-                            </button>
-                          </div>
-
-                          {isColorScentOptionProduct && option.name.trim().toLowerCase() === "scented" && (
-                            <div
-                              className="mb-2 rounded-lg px-3 py-2"
-                              style={{ backgroundColor: "#FFFFFF" }}
-                            >
-                              <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.55)" }}>
-                                Scent{scents.length !== 1 ? "s" : ""}
-                              </p>
-                              {scents.length > 0 ? (
-                                <p className="mt-0.5 text-sm font-semibold" style={{ color: "#000000" }}>
-                                  {scents.join(", ")}
-                                </p>
-                              ) : (
-                                <p className="mt-0.5 text-sm" style={{ color: "#DE4B33" }}>
-                                  No scents selected yet — choose them in the Scents section below.
-                                </p>
-                              )}
+                              <button
+                                type="button"
+                                onClick={() => removeOption(color.key, option.key)}
+                                className="flex-shrink-0 text-xs font-semibold underline"
+                                style={{ color: "#DE4B33" }}
+                              >
+                                remove
+                              </button>
                             </div>
-                          )}
 
-                          <ImageSlotPicker
-                            images={option.images}
-                            onChange={(images) => updateOption(color.key, option.key, { images })}
-                          />
-                        </div>
-                      ))}
+                            {isColorScentOptionProduct && option.name.trim().toLowerCase() === "scented" && (
+                              <div
+                                className="mb-2 rounded-lg px-3 py-2"
+                                style={{ backgroundColor: "#FFFFFF" }}
+                              >
+                                <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.55)" }}>
+                                  Scent{scents.length !== 1 ? "s" : ""}
+                                </p>
+                                {scents.length > 0 ? (
+                                  <p className="mt-0.5 text-sm font-semibold" style={{ color: "#000000" }}>
+                                    {scents.join(", ")}
+                                  </p>
+                                ) : (
+                                  <p className="mt-0.5 text-sm" style={{ color: "#DE4B33" }}>
+                                    No scents selected yet — choose them in the Scents section below.
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            <ImageSlotPicker
+                              images={option.images}
+                              onChange={(images) => updateOption(color.key, option.key, { images })}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {colors.length === 0 && (
-                <p className="text-sm" style={{ color: "rgba(0,0,0,0.5)" }}>
-                  No colors added yet.
-                </p>
-              )}
+                {colors.length === 0 && (
+                  <p className="text-sm" style={{ color: "rgba(0,0,0,0.5)" }}>
+                    No colors added yet.
+                  </p>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </Card>
-        <OptionGroupsEditor groups={optionGroups} onChange={setOptionGroups} />
+        {!isBuilder && <OptionGroupsEditor groups={optionGroups} onChange={setOptionGroups} />}
         <div
           className="sticky bottom-0 z-10 pb-3 pt-6"
           style={{ background: "linear-gradient(to top, #FFF4E6 65%, rgba(255,244,230,0))" }}

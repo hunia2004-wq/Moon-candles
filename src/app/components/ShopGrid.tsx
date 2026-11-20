@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import type { Product } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/client";
 import AutoCenteredImage from "./AutoCenteredImage";
@@ -46,23 +47,21 @@ const PHOTO_PRODUCTS = ["quack and kiss"];
 // entries to hold the Scented / Unscented photos), so no color dots for them.
 const NO_SWATCH_PRODUCTS = ["rustic warmth"];
 
+// Builder products are reached through their Customize buttons, never as their own shop card.
+// Both the old and new names are listed so this works before and after the rename.
+const BUILDER_PRODUCT_NAMES = [
+  "custom candle",
+  "candle (customized)",
+  "custom tambourine",
+  "tambourine (customized)",
+];
+
 // Arch color per page: green on Shop All, pink on Candles, blue on Giveaways.
-const ARCH_COLORS: Record<string, string> = {
-  "#657A55": "#eee4d4", // Shop All: soft beige
-  "#D8A1AF": "#eee4d4", // Candles: soft beige
-  "#6E86C7": "#eee4d4", // Giveaways: soft beige
-};
+// Arch color is the same soft beige on every page.
+const ARCH_BEIGE = "#eee4d4";
 
-function archTint(accent: string) {
-  return ARCH_COLORS[accent.toUpperCase()] ?? accent;
-}
-
-// Picks the arch color from the page's category first, so it is right
-// even when the page passes the wrong accent.
-function tintFor(category: string | null, accent: string) {
-  if (category === "giveaways") return ARCH_COLORS["#6E86C7"];
-  if (category === "candles") return ARCH_COLORS["#D8A1AF"];
-  return archTint(accent);
+function tintFor(_category: string | null, _accent: string) {
+  return ARCH_BEIGE;
 }
 
 // A color's picture: its own photo, or else the photo of its first option that
@@ -199,7 +198,7 @@ function Swatches({
             }}
           >
             {c.img ? (
-              <img src={c.img} alt="" className="h-full w-full object-cover" />
+              <Image src={c.img} alt="" fill sizes="28px" className="object-cover" />
             ) : (
               c.hex && (
                 <span
@@ -235,6 +234,7 @@ function Swatches({
     </div>
   );
 }
+
 /* ---------- CARD SHELL (arch window) ---------- */
 
 // The color sits on its own layer behind the product. The picture gets a
@@ -264,22 +264,21 @@ function CardShell({
   price: React.ReactNode;
   chips?: React.ReactNode;
 }) {
-  
   return (
     <div className="group flex flex-col items-center text-center">
       <div className="relative w-full">
         <Link href={href} ref={linkRef} className="relative block">
           {/* Color layer: always behind the product */}
-         <div
-  aria-hidden="true"
-  className="absolute inset-0"
-  style={{
-    backgroundColor: tint,
-    border: "1px solid #E2D5C2",
-    borderRadius: "50% 50% 24px 24px / 36% 36% 24px 24px",
-    boxShadow: highlight ? `0 0 0 3px ${accent}` : "none",
-  }}
-/>
+          <div
+            aria-hidden="true"
+            className="absolute inset-0"
+            style={{
+              backgroundColor: tint,
+              border: "1px solid #E2D5C2",
+              borderRadius: "50% 50% 24px 24px / 36% 36% 24px 24px",
+              boxShadow: highlight ? `0 0 0 3px ${accent}` : "none",
+            }}
+          />
 
           {/* Product layer: exactly centered, never squeezed */}
           <div className="relative z-10 flex aspect-[6/7] items-center justify-center p-3">
@@ -289,18 +288,17 @@ function CardShell({
           </div>
         </Link>
 
-
-      <Link
-  href={href}
-  className="absolute bottom-0 left-1/2 z-20 -translate-x-1/2 translate-y-1/2 whitespace-nowrap rounded-full px-4 py-1.5 text-[12px] font-semibold tracking-wide transition-all duration-300 group-hover:bg-[#DE4B33]"
-  style={{
-    backgroundColor: "#FFF4E6",
-    color: "#000000",
-    border: "1px solid #000000",
-  }}
->
-  {price}
-</Link>
+        <Link
+          href={href}
+          className="absolute bottom-0 left-1/2 z-20 -translate-x-1/2 translate-y-1/2 whitespace-nowrap rounded-full px-4 py-1.5 text-[12px] font-semibold tracking-wide transition-all duration-300 group-hover:bg-[#DE4B33]"
+          style={{
+            backgroundColor: "#FFF4E6",
+            color: "#000000",
+            border: "1px solid #000000",
+          }}
+        >
+          {price}
+        </Link>
       </div>
 
       <div className="mt-7 w-full">
@@ -313,31 +311,31 @@ function CardShell({
           </span>
         )}
 
- <Link
-  href={href}
-  className="block font-serif text-[17px] leading-tight md:text-lg"
-  style={{ color: "#000000" }}
->
-  {title}
-</Link>
+        <Link
+          href={href}
+          className="block font-serif text-[17px] leading-tight md:text-lg"
+          style={{ color: "#000000" }}
+        >
+          {title}
+        </Link>
 
-{soldOut && (
-  <div className="mt-2 flex justify-center">
-    <span
-      className="inline-flex items-center justify-center rounded-full px-3.5 py-1"
-      style={{
-        color: "#DE4B33",
-        border: "1px solid rgba(222,75,51,0.65)",
-        fontSize: "8px",
-        fontWeight: 600,
-        letterSpacing: "0.18em",
-        textTransform: "uppercase",
-      }}
-    >
-      Sold Out
-    </span>
-  </div>
-)}
+        {soldOut && (
+          <div className="mt-2 flex justify-center">
+            <span
+              className="inline-flex items-center justify-center rounded-full px-3.5 py-1"
+              style={{
+                color: "#DE4B33",
+                border: "1px solid rgba(222,75,51,0.65)",
+                fontSize: "8px",
+                fontWeight: 600,
+                letterSpacing: "0.18em",
+                textTransform: "uppercase",
+              }}
+            >
+              Sold Out
+            </span>
+          </div>
+        )}
 
         {chips && <div className="mt-3 flex flex-col items-center gap-2">{chips}</div>}
       </div>
@@ -628,6 +626,7 @@ function OptionCard({
 /* ---------- CUSTOM FAN (two sizes, customize only) ---------- */
 
 // Same picture for both sizes, so the large one is drawn a little bigger.
+// Fallback only: the real sizes and prices come from the Fan's colors in admin.
 const FAN_SIZES = [
   { id: "small", label: "Small", price: 25, img: "", scale: 1 },
   { id: "large", label: "Large", price: 35, img: "", scale: 1.15 },
@@ -643,7 +642,31 @@ function FanCard({
   tint: string;
 }) {
   const [sizeId, setSizeId] = useState<"small" | "large">("small");
-  const current = FAN_SIZES.find((s) => s.id === sizeId)!;
+
+  // Sizes and prices come from the Fan's colors in admin; the fixed
+  // list is only a fallback if fewer than two are set.
+  const fanSizes: readonly {
+    id: "small" | "large";
+    label: string;
+    price: number;
+    img: string;
+    scale: number;
+  }[] = (() => {
+    const fromAdmin = (product.colors ?? [])
+      .filter((c) => c.name && c.price != null)
+      .sort((a, b) => Number(a.price) - Number(b.price))
+      .slice(0, 2)
+      .map((c, i) => ({
+        id: (i === 0 ? "small" : "large") as "small" | "large",
+        label: i === 0 ? "Small" : "Large",
+        price: Number(c.price),
+        img: "",
+        scale: i === 0 ? 1 : 1.15,
+      }));
+    return fromAdmin.length === 2 ? fromAdmin : FAN_SIZES;
+  })();
+
+  const current = fanSizes.find((s) => s.id === sizeId)!;
 
   return (
     <OptionCard
@@ -658,7 +681,7 @@ function FanCard({
       price={current.price}
       scale={current.scale}
       chipRows={[
-        FAN_SIZES.map((s) => (
+        fanSizes.map((s) => (
           <OptionChip
             key={s.id}
             label={s.label}
@@ -851,13 +874,14 @@ function ShopCard({
 export default function ShopGrid({
   products,
   accent = "#657A55",
+  category = null,
 }: {
   products: Product[];
   accent?: string;
+  category?: string | null; // category slug from the page, e.g. "candle" | "giveaway" | "diffuser" | null
 }) {
   const searchParams = useSearchParams();
   const targetProduct = searchParams.get("product");
-  const category = searchParams.get("category"); // "candles" | "giveaways" | null
   const refs = useRef<Record<number, HTMLAnchorElement | null>>({});
   const [discountsByProduct, setDiscountsByProduct] = useState<Record<number, ActiveDiscount>>({});
 
@@ -910,14 +934,13 @@ export default function ShopGrid({
     setDiscountsByProduct(map);
   }
 
-  const showCustomCard = !category || category === "candles";
+  const showCustomCard = !category || category === "candle";
 
   const filteredProducts = products.filter((product) => {
     if (product.category === "customizable") return false;
+    if (BUILDER_PRODUCT_NAMES.includes(product.name.trim().toLowerCase())) return false;
     if (!category) return true;
-    if (category === "giveaways") return product.category === "giveaway";
-    if (category === "candles") return product.category === "candle";
-    return true;
+    return product.category === category;
   });
 
   if (filteredProducts.length === 0 && !showCustomCard) {
@@ -927,7 +950,7 @@ export default function ShopGrid({
   return (
     <div className="grid grid-cols-2 gap-x-4 gap-y-14 md:grid-cols-3 md:gap-x-8">
       {filteredProducts.map((product) => {
-               const tint = tintFor(category, accent);
+        const tint = tintFor(category, accent);
         const isTarget = product.name === targetProduct;
         const soldOut = !!(product as Product & { out_of_stock?: boolean | null }).out_of_stock;
         const priceOverride = getPriceRange(product);
@@ -1021,7 +1044,7 @@ export default function ShopGrid({
           initial="large"
           hrefFor={(id) => `/customize?size=${id}`}
           accent={accent}
-                   tint={tintFor(category, accent)}
+          tint={tintFor(category, accent)}
         />
       )}
     </div>

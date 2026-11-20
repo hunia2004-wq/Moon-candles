@@ -17,6 +17,14 @@ import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+// The `products` row that the admin panel edits for the custom candle.
+// (The cart already used 43 as the productId, so the page now reads that same row.)
+const CUSTOM_CANDLE_PRODUCT_ID = 43;
+
+// Shown in the cart when the admin hasn't set a Display name.
+const DEFAULT_PRODUCT_LABEL = "Custom Candle";
+
+// Defaults. Prices are replaced by the admin's prices when the product row loads.
 const SIZES = [
   {
     id: "small",
@@ -41,6 +49,23 @@ const SIZES = [
 const MAX_PHOTO_MB = 20;
 
 type SizeId = (typeof SIZES)[number]["id"];
+
+// The parts of the products row this page uses.
+type ProductRow = {
+  display_name?: string | null;
+  description?: string | null;
+  scents?: string[] | null;
+  colors?: { name?: string; price?: number | string | null; sold_out?: boolean }[] | null;
+  out_of_stock?: boolean | null;
+  sold_out_variants?: string[] | null;
+};
+
+// In the admin, the two sizes are the product's "colors" (named like "150 ml" / "380 ml").
+// Match them by the number in the name so "150 ML", "150 ml" and "150ml" all work.
+function findSizeColor(colors: ProductRow["colors"], id: SizeId) {
+  const digits = id === "small" ? "150" : "380";
+  return (colors ?? []).find((c) => (c.name ?? "").includes(digits));
+}
 
 // Phone photos are often 5-10 MB. Shrinking them before upload makes the
 // upload (and the sticker preparation afterwards) much faster.
@@ -90,6 +115,7 @@ export default function CustomizeCandlePage() {
   const [size, setSize] = useState<SizeId>("small");
   const [scent, setScent] = useState<string>("");
   const [scents, setScents] = useState<string[]>([]);
+  const [product, setProduct] = useState<ProductRow | null>(null);
   const [textBoxes, setTextBoxes] = useState<TextBox[]>(() => [makeTextBox()]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -107,34 +133,95 @@ export default function CustomizeCandlePage() {
 
   const [showPreview, setShowPreview] = useState(false);
 
-  const selectedSize = SIZES.find((s) => s.id === size)!;
+  // ---- Values managed in the admin panel ----
+
+  const productLabel = product?.display_name?.trim() || DEFAULT_PRODUCT_LABEL;
+  const productDescription = product?.description?.trim() || "";
+
+  const sizes = SIZES.map((s) => {
+    const color = findSizeColor(product?.colors, s.id);
+    const raw = color?.price;
+    const adminPrice = raw != null && String(raw) !== "" && !isNaN(Number(raw)) ? Number(raw) : null;
+    return { ...s, price: adminPrice ?? s.price, soldOut: !!color?.sold_out };
+  });
+
+  const selectedSize = sizes.find((s) => s.id === size)!;
+
+  const soldOutScents = new Set(
+    (product?.sold_out_variants ?? []).map((v) => String(v).trim().toLowerCase())
+  );
+  const isScentSoldOut = (s: string) => soldOutScents.has(s.trim().toLowerCase());
+
+  const unavailableMessage = product?.out_of_stock
+    ? "This candle is sold out right now."
+    : selectedSize.soldOut
+    ? `The ${selectedSize.label} size is sold out right now.`
+    : scent && isScentSoldOut(scent)
+    ? `${scent} is sold out right now.`
+    : null;
+
+  // Someone editing a candle that is already in their cart can still save it.
+  const blocked = !!unavailableMessage && !editingId;
 
   useEffect(() => {
-    async function loadScents() {
+    async function loadProduct() {
       const supabase = createClient();
 
+      // select("*") so this keeps working even if an optional column doesn't exist yet
       const { data, error } = await supabase
         .from("products")
-        .select("scents")
-        .not("scents", "is", null)
-        .limit(1)
-        .single();
+        .select("*")
+        .eq("id", CUSTOM_CANDLE_PRODUCT_ID)
+        .maybeSingle();
 
       if (error) {
-        console.error("Failed to load scents:", error.message);
-        return;
+        console.error("Failed to load the custom candle product:", error.message);
       }
 
-      if (data?.scents?.length) {
-        setScents(data.scents);
+      const row = (data ?? null) as ProductRow | null;
+      if (row) setProduct(row);
+
+      let list: string[] = Array.isArray(row?.scents) ? row!.scents!.filter(Boolean) : [];
+
+      // The custom candle has no scents saved yet: use the old behaviour (scents of the
+      // first product that has any) so the page isn't left with an empty list.
+      if (list.length === 0) {
+        console.warn(
+          `Product ${CUSTOM_CANDLE_PRODUCT_ID} has no scents saved in the admin. Using the first product that has scents instead.`
+        );
+        const { data: fallback, error: fallbackError } = await supabase
+          .from("products")
+          .select("scents")
+          .not("scents", "is", null)
+          .limit(1)
+          .maybeSingle();
+
+        if (fallbackError) {
+          console.error("Failed to load scents:", fallbackError.message);
+          return;
+        }
+
+        list = Array.isArray(fallback?.scents) ? fallback!.scents.filter(Boolean) : [];
+      }
+
+      if (list.length) {
+        setScents(list);
+
+        // Start on the first scent that is still available
+        const soldOut = new Set(
+          (row?.sold_out_variants ?? []).map((v) => String(v).trim().toLowerCase())
+        );
+        const firstAvailable = list.find((s) => !soldOut.has(s.trim().toLowerCase())) ?? list[0];
+
         // Keep the scent from an edited item if there is one
-        setScent((prev) => prev || data.scents[0]);
+        setScent((prev) => prev || firstAvailable);
       }
     }
 
-    loadScents();
+    loadProduct();
   }, []);
-    useEffect(() => {
+
+  useEffect(() => {
     const s = new URLSearchParams(window.location.search).get("size");
     if (s === "small" || s === "large") setSize(s);
   }, []);
@@ -201,6 +288,11 @@ export default function CustomizeCandlePage() {
   async function submitCandle(mode: "add" | "buy" | "save") {
     if (uploading || rendering || busyRef.current) return;
 
+    if (mode !== "save" && unavailableMessage) {
+      alert(unavailableMessage);
+      return;
+    }
+
     if (!photoUrl) {
       alert("Please add your photo first.");
       return;
@@ -229,7 +321,7 @@ export default function CustomizeCandlePage() {
         photoUrl,
         textBoxes: textBoxes
           .filter((b) => b.text.trim())
-                    .map((b) => ({
+          .map((b) => ({
             text: b.text,
             x: b.x,
             y: b.y,
@@ -259,8 +351,8 @@ export default function CustomizeCandlePage() {
 
       const item = {
         id: saving ? editingId! : `custom-candle-${Date.now()}`,
-        productId: 43,
-        productName: "Custom Candle",
+        productId: CUSTOM_CANDLE_PRODUCT_ID,
+        productName: productLabel,
         price: selectedSize.price,
         quantity: saving ? editingQty : 1,
         scent: scent || null,
@@ -304,7 +396,7 @@ export default function CustomizeCandlePage() {
         type="button"
         onClick={() => router.back()}
         aria-label="Go back"
-            className="group fixed left-6 z-50 flex items-center gap-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-60 md:left-10"
+        className="group fixed left-6 z-50 flex items-center gap-2 text-sm font-semibold transition-opacity duration-200 hover:opacity-60 md:left-10"
         style={{ color: "#000000", top: "calc(var(--header-h, 80px) + 12px)" }}
       >
         <ArrowLeft
@@ -358,25 +450,29 @@ export default function CustomizeCandlePage() {
           </span>
         </h1>
 
-        <p
-          className="mb-10 text-sm leading-6 md:text-base"
-          style={{ color: "rgba(0,0,0,0.62)" }}
-        >
-          If you have any questions or would like something other than the
-          options provided, feel free to DM us on Instagram
-          @the_moon_candlesshop.
-        </p>
+        {/* Description from the admin panel (only shown when it isn't empty) */}
+        {productDescription && (
+          <p
+            className="mb-10 whitespace-pre-line text-sm leading-6 md:text-base"
+            style={{ color: "rgba(0,0,0,0.62)" }}
+          >
+            {productDescription}
+          </p>
+        )}
+
+       
 
         {/* STEP 1 — SIZE */}
         <StepLabel n={1} title="Choose your size" />
 
         <div className="mb-8 grid grid-cols-2 gap-3">
-          {SIZES.map((s) => (
+          {sizes.map((s) => (
             <button
               type="button"
               key={s.id}
+              disabled={s.soldOut}
               onClick={() => setSize(s.id)}
-              className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-5 transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:shadow-md"
+              className="flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-5 transition-all duration-150 hover:scale-[1.03] active:scale-[0.97] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none"
               style={{
                 border: `1.5px solid ${
                   size === s.id ? "#DE4B33" : "rgba(0,0,0,0.12)"
@@ -394,7 +490,7 @@ export default function CustomizeCandlePage() {
               </span>
 
               <span className="text-[11px]" style={{ color: "rgba(0,0,0,0.62)" }}>
-                {s.price} LE
+                {s.soldOut ? "Sold out" : `${s.price} LE`}
               </span>
             </button>
           ))}
@@ -410,27 +506,37 @@ export default function CustomizeCandlePage() {
             </p>
           )}
 
-          {scents.map((s) => (
-            <button
-              type="button"
-              key={s}
-              onClick={() => setScent(s)}
-              className="flex flex-col items-start gap-1 rounded-xl px-4 py-3 text-left transition-all duration-150 hover:shadow-sm"
-              style={{
-                border: `1.5px solid ${
-                  scent === s ? "#DE4B33" : "rgba(0,0,0,0.12)"
-                }`,
-                backgroundColor: scent === s ? "#EFE3C4" : "transparent",
-              }}
-            >
-              <span
-                className="text-xs font-semibold tracking-wide"
-                style={{ color: "#000000" }}
+          {scents.map((s) => {
+            const soldOut = isScentSoldOut(s);
+            return (
+              <button
+                type="button"
+                key={s}
+                disabled={soldOut}
+                onClick={() => setScent(s)}
+                className="flex flex-col items-start gap-1 rounded-xl px-4 py-3 text-left transition-all duration-150 hover:shadow-sm disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:shadow-none"
+                style={{
+                  border: `1.5px solid ${
+                    scent === s ? "#DE4B33" : "rgba(0,0,0,0.12)"
+                  }`,
+                  backgroundColor: scent === s ? "#EFE3C4" : "transparent",
+                }}
               >
-                {s}
-              </span>
-            </button>
-          ))}
+                <span
+                  className="text-xs font-semibold tracking-wide"
+                  style={{ color: "#000000" }}
+                >
+                  {s}
+                </span>
+
+                {soldOut && (
+                  <span className="text-[11px]" style={{ color: "rgba(0,0,0,0.62)" }}>
+                    Sold out
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Hidden photo input */}
@@ -442,13 +548,19 @@ export default function CustomizeCandlePage() {
           onChange={handlePhotoChange}
         />
 
+        {blocked && (
+          <p className="mb-3 text-sm font-semibold" style={{ color: "#DE4B33" }}>
+            {unavailableMessage}
+          </p>
+        )}
+
         {/* PREVIEW CTA */}
         <div className="mt-auto flex items-center gap-4">
           <button
             type="button"
-            disabled={uploading}
+            disabled={uploading || blocked}
             onClick={() => {
-              if (uploading) return;
+              if (uploading || blocked) return;
               setShowPreview(true);
             }}
             className="inline-flex flex-1 items-center justify-center gap-2 rounded-full font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] md:flex-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -606,7 +718,7 @@ export default function CustomizeCandlePage() {
                     className="mt-1 text-sm font-medium"
                     style={{ color: "#000000" }}
                   >
-                    {scent || "Custom candle"}
+                    {scent || productLabel}
                   </p>
                 </div>
 
@@ -621,6 +733,15 @@ export default function CustomizeCandlePage() {
                   style={{ color: "rgba(0,0,0,0.55)" }}
                 >
                   Add your photo to continue.
+                </p>
+              )}
+
+              {blocked && (
+                <p
+                  className="mt-2 text-center text-xs font-semibold"
+                  style={{ color: "#DE4B33" }}
+                >
+                  {unavailableMessage}
                 </p>
               )}
             </div>
@@ -642,7 +763,7 @@ export default function CustomizeCandlePage() {
                   <button
                     type="button"
                     onClick={() => submitCandle("add")}
-                    disabled={uploading || rendering || !photoUrl}
+                    disabled={uploading || rendering || !photoUrl || blocked}
                     className="flex-1 rounded-full px-5 py-3 text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                     style={{
                       backgroundColor: "#FFFFFF",
@@ -656,7 +777,7 @@ export default function CustomizeCandlePage() {
                   <button
                     type="button"
                     onClick={() => submitCandle("buy")}
-                    disabled={uploading || rendering || !photoUrl}
+                    disabled={uploading || rendering || !photoUrl || blocked}
                     className="flex-1 rounded-full px-5 py-3 text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ backgroundColor: "#DE4B33", color: "#FFF4E6" }}
                   >

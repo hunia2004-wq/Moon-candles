@@ -6,35 +6,55 @@ import { Menu, X, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { createPortal } from "react-dom";
 type MenuProduct = {
-   id: number | string;
+  id: number | string;
   name: string;
   category: string;
 };
+
+type MenuCategory = {
+  slug: string;
+  name: string;
+  accent: string | null;
+};
+// Heading color per category. Categories not listed here use the default.
+// Heading color comes from each category's accent in the database.
+// This is only used if a category has no accent set.
+const DEFAULT_CATEGORY_COLOR = "#657A55";
 
 export default function HamburgerMenu() {
   const [open, setOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [products, setProducts] = useState<MenuProduct[]>([]);
+  const [categories, setCategories] = useState<MenuCategory[]>([]);
 
-useEffect(() => {
-  if (!open) return;
+  useEffect(() => {
+    if (!open) return;
 
-  async function loadProducts() {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("products")
-            .select("id, name, category")
-      .eq("is_active", true)
-      .order("name");
+    async function loadMenu() {
+      const supabase = createClient();
 
-    setProducts(data ?? []);
-  }
+      const [productsRes, categoriesRes] = await Promise.all([
+        supabase
+          .from("products")
+          .select("id, name, category")
+          .eq("is_active", true)
+          .is("deleted_at", null)
+          .order("name"),
+        supabase
+          .from("categories")
+                   .select("slug, name, accent")
+          .eq("is_visible", true)
+          .order("sort_order", { ascending: true }),
+      ]);
 
-  loadProducts();
-}, [open]);
+      setProducts(productsRes.data ?? []);
+      setCategories(categoriesRes.data ?? []);
+    }
 
-  const candleItems = products.filter((p) => p.category === "candle");
-  const giveawayItems = products.filter((p) => p.category === "giveaway");
+    loadMenu();
+  }, [open]);
+
+  
 
   function closeAll() {
     setOpen(false);
@@ -105,49 +125,40 @@ useEffect(() => {
                   </button>
                 </div>
 
-                {shopOpen && (
+                             {shopOpen && (
                   <div className="flex flex-col gap-1 pb-3 pl-4 text-sm normal-case tracking-normal">
-                    {/* Candles group */}
-                    <Link
-                      href="/shop?category=candles"
-                      onClick={closeAll}
-                      className="mt-1 mb-2 block text-sm font-bold uppercase tracking-wide"
-                      style={{ color: "#D8A1AF" }}
-                    >
-                      Candles
-                    </Link>
-                    {candleItems.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={`/product/${item.id}`}
-                        onClick={closeAll}
-                        className="py-1.5"
-                        style={{ color: "#000000" }}
-                      >
-                        {item.name}
-                      </Link>
-                    ))}
+                    {categories.map((cat, index) => {
+                      const items = products.filter((p) => p.category === cat.slug);
+                      if (items.length === 0) return null;
 
-                    {/* Giveaways group */}
-                    <Link
-                      href="/shop?category=giveaways"
-                      onClick={closeAll}
-                      className="mt-4 mb-2 block text-sm font-bold uppercase tracking-wide"
-                      style={{ color: "#6E86C7" }}
-                    >
-                      Giveaways
-                    </Link>
-                    {giveawayItems.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={`/product/${item.id}`}
-                        onClick={closeAll}
-                        className="py-1.5"
-                        style={{ color: "#000000" }}
-                      >
-                        {item.name}
-                      </Link>
-                    ))}
+                      return (
+                        <div key={cat.slug} className="flex flex-col gap-1">
+                          <Link
+                            href={`/shop?category=${cat.slug}`}
+                            onClick={closeAll}
+                            className={`mb-2 block text-sm font-bold uppercase tracking-wide ${
+                              index === 0 ? "mt-1" : "mt-4"
+                            }`}
+                            style={{
+                              color: cat.accent ?? DEFAULT_CATEGORY_COLOR,
+                            }}
+                          >
+                            {cat.name}
+                          </Link>
+                          {items.map((item) => (
+                            <Link
+                              key={item.id}
+                              href={`/product/${item.id}`}
+                              onClick={closeAll}
+                              className="py-1.5"
+                              style={{ color: "#000000" }}
+                            >
+                              {item.name}
+                            </Link>
+                          ))}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

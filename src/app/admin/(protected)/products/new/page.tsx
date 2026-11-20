@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { loadScentCatalog, syncScentsToCatalog } from "@/lib/scentCatalog";
@@ -73,6 +73,42 @@ function ImageSlotPicker({
   );
 }
 
+// The square next to a color's name: shows the color's first photo,
+// or the plain color if it has no photo yet. Tapping it opens the color picker.
+function ColorSquare({
+  hex,
+  file,
+  onChange,
+}: {
+  hex: string;
+  file?: File;
+  onChange: (hex: string) => void;
+}) {
+  const src = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+  useEffect(
+    () => () => {
+      if (src) URL.revokeObjectURL(src);
+    },
+    [src]
+  );
+
+  return (
+    <label
+      title="Pick a color"
+      className="relative h-9 w-9 flex-shrink-0 cursor-pointer overflow-hidden rounded-lg"
+      style={{ backgroundColor: hex, border: "1px solid rgba(0,0,0,0.15)" }}
+    >
+      {src && <img src={src} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+      <input
+        type="color"
+        value={hex}
+        onChange={(e) => onChange(e.target.value)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
+    </label>
+  );
+}
+
 export default function NewProductPage() {
   const router = useRouter();
 
@@ -81,12 +117,16 @@ export default function NewProductPage() {
   const [price, setPrice] = useState("");
   const [sizeMl, setSizeMl] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
-  const [category, setCategory] = useState<"candle" | "giveaway">("candle");
+  const [category, setCategory] = useState<string>("candle");
+  const [categoryOptions, setCategoryOptions] = useState<
+    { slug: string; name: string; is_visible: boolean }[]
+  >([]);
      const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([]);
        const [showOrderCounter, setShowOrderCounter] = useState(false);
 const [success, setSuccess] = useState(false);
   const [scents, setScents] = useState<string[]>([]);
   const [scentInput, setScentInput] = useState("");
+  const [isScented, setIsScented] = useState(true);
   const [existingScents, setExistingScents] = useState<string[]>([]);
 
   const [hasColors, setHasColors] = useState(false);
@@ -102,6 +142,23 @@ const [success, setSuccess] = useState(false);
     }
 
     loadExistingScents();
+  }, []);
+    useEffect(() => {
+    async function loadCategories() {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("categories")
+        .select("slug, name, is_visible")
+        .order("sort_order", { ascending: true });
+
+      if (error) {
+        console.error("Failed to load categories:", error.message);
+        return;
+      }
+      setCategoryOptions(data ?? []);
+    }
+
+    loadCategories();
   }, []);
 
   function addScent() {
@@ -206,6 +263,8 @@ const [success, setSuccess] = useState(false);
     setError(null);
 
     try {
+          // Unscented products save no scents at all
+      const finalScents = isScented ? scents : [];
       let imageUrls: string[] = [];
       let colorsPayload: any[] = [];
 
@@ -246,7 +305,7 @@ const [success, setSuccess] = useState(false);
           price: Number(price),
           size_ml: sizeMl ? Number(sizeMl) : null,
           is_featured: isFeatured,
-          scents,
+                 scents: finalScents,
           colors: colorsPayload,
           image_urls: imageUrls,
           option_groups: groupsFromDrafts(optionGroups),
@@ -260,7 +319,7 @@ const [success, setSuccess] = useState(false);
   throw new Error(insertError.message);
 }
 
-      await syncScentsToCatalog(scents);
+      await syncScentsToCatalog(finalScents);
 
       logAdminActivity({
         action: "product.created",
@@ -355,10 +414,38 @@ return; // skip the finally block's setSaving(false) — we're navigating away
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
+                   <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
             Scents
           </label>
 
+          <div className="mb-3 flex gap-3">
+            <button
+              type="button"
+              onClick={() => setIsScented(true)}
+              className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold"
+              style={{
+                backgroundColor: isScented ? "#DE4B33" : "transparent",
+                color: isScented ? "#FFF4E6" : "#000000",
+                borderColor: "#DE4B33",
+              }}
+            >
+              Scented
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsScented(false)}
+              className="flex-1 rounded-xl border px-4 py-3 text-sm font-semibold"
+              style={{
+                backgroundColor: !isScented ? "#DE4B33" : "transparent",
+                color: !isScented ? "#FFF4E6" : "#000000",
+                borderColor: "#DE4B33",
+              }}
+            >
+              Unscented
+            </button>
+          </div>
+
+          <div className={isScented ? "" : "hidden"}>
           {existingScents.length > 0 && (
             <div
               className="mb-3 flex flex-col gap-2 rounded-xl p-3"
@@ -449,21 +536,29 @@ return; // skip the finally block's setSaving(false) — we're navigating away
                   </span>
                 ))}
             </div>
-          )}
+                    )}
+          </div>
         </div>
 
         <div>
           <label className="mb-1 block text-xs font-semibold uppercase tracking-wide" style={{ color: "rgba(0,0,0,0.6)" }}>
             Category
           </label>
-          <select
+                  <select
             value={category}
-            onChange={(e) => setCategory(e.target.value as "candle" | "giveaway")}
+            onChange={(e) => setCategory(e.target.value)}
             className="w-full rounded-xl px-4 py-3 text-sm outline-none"
             style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFFFF", color: "#000000" }}
           >
-            <option value="candle">Candle</option>
-            <option value="giveaway">Giveaway</option>
+            {categoryOptions.length === 0 && <option value="candle">Candle</option>}
+                    {categoryOptions
+              .filter((c) => c.slug !== "customizable")
+              .map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.name}
+                {!c.is_visible ? " (hidden on site)" : ""}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -567,11 +662,10 @@ return; // skip the finally block's setSaving(false) — we're navigating away
                   style={{ border: "1.5px solid rgba(0,0,0,0.15)", backgroundColor: "#FFFDF8" }}
                 >
                   <div className="mb-3 flex items-center gap-3">
-                    <input
-                      type="color"
-                      value={color.hex}
-                      onChange={(e) => updateColor(color.key, { hex: e.target.value })}
-                      className="h-9 w-9 flex-shrink-0 rounded-lg border-0"
+                                       <ColorSquare
+                      hex={color.hex}
+                      file={color.imageFiles[0]}
+                      onChange={(hex) => updateColor(color.key, { hex })}
                     />
                     <input
                       value={color.name}

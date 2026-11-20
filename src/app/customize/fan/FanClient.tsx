@@ -43,12 +43,16 @@ const FAN_IMG_LARGE =
 const FAN_IMG_SMALL =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customized%20fan/custom%20fan%20small.png";
 
-const SIZES = [
+// Fallback only. The real sizes, prices and pictures come from the
+// Fan product's colors in the admin panel.
+const DEFAULT_SIZES = [
   { id: "small", label: "17x25 CM", price: 25, img: FAN_IMG_SMALL },
   { id: "large", label: "20x29 CM", price: 35, img: FAN_IMG_LARGE },
 ] as const;
 
-type SizeId = (typeof SIZES)[number]["id"];
+type SizeId = (typeof DEFAULT_SIZES)[number]["id"];
+
+type SizeOption = { id: SizeId; label: string; price: number; img: string };
 
 // Width in pixels of the finished design pictures. Lower numbers are
 // faster to prepare and upload, at the cost of some sharpness in print.
@@ -295,6 +299,7 @@ function FontPicker({
 }
 export default function CustomizeFanPage() {
   const [size, setSize] = useState<SizeId>("small");
+  const [SIZES, setSizes] = useState<readonly SizeOption[]>(DEFAULT_SIZES);
   const [activeSide, setActiveSide] = useState<SideId>("front");
   const [designMode, setDesignMode] = useState<"upload" | "build" | null>(
     null
@@ -335,9 +340,31 @@ export default function CustomizeFanPage() {
 
       const { data } = await supabase
         .from("products")
-        .select("option_groups")
+        .select("option_groups, colors")
         .eq("name", "Fan")
         .maybeSingle();
+
+      // Each color on the Fan product is one size: name, price, picture.
+      // Cheaper one is "small", the other "large".
+      const fanColors = (data?.colors ?? []) as {
+        name: string;
+        price?: number;
+        image_url?: string;
+        image_urls?: string[];
+      }[];
+
+      const loadedSizes: SizeOption[] = fanColors
+        .filter((c) => c.name && c.price != null && (c.image_urls?.[0] ?? c.image_url))
+        .sort((a, b) => Number(a.price) - Number(b.price))
+        .slice(0, 2)
+        .map((c, i) => ({
+          id: (i === 0 ? "small" : "large") as SizeId,
+          label: c.name,
+          price: Number(c.price),
+          img: (c.image_urls?.[0] ?? c.image_url) as string,
+        }));
+
+      if (loadedSizes.length === 2) setSizes(loadedSizes);
 
       const groups = data?.option_groups as
         | { label: string; choices: { name: string; hex?: string }[] }[]

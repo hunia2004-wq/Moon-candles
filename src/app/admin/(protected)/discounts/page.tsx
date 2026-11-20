@@ -133,6 +133,7 @@ export default function AdminPromotionsPage() {
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [productNamesByPromo, setProductNamesByPromo] = useState<Record<string, string[]>>({});
   const [products, setProducts] = useState<ProductOption[]>([]);
+    const [categoryLinks, setCategoryLinks] = useState<{ slug: string; name: string }[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -160,7 +161,22 @@ export default function AdminPromotionsPage() {
   useEffect(() => {
     load();
     loadProducts();
+    loadCategoryLinks();
   }, []);
+
+  // Visible categories for the "Banner links to" dropdown, so every category
+  // (including new ones) shows up automatically.
+  async function loadCategoryLinks() {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("categories")
+      .select("slug, name")
+      .eq("is_visible", true)
+      .order("sort_order", { ascending: true });
+
+    if (error || !data) return;
+    setCategoryLinks(data as { slug: string; name: string }[]);
+  }
 
   async function load() {
     setLoading(true);
@@ -238,7 +254,9 @@ export default function AdminPromotionsPage() {
     setForm({
       title: promo.title,
       subtitle: promo.subtitle ?? "",
-      link_url: promo.link_url ?? "/shop",
+            link_url: (promo.link_url ?? "/shop")
+        .replace("category=candles", "category=candle")
+        .replace("category=giveaways", "category=giveaway"),
       code: promo.code ?? "",
       discount_type: promo.discount_type ?? "",
       discount_value: promo.discount_value != null ? String(promo.discount_value) : "",
@@ -569,8 +587,11 @@ export default function AdminPromotionsPage() {
                     style={INPUT_STYLE}
                   >
                     <option value="/shop">Shop — all products</option>
-                    <option value="/shop?category=candles">Shop — candles only</option>
-                    <option value="/shop?category=giveaways">Shop — giveaways only</option>
+                                       {categoryLinks.map((c) => (
+                      <option key={c.slug} value={`/shop?category=${c.slug}`}>
+                        Shop — {c.name.toLowerCase()} only
+                      </option>
+                    ))}
                     {products.map((product) => (
                       <option key={product.id} value={`/product/${product.id}`}>
                         {product.name}

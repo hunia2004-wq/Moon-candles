@@ -53,6 +53,9 @@ const permanentMarker = Permanent_Marker({ subsets: ["latin"], weight: ["400"] }
 
 const ACCENT = "#DE4B33";
 
+// The `products` row the admin edits for the custom tambourine.
+const CUSTOM_TAMBOURINE_PRODUCT_ID = 31;
+
 const PATTERN_SCALE_OPTS = { minScale: 1, maxScale: 8 };
 
 const SIZES = [
@@ -353,6 +356,30 @@ export default function CustomizeTambourinePage() {
   const [size, setSize] =
     useState<SizeId>("small");
   const router = useRouter();
+
+  // Description typed in the admin panel (empty = show the built-in text)
+  const [productDescription, setProductDescription] = useState("");
+
+  useEffect(() => {
+    async function loadDescription() {
+      const supabase = createClient();
+
+      const { data, error } = await supabase
+        .from("products")
+        .select("description")
+        .eq("id", CUSTOM_TAMBOURINE_PRODUCT_ID)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Failed to load the custom tambourine description:", error.message);
+        return;
+      }
+
+      setProductDescription((data?.description ?? "").trim());
+    }
+
+    loadDescription();
+  }, []);
   const [ribbonColor, setRibbonColor] =
     useState<RibbonColorId>(
       RIBBON_COLORS[0].id
@@ -2144,19 +2171,14 @@ className="group fixed left-6 top-[calc(var(--header-h,80px)+12px)] z-50 flex it
         </h1>
 
         <p
-          className="text-sm md:text-base mb-10"
+          className="text-sm md:text-base mb-10 whitespace-pre-line"
           style={{
             color:
               "rgba(0,0,0,0.62)",
           }}
         >
-          Make your celebrations stand out
-          with our unique wooden tambourines.
-          Each piece features a fully customized
-          sticker with your chosen design and a
-          ribbon in your preferred color, making
-          it a wonderful, interactive keepsake for
-          weddings and major milestones.
+          {productDescription ||
+            "Make your celebrations stand out with our unique wooden tambourines. Each piece features a fully customized sticker with your chosen design and a ribbon in your preferred color, making it a wonderful, interactive keepsake for weddings and major milestones."}
         </p>
 
         <StepLabel
