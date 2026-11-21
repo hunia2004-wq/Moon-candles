@@ -30,6 +30,7 @@ type GalleryItem = {
   colorName: string | null;
   colorIndex: number;
 };
+import { optimized } from "@/lib/img";
 // First scent that isn't marked sold out, so the page never opens on a
 // sold-out scent when another one is available.
 function firstAvailableScent(p: Product, extraSoldOut: string[] = []): string | null {
@@ -2601,7 +2602,7 @@ className="group fixed left-6 top-[calc(var(--header-h,80px)+12px)] z-50 flex it
                         }}
                       >
                                                <img
-  src={url}
+src={optimized(url, 1080)}
   alt={`${productName} ${
     galleryColorNames[index] ?? ""
   } image ${index + 1}`}
@@ -2974,9 +2975,7 @@ className="group fixed left-6 top-[calc(var(--header-h,80px)+12px)] z-50 flex it
                             )}
                             {swatchImg && (
                               <img
-                                src={
-                                  swatchImg
-                                }
+                                                              src={optimized(swatchImg, 96)}
                                 alt={
                                   color.name
                                 }
@@ -4008,7 +4007,7 @@ onChange={(e) => setSelectedRibbon(e.target.value)}
                             <div className="flex items-center gap-2 min-w-0">
                               {line.image && (
                                 <img
-                                  src={line.image}
+                         src={optimized(line.image, 96)}
                                   alt=""
                                   className="h-10 w-10 flex-shrink-0 rounded-lg object-cover"
                                 />

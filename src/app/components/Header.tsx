@@ -8,7 +8,7 @@ import HamburgerMenu from "./HamburgerMenu";
 import CartDrawer from "./CartDrawer";
 import ConditionalPromoBanner from "./ConditionalPromoBanner";
 import { getCart, cartCount } from "@/lib/cart";
-
+import { optimized } from "@/lib/img";
 export default function Header() {
   const [count, setCount] = useState(0);
   const chromeRef = useRef<HTMLDivElement>(null);
@@ -64,7 +64,7 @@ export default function Header() {
           className="absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center"
         >
           <img
-            src={LOGO_URL}
+                       src={optimized(LOGO_URL, 384)}
             alt="Moon Candles"
             className={LOGO_SIZE.header}
           />

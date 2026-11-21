@@ -242,7 +242,11 @@ export async function captureAndUploadDesign(
 
     const { error: uploadError } = await supabase.storage
       .from("customer-uploads")
-      .upload(path, blob, { contentType: "image/png", upsert: false });
+           .upload(path, blob, {
+        contentType: "image/png",
+        cacheControl: "31536000",
+        upsert: false,
+      });
 
     if (uploadError) {
       console.error("Design capture upload failed:", uploadError.message);
@@ -418,7 +422,11 @@ export async function captureAndUploadLabel(input: LabelInput): Promise<string |
 
     const { error: uploadError } = await supabase.storage
       .from("customer-uploads")
-      .upload(path, blob, { contentType: "image/png", upsert: false });
+            .upload(path, blob, {
+        contentType: "image/png",
+        cacheControl: "31536000",
+        upsert: false,
+      });
 
     if (uploadError) {
       console.error("Sticker upload failed:", uploadError.message);

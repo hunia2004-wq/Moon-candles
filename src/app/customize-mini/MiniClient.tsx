@@ -13,6 +13,7 @@ import {
 import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { optimized } from "@/lib/img";
 const MINI_CANDLES_PRODUCT_ID = "mini-candles";
 const MINI_CANDLES_PRODUCT_NAME = "Mini Candles";
 const MINI_IMG =
@@ -542,7 +543,7 @@ function addComboOrderToCart() {
   style={{ border: "1px solid rgba(0,0,0,0.08)" }}
 >
   <img
-    src="https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/giveaways%20moon/mini%20candles%20all.jpg"
+       src={optimized(MINI_IMG, 1080)}
     alt="Mini candles reference"
     className="w-full h-auto object-cover"
   />

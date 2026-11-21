@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
+import { optimized } from "@/lib/img";
 // Shared by every card on the page, so each picture is processed only once.
 const resolved = new Map<string, string>();
 const pending = new Map<string, Promise<string>>();
@@ -9,8 +9,9 @@ const pending = new Map<string, Promise<string>>();
 const SCAN_SIZE = 160; // pictures are scanned at this size, not full resolution
 const OUT_SIZE = 640; // largest size of the cropped picture
 
-function centerImage(src: string, paddingRatio: number): Promise<string> {
-  const key = `${src}|${paddingRatio}`;
+function centerImage(rawSrc: string, paddingRatio: number): Promise<string> {
+  const key = `${rawSrc}|${paddingRatio}`;
+  const src = optimized(rawSrc, OUT_SIZE);
 
   const done = resolved.get(key);
   if (done) return Promise.resolve(done);
@@ -166,7 +167,7 @@ export default function AutoCenteredImage({
 
   return (
     <img
-      src={croppedSrc ?? src}
+           src={croppedSrc ?? optimized(src, OUT_SIZE)}
       alt={alt}
       className={className}
       style={{

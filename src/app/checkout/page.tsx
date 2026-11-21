@@ -13,7 +13,7 @@ import {
 } from "@/lib/cart";
 import { createClient } from "@/lib/supabase/client";
 import { computeCartPromotions, type AppliedPromotion } from "@/lib/promotions";
-
+import { optimized } from "@/lib/img";
 const ACCENT = "#8FAA82";
 const ERROR = "#C0392B";
 const CREAM = "#FFF4E6";
@@ -1127,7 +1127,7 @@ fetch("/api/send-order-confirmation", {
     >
       {src && (
         <img
-          src={src}
+                    src={optimized(src, 128)}
           alt={item.productName}
           className="h-full w-full object-contain"
         />

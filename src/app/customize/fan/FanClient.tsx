@@ -26,6 +26,7 @@ import { shrinkImage } from "@/lib/shrinkImage";
 import { replaceCartItem } from "@/lib/cartEdit";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { optimized } from "@/lib/img";
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: "400" });
 const dancing = Dancing_Script({ subsets: ["latin"] });
 const playfair = Playfair_Display({ subsets: ["latin"] });
@@ -437,6 +438,7 @@ export default function CustomizeFanPage() {
   const selectedSize = SIZES.find((s) => s.id === size)!;
 
   const fanImg = selectedSize.img;
+  const fanImgShown = optimized(fanImg, 1080);
   const layers = layersBySide[activeSide];
 
   const activeSideRef = useRef<SideId>(activeSide);
@@ -1414,8 +1416,8 @@ export default function CustomizeFanPage() {
     const maskWrapperStyle: React.CSSProperties = {
       width: "100%",
       height: "100%",
-      WebkitMaskImage: `url("${fanImg}")`,
-      maskImage: `url("${fanImg}")`,
+      WebkitMaskImage: `url("${fanImgShown}")`,
+      maskImage: `url("${fanImgShown}")`,
       WebkitMaskSize: "100% 100%",
       maskSize: "100% 100%",
       WebkitMaskRepeat: "no-repeat",
@@ -1684,7 +1686,7 @@ export default function CustomizeFanPage() {
           }}
         >
           <img
-            src={fanImg}
+         src={fanImgShown}
             alt={`Fan — ${activeSide}`}
             className="w-full h-auto pointer-events-none"
             draggable={false}
@@ -2128,7 +2130,7 @@ export default function CustomizeFanPage() {
               }}
             >
               <img
-                src={s.img}
+                             src={optimized(s.img, 96)}
                 alt=""
                 className="object-contain"
                 style={{

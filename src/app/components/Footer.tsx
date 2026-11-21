@@ -2,7 +2,7 @@
 
 import { LOGO_URL, LOGO_SIZE } from "@/lib/brand";
 import Link from "next/link";
-
+import { optimized } from "@/lib/img";
 // Same page background used across the site (see OurCollection's PAGE_BG,
 // the home page's outer div, etc.) — the footer now blends into the page
 // instead of being its own colored block.
@@ -58,7 +58,7 @@ export default function Footer() {
           className={`absolute left-1/2 flex -translate-x-1/2 items-center justify-center overflow-hidden select-none ${LOGO_SIZE.footerBox}`}
         >
           <img
-            src={LOGO_IMG}
+                        src={optimized(LOGO_IMG, 256)}
             alt="Moon Candles"
             className={LOGO_SIZE.footerImg}
           />

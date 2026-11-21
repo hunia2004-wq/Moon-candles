@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-
+import { optimized } from "@/lib/img";
 const CANDLE_IMG =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/customization%20moon%20candles/customization%201.jpg";
 const GIVEAWAY_IMG =
@@ -111,7 +111,7 @@ function TicketCard({
           style={imgBg ? { backgroundColor: imgBg } : undefined}
         >
           <img
-            src={img}
+            src={optimized(img, 1080)}
             style={{ transform: "scale(1.155)" }}
             alt={imgAlt}
             className={`h-full w-full transition-transform duration=500 group-hover:scale-105 ${

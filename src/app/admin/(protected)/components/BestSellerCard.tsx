@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAutoRefresh } from "@/lib/useAutoRefresh";
-
+import { optimized } from "@/lib/img";
 const ACCENT = "#DE4B33";
 const CARD_BG = "#FFF9F0";
 const MUTED = "rgba(0,0,0,0.55)";
@@ -148,7 +148,7 @@ export default function BestSellerCard() {
           <div className="flex items-center gap-4">
             {winner.image && (
               <img
-                src={winner.image}
+                              src={optimized(winner.image, 128)}
                 alt=""
                 className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
                 style={{ border: `1px solid ${BORDER}` }}

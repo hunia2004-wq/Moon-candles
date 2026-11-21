@@ -14,7 +14,7 @@ import {
    getCartItemThumbnails,
   getMiniCandlesPhoto,
 } from "@/lib/cart";
-
+import { optimized } from "@/lib/img";
 import { computeCartPromotions, type AppliedPromotion } from "@/lib/promotions";
 import { createPortal } from "react-dom";
 const ACCENT = "#8FAA82";
@@ -327,7 +327,7 @@ className="fixed right-0 top-0 z-[10002] flex h-full w-full max-w-sm flex-col sh
     >
       {src && (
         <img
-          src={src}
+                  src={optimized(src, 160)}
           alt={item.productName}
           className="h-full w-full object-contain"
         />
@@ -339,7 +339,7 @@ className="fixed right-0 top-0 z-[10002] flex h-full w-full max-w-sm flex-col sh
     src && (
       <img
         key={`photo-${n}`}
-        src={src}
+               src={optimized(src, 160)}
         alt={n === 0 ? "Front photo" : "Back photo"}
         className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
       />
@@ -352,7 +352,7 @@ className="fixed right-0 top-0 z-[10002] flex h-full w-full max-w-sm flex-col sh
     }
     return (
       <img
-        src={miniPhoto}
+               src={optimized(miniPhoto, 160)}
         alt="Your initials design"
         className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
       />
@@ -361,7 +361,7 @@ className="fixed right-0 top-0 z-[10002] flex h-full w-full max-w-sm flex-col sh
   {item.customization?.type === "monogram" &&
     item.customization.monogramImage && (
       <img
-        src={item.customization.monogramImage}
+                src={optimized(item.customization.monogramImage, 160)}
         alt="Custom lettering"
         className="h-16 w-16 flex-shrink-0 rounded-xl object-cover"
       />

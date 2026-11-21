@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { CarouselCandle } from "@/lib/supabase/types";
 import { useActiveCandle } from "./ActiveCandleContext";
 import { ICED_LATTE_CANDLE, sameImage } from "@/lib/flyingCandle";
+import { optimized } from "@/lib/img";
 const ANGLE_STEP = 25;
 
 export default function CandleCarousel({
@@ -247,7 +248,7 @@ const overlay = (
       >
         {active.image && (
           <img
-            src={active.image}
+                     src={optimized(active.image, 1080)}
             alt={`${active.name} - ${active.colorName}`}
             draggable={false}
             style={{
@@ -308,7 +309,7 @@ const overlay = (
             >
               {candle.image && (
                 <img
-                  src={candle.image}
+                                 src={optimized(candle.image, 96)}
                   alt={candle.colorName}
                   draggable={false}
                   style={{
@@ -488,7 +489,7 @@ const overlay = (
             >
               {candle.image && (
                 <img
-                  src={candle.image}
+                                   src={optimized(candle.image, 640)}
                   alt={`${candle.name} ${candle.colorName}`}
                   draggable={false}
                   className="h-full w-full rounded-lg object-contain"

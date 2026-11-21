@@ -9,7 +9,7 @@ import {
   Caveat,
   Lora,
 } from "next/font/google";
-
+import { optimized } from "@/lib/img";
 export const PLACEHOLDER_IMG_URL =
   "https://cbfwattzctamumezvreo.supabase.co/storage/v1/object/public/product-images/cust%20placeholder/candle%20placeholder.jpg";
 
@@ -430,7 +430,7 @@ export function LabelPlate({
       style={{
         containerType: "inline-size",
         backgroundColor: "#FFFFFF",
-        backgroundImage: `url("${PLACEHOLDER_IMG_URL}")`,
+               backgroundImage: `url("${optimized(PLACEHOLDER_IMG_URL, 1080)}")`,
         backgroundSize: "100% 100%",
         backgroundRepeat: "no-repeat",
       }}
@@ -668,7 +668,7 @@ export default function CandleLabelWrap({
   return (
     <div className="w-full max-w-md">
       <div className="relative w-full">
-        <img src={candleImg} alt="" className="w-full object-contain" />
+             <img src={optimized(candleImg, 800)} alt="" className="w-full object-contain" />
         <div
           className="absolute"
           style={{

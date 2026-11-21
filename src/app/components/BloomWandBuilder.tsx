@@ -13,7 +13,7 @@ import {
   removeCartItem,
 } from "@/lib/cart";
 import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
-
+import { optimized } from "@/lib/img";
 type OrderLine = {
   id: string;
   colorName: string;
@@ -1240,7 +1240,7 @@ async function handleBackPhotoChange(
                         }}
                       >
                         <img
-                          src={url}
+                                                  src={optimized(url, 1080)}
                           alt={`${productName} image ${
                             index + 1
                           }`}
@@ -1506,9 +1506,7 @@ async function handleBackPhotoChange(
                         >
                           {swatchImg && (
                             <img
-                              src={
-                                swatchImg
-                              }
+                                                          src={optimized(swatchImg, 96)}
                               alt={
                                 color.name
                               }
@@ -1634,17 +1632,16 @@ async function handleBackPhotoChange(
 
                 {selectedColor && (
                   <div className="mb-3 flex items-center gap-2">
-                    <img
-                      src={
+                                       <img
+                      src={optimized(
                         selectedColor.image_url ??
-                        selectedColor.image_urls?.[0] ??
-                        selectedColor.options?.find(
-                          (o) =>
-                            o.name ===
-                            "Without Photo"
-                        )?.image_url ??
-                        previewImage
-                      }
+                          selectedColor.image_urls?.[0] ??
+                          selectedColor.options?.find(
+                            (o) => o.name === "Without Photo"
+                          )?.image_url ??
+                          previewImage,
+                        128
+                      )}
                       alt={
                         selectedColor.name
                       }
@@ -1900,9 +1897,7 @@ async function handleBackPhotoChange(
 
                             {line.image && (
                               <img
-                                src={
-                                  line.image
-                                }
+                                                             src={optimized(line.image, 128)}
                                 alt="Wand color"
                                 className="h-12 w-12 rounded-xl object-contain"
                                 style={{

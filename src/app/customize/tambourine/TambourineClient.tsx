@@ -35,6 +35,7 @@ import { shrinkImage } from "@/lib/shrinkImage";
 import { replaceCartItem } from "@/lib/cartEdit";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { optimized } from "@/lib/img";
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: ["400"] });
 const dancingScript = Dancing_Script({ subsets: ["latin"], weight: ["700"] });
 const sacramento = Sacramento({ subsets: ["latin"], weight: ["400"] });
@@ -1715,7 +1716,7 @@ className="group fixed left-6 top-[calc(var(--header-h,80px)+12px)] z-50 flex it
             }}
           >
             <img
-              src={selectedSize.img}
+        src={optimized(selectedSize.img, 800)}
               alt="Your customized tambourine"
               className="w-full h-auto pointer-events-none"
               draggable={false}
@@ -2208,7 +2209,7 @@ className="group fixed left-6 top-[calc(var(--header-h,80px)+12px)] z-50 flex it
               }}
             >
               <img
-                src={s.img}
+                     src={optimized(s.img, 96)}
                 alt=""
                 className="object-contain"
                 style={{
@@ -2698,7 +2699,7 @@ className="group fixed left-6 top-[calc(var(--header-h,80px)+12px)] z-50 flex it
           }}
         >
           <img
-            src={selectedSize.img}
+            src={optimized(selectedSize.img, 800)}
             alt="Your customized tambourine"
             className="w-full h-auto"
             draggable={false}

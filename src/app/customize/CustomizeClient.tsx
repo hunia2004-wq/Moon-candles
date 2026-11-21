@@ -16,7 +16,7 @@ import { replaceCartItem } from "@/lib/cartEdit";
 import { uploadCustomerImage } from "@/lib/uploadCustomerImage";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-
+import { optimized } from "@/lib/img";
 // The `products` row that the admin panel edits for the custom candle.
 // (The cart already used 43 as the productId, so the page now reads that same row.)
 const CUSTOM_CANDLE_PRODUCT_ID = 43;
@@ -480,7 +480,7 @@ export default function CustomizeCandlePage() {
                 backgroundColor: size === s.id ? "#EFE3C4" : "transparent",
               }}
             >
-              <img src={s.img} alt="" className="h-10 w-10 object-contain" />
+              <img src={optimized(s.img, 96)} alt="" className="h-10 w-10 object-contain" />
 
               <span
                 className="text-xs font-semibold tracking-wide"
@@ -650,8 +650,8 @@ export default function CustomizeCandlePage() {
             </div>
 
             {/* CANDLE */}
-            <img
-              src={selectedSize.img}
+                       <img
+              src={optimized(selectedSize.img, 640)}
               alt=""
               className="w-48 object-contain md:w-56"
             />
@@ -693,7 +693,7 @@ export default function CustomizeCandlePage() {
                 style={{ border: "1px solid rgba(0,0,0,0.08)" }}
               >
                 <img
-                  src={selectedSize.reference}
+                                  src={optimized(selectedSize.reference, 1080)}
                   alt="How it looks in real life"
                   className="w-full"
                 />

@@ -9,6 +9,7 @@ import { ICED_LATTE_CANDLE } from "@/lib/flyingCandle";
 import OurCollection from "./components/OurCollection";
 import Testimonials from "./components/Testimonials";
 import FlyingCandle from "./components/FlyingCandle";
+import { optimized } from "@/lib/img";
 const caveat = Caveat({ subsets: ["latin"], weight: ["600", "700"] });
 const cormorant = Cormorant_Garamond({
 
@@ -148,7 +149,7 @@ height: "260px",
 
     {/* FULL HERO IMAGE — moon + candles combined into one asset */}
     <img
-      src={FULL_HERO_IMG}
+           src={optimized(FULL_HERO_IMG, 1080)}
       alt="Moon Candles collection"
       style={{
         position: "absolute",
@@ -165,7 +166,7 @@ height: "260px",
     />
         <img
       data-fly-from
-      src={ICED_LATTE_CANDLE}
+           src={optimized(ICED_LATTE_CANDLE, 640)}
       alt="Iced strawberry matcha latte candle"
       className="absolute object-contain"
             style={{

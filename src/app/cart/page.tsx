@@ -14,7 +14,7 @@ import {
   getCartItemThumbnails,
 } from "@/lib/cart";
 import { computeCartPromotions, type AppliedPromotion } from "@/lib/promotions";
-
+import { optimized } from "@/lib/img";
 const ACCENT = "#8FAA82";
 const CREAM = "#FFF4E6";
 const SAND = "#EFE3C4";
@@ -192,7 +192,7 @@ useEffect(() => {
     >
       {src && (
         <img
-          src={src}
+              src={optimized(src, 160)}
           alt={item.productName}
           className="h-full w-full object-contain"
         />
@@ -204,7 +204,7 @@ useEffect(() => {
     src && (
       <img
         key={`photo-${n}`}
-        src={src}
+              src={optimized(src, 160)}
         alt={n === 0 ? "Front photo" : "Back photo"}
         className="h-16 w-16 flex-shrink-0 rounded-xl object-cover md:h-[68px] md:w-[68px]"
       />
@@ -214,7 +214,7 @@ useEffect(() => {
   {item.customization?.type === "monogram" &&
     item.customization.monogramImage && (
       <img
-        src={item.customization.monogramImage}
+                src={optimized(item.customization.monogramImage, 160)}
         alt="Custom lettering"
         className="h-16 w-16 flex-shrink-0 rounded-xl object-cover md:h-[68px] md:w-[68px]"
       />

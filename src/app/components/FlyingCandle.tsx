@@ -7,7 +7,7 @@ type Props = {
   alt?: string;
   zIndex?: number;
 };
-
+import { optimized } from "@/lib/img";
 const clamp = (n: number) => Math.min(1, Math.max(0, n));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -104,7 +104,7 @@ export default function FlyingCandle({ src, alt = "", zIndex = 30 }: Props) {
   return (
     <img
       ref={flyRef}
-      src={src}
+            src={optimized(src, 640)}
       alt={alt}
       aria-hidden="true"
       className="pointer-events-none fixed left-0 top-0 select-none object-contain"

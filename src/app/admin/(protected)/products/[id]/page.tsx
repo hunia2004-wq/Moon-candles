@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { loadScentCatalog, syncScentsToCatalog } from "@/lib/scentCatalog";
 import type { Product } from "@/lib/supabase/types";
+import { optimized } from "@/lib/img";
 import OptionGroupsEditor, {
   draftsFromGroups,
   groupsFromDrafts,
@@ -78,7 +79,7 @@ function ImageSlotPicker({
           style={{ border: "1px solid rgba(0,0,0,0.15)" }}
         >
           <img
-            src={img.kind === "existing" ? img.url : URL.createObjectURL(img.file)}
+src={img.kind === "existing" ? optimized(img.url, 160) : URL.createObjectURL(img.file)}
             alt=""
             className="h-full w-full object-cover"
           />
@@ -127,7 +128,7 @@ function ColorSquare({
   onChange: (hex: string) => void;
 }) {
   const src = useMemo(
-    () => (!image ? null : image.kind === "existing" ? image.url : URL.createObjectURL(image.file)),
+() => (!image ? null : image.kind === "existing" ? optimized(image.url, 96) : URL.createObjectURL(image.file)),
     [image]
   );
   useEffect(
