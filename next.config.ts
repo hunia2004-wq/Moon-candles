@@ -5,8 +5,9 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   images: {
-    formats: ["image/avif", "image/webp"],
-   minimumCacheTTL: 60 * 60 * 24 * 365,
+    unoptimized: process.env.NODE_ENV === "development",
+    formats: ["image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 365,
     remotePatterns: [
       {
         protocol: "https",
