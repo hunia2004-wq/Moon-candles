@@ -228,9 +228,9 @@ const [success, setSuccess] = useState(false);
     for (const file of files) {
       const path = `admin-uploads/${Date.now()}-${makeKey()}-${file.name}`;
 
-      const { error: uploadError } = await supabase.storage
+          const { error: uploadError } = await supabase.storage
         .from("product-images")
-        .upload(path, file);
+       .upload(path, file, { cacheControl: "31536000" });
 
       if (uploadError) {
         throw new Error(`Image upload failed: ${uploadError.message}`);

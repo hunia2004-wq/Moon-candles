@@ -447,9 +447,9 @@ export default function EditProductPage() {
 
       const path = `admin-uploads/${Date.now()}-${makeKey()}-${img.file.name}`;
 
-      const { error: uploadError } = await supabase.storage
+         const { error: uploadError } = await supabase.storage
         .from("product-images")
-        .upload(path, img.file);
+        .upload(path, img.file, { cacheControl: "31536000" });
 
       if (uploadError) {
         throw new Error(`Image upload failed: ${uploadError.message}`);

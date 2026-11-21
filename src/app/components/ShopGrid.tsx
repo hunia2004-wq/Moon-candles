@@ -6,8 +6,9 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Product } from "@/lib/supabase/types";
 import { createClient } from "@/lib/supabase/client";
+import { loadPromotionTags, type PromotionTagLookup } from "@/lib/promotions";
 import AutoCenteredImage from "./AutoCenteredImage";
-
+import { optimized } from "@/lib/img";
 // For products with per-option pricing (e.g. Unscented/Scented at
 // different prices), compute the real min–max range from the
 // product's actual color/option prices instead of a hardcoded string.
@@ -268,7 +269,6 @@ function CardShell({
     <div className="group flex flex-col items-center text-center">
       <div className="relative w-full">
         <Link href={href} ref={linkRef} className="relative block">
-          {/* Color layer: always behind the product */}
           <div
             aria-hidden="true"
             className="absolute inset-0"
@@ -279,14 +279,25 @@ function CardShell({
               boxShadow: highlight ? `0 0 0 3px ${accent}` : "none",
             }}
           />
-
-          {/* Product layer: exactly centered, never squeezed */}
           <div className="relative z-10 flex aspect-[6/7] items-center justify-center p-3">
             <div className="relative flex aspect-square w-full items-center justify-center transition-transform duration-500 ease-out group-hover:scale-[1.05]">
               {stage}
             </div>
           </div>
         </Link>
+
+        {tag && (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 z-[15] px-2 pb-5 pt-1.5 text-center text-[10px] font-bold uppercase leading-tight tracking-[0.1em]"
+            style={{
+              backgroundColor: "#DE4B33",
+              color: "#FFF4E6",
+              borderRadius: "0 0 24px 24px",
+            }}
+          >
+            {tag}
+          </div>
+        )}
 
         <Link
           href={href}
@@ -302,15 +313,6 @@ function CardShell({
       </div>
 
       <div className="mt-7 w-full">
-        {tag && (
-          <span
-            className="mb-1 block text-[9px] font-semibold uppercase tracking-[0.22em]"
-            style={{ color: "#DE4B33" }}
-          >
-            {tag}
-          </span>
-        )}
-
         <Link
           href={href}
           className="block font-serif text-[17px] leading-tight md:text-lg"
@@ -342,7 +344,6 @@ function CardShell({
     </div>
   );
 }
-
 // Plain text options with a thin underline on the chosen one.
 function OptionChip({
   label,
@@ -387,14 +388,14 @@ function StageImage({
   if (photo) {
     return (
       <img
-        src={src}
+        src={optimized(src, 640)}
         alt={alt}
         className="h-full w-full rounded-2xl object-contain"
         style={{ objectFit: "contain" }}
       />
     );
   }
-  return <AutoCenteredImage src={src} alt={alt} className="h-full w-full object-contain" />;
+  return <AutoCenteredImage src={optimized(src, 640)} alt={alt} className="h-full w-full object-contain" />;
 }
 
 /* ---------- ZOOM BETWEEN SIZES (candles) ---------- */
@@ -457,7 +458,7 @@ function ZoomImage({
             className="absolute inset-0 flex items-center justify-center"
             style={{ opacity: im.id === shownId ? 1 : 0 }}
           >
-            <AutoCenteredImage src={im.src} alt={alt} className="h-full w-full object-contain" />
+<AutoCenteredImage src={optimized(im.src, 640)} alt={alt} className="h-full w-full object-contain" />
           </div>
         ))}
       </div>
@@ -517,6 +518,7 @@ function SizedCandleCard({
   accent,
   tint,
   swatches,
+  tag,
 }: {
   title: string;
   sizes: CandleSize[];
@@ -525,6 +527,7 @@ function SizedCandleCard({
   accent: string;
   tint: string;
   swatches?: Swatch[];
+  tag?: string | null;
 }) {
   const [sizeId, setSizeId] = useState<"small" | "large">(initial);
   const current = sizes.find((s) => s.id === sizeId)!;
@@ -535,6 +538,7 @@ function SizedCandleCard({
       accent={accent}
       tint={tint}
       title={title}
+      tag={tag}
       price={`${current.price} EGP`}
       stage={
         <ZoomImage
@@ -577,6 +581,7 @@ function OptionCard({
   price,
   scale = 1,
   blend = true,
+  tag,
 }: {
   href: string;
   title: string;
@@ -589,6 +594,7 @@ function OptionCard({
   price: number;
   scale?: number;
   blend?: boolean;
+  tag?: string | null;
 }) {
   return (
     <CardShell
@@ -596,6 +602,7 @@ function OptionCard({
       accent={accent}
       tint={tint}
       title={title}
+      tag={tag}
       price={`${price} EGP`}
       stage={
         img ? (
@@ -636,10 +643,12 @@ function FanCard({
   product,
   accent,
   tint,
+  tag,
 }: {
   product: Product;
   accent: string;
   tint: string;
+  tag?: string | null;
 }) {
   const [sizeId, setSizeId] = useState<"small" | "large">("small");
 
@@ -680,6 +689,7 @@ function FanCard({
       tint={tint}
       price={current.price}
       scale={current.scale}
+      tag={tag}
       chipRows={[
         fanSizes.map((s) => (
           <OptionChip
@@ -716,10 +726,12 @@ function TambourineCard({
   product,
   accent,
   tint,
+  tag,
 }: {
   product: Product;
   accent: string;
   tint: string;
+  tag?: string | null;
 }) {
   const [type, setType] = useState<TambType>("custom");
   const [sizeId, setSizeId] = useState<TambSize>("small");
@@ -762,6 +774,7 @@ function TambourineCard({
       accent={accent}
       tint={tint}
       price={price}
+      tag={tag}
       chipRows={[
         [
           <OptionChip
@@ -884,6 +897,7 @@ export default function ShopGrid({
   const targetProduct = searchParams.get("product");
   const refs = useRef<Record<number, HTMLAnchorElement | null>>({});
   const [discountsByProduct, setDiscountsByProduct] = useState<Record<number, ActiveDiscount>>({});
+  const [promoTags, setPromoTags] = useState<PromotionTagLookup>({ tagsFor: () => [] });
 
   useEffect(() => {
     if (!targetProduct) return;
@@ -900,6 +914,7 @@ export default function ShopGrid({
   // picked up on the shop page's next load without any code changes.
   useEffect(() => {
     loadActiveDiscounts();
+    loadPromotionTags().then(setPromoTags);
   }, []);
 
   async function loadActiveDiscounts() {
@@ -954,6 +969,7 @@ export default function ShopGrid({
         const isTarget = product.name === targetProduct;
         const soldOut = !!(product as Product & { out_of_stock?: boolean | null }).out_of_stock;
         const priceOverride = getPriceRange(product);
+        const productTag = promoTags.tagsFor(product.id).join(" · ") || null;
 
         if (product.id === 21) {
           return (
@@ -966,6 +982,7 @@ export default function ShopGrid({
               accent={accent}
               tint={tint}
               swatches={swatchList(product)}
+              tag={productTag}
             />
           );
         }
@@ -973,11 +990,11 @@ export default function ShopGrid({
         const nameKey = product.name.trim().toLowerCase();
 
         if (nameKey === "fan") {
-          return <FanCard key={product.id} product={product} accent={accent} tint={tint} />;
+          return <FanCard key={product.id} product={product} accent={accent} tint={tint} tag={productTag} />;
         }
 
         if (nameKey === "tambourine") {
-          return <TambourineCard key={product.id} product={product} accent={accent} tint={tint} />;
+          return <TambourineCard key={product.id} product={product} accent={accent} tint={tint} tag={productTag} />;
         }
 
         const discount = discountsByProduct[product.id];
@@ -990,19 +1007,7 @@ export default function ShopGrid({
           }
         }
 
-        // Tag label for every discount type — percentage/fixed also get
-        // a recalculated price above; BOGO and free shipping are
-        // tag-only, since there's no single-item price to change.
-        let badgeLabel: string | null = null;
-        if (discount?.type === "percentage" && discount.value != null) {
-          badgeLabel = `${discount.value}% off`;
-        } else if (discount?.type === "fixed" && discount.value != null) {
-          badgeLabel = `${discount.value} EGP off`;
-        } else if (discount?.type === "bogo") {
-          badgeLabel = "Buy 1 get 1";
-        } else if (discount?.type === "free_shipping") {
-          badgeLabel = "Free shipping";
-        }
+        const badgeLabel = productTag;
 
         const isPhoto = PHOTO_PRODUCTS.includes(nameKey);
 

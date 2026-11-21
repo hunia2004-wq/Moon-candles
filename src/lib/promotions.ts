@@ -191,3 +191,90 @@ export async function computeCartPromotions(items: CartItem[]): Promise<Promotio
 
     return { discountAmount: Math.round(totalDiscount * 100) / 100, freeGiftEligible, applied };
 }
+
+/* ------------------------------------------------------------------ */
+/* PROMOTION TAGS (shop cards + product page)                          */
+/* ------------------------------------------------------------------ */
+
+type TagPromo = {
+  id: string;
+  discount_type: string | null;
+  discount_value: number | null;
+  min_spend_amount: number | null;
+  bundle_quantity: number | null;
+  bundle_price: number | null;
+  tiered_min_qty: number | null;
+};
+
+function tagLabelFor(p: TagPromo): string | null {
+  const v = p.discount_value;
+  switch (p.discount_type) {
+    case "percentage":
+      return v ? `${v}% off` : null;
+    case "fixed":
+      return v ? `${v} EGP off` : null;
+    case "bogo":
+      return "Buy 1 get 1";
+case "second_item_percent_off":
+  return v ? (v === 100 ? "Get the 2nd free" : `Get ${v}% off the 2nd`) : null;
+    case "buy_x_get_y_free":
+      return p.tiered_min_qty ? `Buy ${p.tiered_min_qty} get 1 free` : null;
+    case "tiered_quantity_percent_off":
+      return v && p.tiered_min_qty ? `Buy ${p.tiered_min_qty}+, ${v}% off` : null;
+    case "bundle_price":
+      return p.bundle_quantity && p.bundle_price != null
+        ? `${p.bundle_quantity} for ${p.bundle_price} EGP`
+        : null;
+    case "min_spend_percent_off":
+      return v && p.min_spend_amount ? `${v}% off over ${p.min_spend_amount} EGP` : null;
+    case "free_gift":
+      return p.min_spend_amount ? `Free gift over ${p.min_spend_amount} EGP` : null;
+    case "free_shipping":
+      return "Free shipping";
+    default:
+      return null;
+  }
+}
+
+export type PromotionTagLookup = { tagsFor: (productId: number) => string[] };
+
+// Same rule as checkout: a promotion covers its attached products,
+// or every product when none are attached.
+export async function loadPromotionTags(): Promise<PromotionTagLookup> {
+  const none: PromotionTagLookup = { tagsFor: () => [] };
+  const supabase = createClient();
+  const nowIso = new Date().toISOString();
+
+  const { data: promos, error } = await supabase
+    .from("promotions")
+    .select("id, discount_type, discount_value, min_spend_amount, bundle_quantity, bundle_price, tiered_min_qty")
+    .eq("is_active", true)
+    .or(`starts_at.is.null,starts_at.lte.${nowIso}`)
+    .or(`ends_at.is.null,ends_at.gte.${nowIso}`)
+    .order("sort_order", { ascending: true });
+
+  if (error || !promos || promos.length === 0) return none;
+
+  const { data: links } = await supabase
+    .from("promotion_products")
+    .select("promotion_id, product_id")
+    .in("promotion_id", promos.map((p) => p.id));
+
+  const linked: Record<string, Set<number>> = {};
+  (links ?? []).forEach((row: any) => {
+    (linked[row.promotion_id] ??= new Set()).add(Number(row.product_id));
+  });
+
+  return {
+    tagsFor(productId: number) {
+      const out: string[] = [];
+      for (const p of promos as TagPromo[]) {
+        const ids = linked[p.id];
+        if (ids && ids.size > 0 && !ids.has(productId)) continue;
+        const label = tagLabelFor(p);
+        if (label && !out.includes(label)) out.push(label);
+      }
+      return out;
+    },
+  };
+}
