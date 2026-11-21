@@ -223,8 +223,8 @@ height: "260px",
       <div style={{ position: "absolute", width: "45px", height: "112px", right: "147px", top: "203px", background: "#46553D", borderRadius: "100% 0 100% 0", transform: "rotate(45deg)" }} />
     </div>
 
-    <img
-      src={FULL_HERO_IMG}
+      <img
+      src={optimized(FULL_HERO_IMG, 1080)}
       alt="Moon Candles collection"
       style={{
         position: "relative",
@@ -235,8 +235,8 @@ height: "260px",
       }}
     />
         <img
-      data-fly-from
-      src={ICED_LATTE_CANDLE}
+          data-fly-from
+      src={optimized(ICED_LATTE_CANDLE, 640)}
       alt="Iced strawberry matcha latte candle"
       className="absolute object-contain"
            style={{
